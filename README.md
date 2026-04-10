@@ -1,2 +1,2 @@
 # cgtest
-unit test framework for c
+A unit test framework for c
