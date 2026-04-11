@@ -1,3 +1,3 @@
 # cgtest
-A unit test framework for c
-abc
+A C unit test DSL compiler.
+
