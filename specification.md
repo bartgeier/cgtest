@@ -30,14 +30,23 @@ What the project should NOT do.
 
 ---
 
-## 4. Features
+## 4. Features of cgtest.exe
 
-### Core Features
-* Pars command-line arguments
-  * -d --dir adds a directory path (to test functions) to the list of test directorys
+### Pars command-line arguments
+  * For parsing the command-line arguments cgtest uses the arq lib from
+  https://github.com/bartgeier/arq
+  * -p --path path to the cgtest-config.json.
+    If cgtest-config.json not yet exist than create a default cgtest-config.json
+    and end cgtest.exe with an appropriate message.
+  * -v --version of cgtest
+  * -h --help of cgtest
+### cgtest-config.json
+  * -h --header output path where cgtest.exe generates the cgtest.h file.  
+    If cgtest.h already exist it compares the date with cgtest.exec,  
+    if the date from cgtest.exe is younger than cgtest-config.json,  
+    cgtest.exe regenerates cgtest.h
   * -c --compiler "gcc -std=c99 -o /unittest/testrunner.exe" 
-  * instead of using for --compiler we could use a cgtest-config.json
-    - json parser single header in c https://github.com/zserge/jsmn
+  *- json parser single header in c https://github.com/zserge/jsmn
 * Search test directorys for files their nameing starts with test_...  
   - test_math.c
   - test_strview.c
