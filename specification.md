@@ -2,13 +2,19 @@
 
 ## 1. Overview
 cgtest is a command-line C unit test DSL compiler application.
-It compiles and runs a test runner from test files.
-cgtest.exe:  
-* generates cgtest-runner.c 
+It compiles and runs a test runner from test files.  
+**cgtest.exe:**  
+* generates cgtest-runner.c with the info from cgtest-config.json
 * compiles cgtest-runner.c and 
-* executes the compiled binary.
+* executes the compiled binary.  
 
-Example:
+### Examples
+```cgtest.exe --config ./unitest/cgtest/cgtest-config.json```  
+Generates testrunner and excecute it.
+
+```cgtest.exe --create ./unitest/cgtest/cgtest-config.json```  
+Creates a default template cgtest-config.json  
+Creates the cgtest.h file it contains macros for unit tests.
 
 ---
 
@@ -35,18 +41,22 @@ What the project should NOT do.
 ### Pars command-line arguments
   * For parsing the command-line arguments cgtest uses the arq lib from
   https://github.com/bartgeier/arq
-  * -p --path path to the cgtest-config.json.
-    If cgtest-config.json not yet exist than create a default cgtest-config.json
-    and end cgtest.exe with an appropriate message.
+  * -c --config path to the cgtest-config.json.
+    If cgtest-config.json doesn't exist than error and exit cgtest.exe with an appropriate message.  
+    ```cgtest.exe --config ./unitest/cgtest/cgtest-config.json```
+  * -C --create path to where cgtest-config.json should be created.
+    If cgtest-config.json already exist than error and exit cgtest.exe with an appropriate message.
   * -v --version of cgtest
   * -h --help of cgtest
+
 ### cgtest-config.json
-  * -h --header output path where cgtest.exe generates the cgtest.h file.  
-    If cgtest.h already exist it compares the date with cgtest.exec,  
-    if the date from cgtest.exe is younger than cgtest-config.json,  
-    cgtest.exe regenerates cgtest.h
-  * -c --compiler "gcc -std=c99 -o /unittest/testrunner.exe" 
-  *- json parser single header in c https://github.com/zserge/jsmn
+  * set compiler command "gcc -std=c99 -O3" 
+  * Include path list
+  * Source file list
+  * Output path to generate cgtest-runner.c and cgtest-runner.exe
+  * Directory list where to find the unitest c test....c files.  
+
+Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 * Search test directorys for files their nameing starts with test_...  
   - test_math.c
   - test_strview.c
