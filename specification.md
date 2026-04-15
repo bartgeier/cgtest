@@ -9,12 +9,23 @@ It compiles and runs a test runner from test files.
 * executes the compiled binary.  
 
 ### Examples
-```cgtest.exe --config ./unitest/cgtest/cgtest-config.json```  
-Generates testrunner and excecute it.
-
 ```cgtest.exe --create ./unitest/cgtest/cgtest-config.json```  
-Creates a default template cgtest-config.json  
-Creates the cgtest.h file it contains macros for unit tests.
+If path doesn't exist error and exit.
+Creates a default template cgtest-config.json file. 
+This file contains information and paths to create the cgtest_runner.c and exe.
+All path in the config are relative path to the cgtest-config.json file.
+
+```cgtest.exe --config ./unitest/cgtest/cgtest-config.json```  
+If path doesn't exist error and exit.  
+If file already exist error and exit.  
+Path to cgtest.h is in the cgtest-config.json file.  
+Creates the cgtest.h file if it not exist.  
+If cgtest.h exist it checks and compares the date with the date from cgtest.exe  
+if cgtest.exe is younger then cgtest.exe overwrite cgtest.h. 
+Generates testrunner and excecute it.  
+
+### cgtest.h
+cgtest.h it contains macros for unit tests.
 
 ---
 
