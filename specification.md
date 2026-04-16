@@ -300,6 +300,7 @@ This ensures:
 | cgtest_config.c | JSON parsing (jsmn)                 |
 | cgtest_arq.c    | CLI parsing (arq)                   |
 | cgtest_lexer.c  | C source parsing for test discovery |
+| cgtest.h        | used to copy into cgtest_header.c   |
 | cgtest_header.c | cgtest.h generation                 |
 
 ---
@@ -308,8 +309,9 @@ This ensures:
 
 cgtest uses minimal external components:
 
-* arq (CLI parsing)
-* jsmn (JSON parsing)
+* arq (CLI parsing) https://github.com/bartgeier/arq
+* jsmn (JSON parsing) https://github.com/zserge/jsmn
+* amalgamate https://github.com/rindeal/Amalgamate
 
 Both are single-header style dependencies.
 
@@ -326,6 +328,19 @@ Build process is designed to be:
 * Single-file bootstrap friendly
 * Scriptable
 * Dependency-light
+
+Uses **rindal Amalgamate** to create from modules a single cgtest.c file.  
+
+### 10.1 Project Directory 
+Nob builds these directorys if they not exist:
+
+| Directory  | Responsibility                      |
+| ---------- | ----------------------------------- |
+| source     | source code                         |
+| arq        | arq.h and License from arq          |
+| jsmn       | jsmn and License from jsmn          |
+| amalgamate | amalgamate executable amalgamate.c creates final cgtest.c |
+
 
 ---
 
