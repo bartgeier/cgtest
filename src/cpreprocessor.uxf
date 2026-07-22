@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="15.1">
+  <zoom_level>9</zoom_level>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>927</x>
+      <y>162</y>
+      <w>486</w>
+      <h>27</h>
+    </coordinates>
+    <panel_attributes>CPreprocessor.line_state state machine (cpreprocessor_next_token)
+bg=#EEEEEE
+lt=.</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLState</id>
+    <coordinates>
+      <x>423</x>
+      <y>207</y>
+      <w>1251</w>
+      <h>63</h>
+    </coordinates>
+    <panel_attributes>AFTER_HASH
+--
+just saw '#' at start of line</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLState</id>
+    <coordinates>
+      <x>423</x>
+      <y>459</y>
+      <w>342</w>
+      <h>162</h>
+    </coordinates>
+    <panel_attributes>NONE
+--
+no directive in progress
+(initial state)</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLState</id>
+    <coordinates>
+      <x>1089</x>
+      <y>459</y>
+      <w>234</w>
+      <h>162</h>
+    </coordinates>
+    <panel_attributes>EXPECT_HEADER_NAME
+--
+next token must be lexed
+as a header-name</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLState</id>
+    <coordinates>
+      <x>432</x>
+      <y>711</y>
+      <w>1278</w>
+      <h>63</h>
+    </coordinates>
+    <panel_attributes>AFTER_HAS_INCLUDE
+--
+saw __has_include/__has_embed,
+awaiting '('</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1287</x>
+      <y>261</y>
+      <w>153</w>
+      <h>216</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+"include" / "embed"</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;220.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1638</x>
+      <y>261</y>
+      <w>234</w>
+      <h>468</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+"__has_include" / "__has_embed"</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;500.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>441</x>
+      <y>261</y>
+      <w>189</w>
+      <h>216</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+new line &amp; token≠'#'
+OR same-line, other token</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;220.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1134</x>
+      <y>612</y>
+      <w>36</w>
+      <h>117</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+'('</panel_attributes>
+    <additional_attributes>10.0;110.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>441</x>
+      <y>612</y>
+      <w>189</w>
+      <h>117</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+new line &amp; token≠'#'
+OR same-line, other token</panel_attributes>
+    <additional_attributes>10.0;110.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>756</x>
+      <y>531</y>
+      <w>351</w>
+      <h>54</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+new line &amp; token≠'#'
+OR header-name token produced
+OR same-line fallback, other token</panel_attributes>
+    <additional_attributes>370.0;20.0;10.0;20.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1197</x>
+      <y>612</y>
+      <w>234</w>
+      <h>117</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fallback token =
+"__has_include" / "__has_embed"</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;110.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>720</x>
+      <y>612</y>
+      <w>234</w>
+      <h>117</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+"__has_include" / "__has_embed"
+(seen mid-line, e.g. inside #if)</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;110.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>432</x>
+      <y>792</y>
+      <w>558</w>
+      <h>135</h>
+    </coordinates>
+    <panel_attributes>Evaluation order per token (guards are mutually
+exclusive, so this doesn't change the diagram - just
+which check the code runs first):
+  1. header-name token produced --&gt; NONE
+  2. token.at_line_start --&gt; AFTER_HASH or NONE
+  3. otherwise: switch on current state (same-line)
+bg=#FFF2CC</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLSpecialState</id>
+    <coordinates>
+      <x>585</x>
+      <y>486</y>
+      <w>18</w>
+      <h>18</h>
+    </coordinates>
+    <panel_attributes>type=initial</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>720</x>
+      <y>261</y>
+      <w>162</w>
+      <h>216</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+new line &amp; token='#'</panel_attributes>
+    <additional_attributes>10.0;220.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1098</x>
+      <y>261</y>
+      <w>162</w>
+      <h>216</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+new line &amp; token='#'</panel_attributes>
+    <additional_attributes>10.0;220.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1476</x>
+      <y>261</y>
+      <w>99</w>
+      <h>468</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+new line 
+&amp; token='#'</panel_attributes>
+    <additional_attributes>10.0;500.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>513</x>
+      <y>117</y>
+      <w>261</w>
+      <h>108</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+new line &amp; token='#'
+(already AFTER_HASH)</panel_attributes>
+    <additional_attributes>10.0;100.0;10.0;20.0;270.0;20.0;270.0;100.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>225</x>
+      <y>495</y>
+      <w>216</w>
+      <h>108</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+new line &amp; token≠'#'
+OR same-line, other token
+(already NONE)</panel_attributes>
+    <additional_attributes>220.0;100.0;10.0;100.0;10.0;10.0;220.0;10.0</additional_attributes>
+  </element>
+</diagram>
