@@ -47,6 +47,15 @@ typedef struct {
  */
 CPath cpath_join(char *buf, size_t capacity, const char *base, const char *rel);
 
+/* Returns the directory portion of "path" (everything before its last
+ * '/' or '\'), written into "buf" the same way cpath_join() writes to
+ * its buffer (capacity, truncation, NUL-termination all work the same
+ * way). Purely lexical, like cpath_join() - "path" need not exist.
+ * A path with no separator at all yields "."; the root itself ("/" or
+ * "C:/") yields itself, never something shorter.
+ */
+CPath cpath_dirname(char *buf, size_t capacity, const char *path);
+
 #ifdef __cplusplus
 }
 #endif

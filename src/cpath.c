@@ -162,3 +162,44 @@ CPath cpath_join(char *buf, size_t capacity, const char *base, const char *rel)
     result.truncated = w.truncated;
     return result;
 }
+
+CPath cpath_dirname(char *buf, size_t capacity, const char *path)
+{
+    CPathWriter w;
+    CPath result;
+    size_t root_len = cpath_root_length(path);
+    size_t end = root_len;
+    size_t last_sep = 0;
+    int found_sep = 0;
+    size_t i;
+
+    for (i = root_len; path[i] != '\0'; i++) {
+        if (cpath_is_sep(path[i])) {
+            last_sep = i;
+            found_sep = 1;
+        }
+    }
+    if (found_sep) {
+        end = last_sep;
+    }
+
+    w.buf = buf;
+    w.capacity = capacity;
+    w.pos = 0;
+    w.truncated = (capacity == 0);
+
+    if (!w.truncated) {
+        for (i = 0; i < end; i++) {
+            cpath_put_char(&w, cpath_is_sep(path[i]) ? '/' : path[i]);
+        }
+        if (w.pos == 0) {
+            cpath_put_char(&w, root_len > 0 ? '/' : '.');
+        }
+        buf[w.pos] = '\0';
+    }
+
+    result.data = buf;
+    result.length = w.pos;
+    result.truncated = w.truncated;
+    return result;
+}

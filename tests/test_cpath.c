@@ -182,6 +182,61 @@ bool test_exact_fit_is_not_truncated(void)
     return true;
 }
 
+bool test_dirname_strips_last_component(void)
+{
+    char buf[256];
+    CPath p = cpath_dirname(buf, sizeof(buf), "/home/user/project/cgtest-config.json");
+
+    CHECK(strcmp(p.data, "/home/user/project") == 0);
+    CHECK(!p.truncated);
+    return true;
+}
+
+bool test_dirname_of_top_level_entry_is_root(void)
+{
+    char buf[256];
+    CPath p = cpath_dirname(buf, sizeof(buf), "/a");
+
+    CHECK(strcmp(p.data, "/") == 0);
+    return true;
+}
+
+bool test_dirname_of_root_is_root(void)
+{
+    char buf[256];
+    CPath p = cpath_dirname(buf, sizeof(buf), "/");
+
+    CHECK(strcmp(p.data, "/") == 0);
+    return true;
+}
+
+bool test_dirname_windows_drive(void)
+{
+    char buf[256];
+    CPath p = cpath_dirname(buf, sizeof(buf), "C:/Users/me/cgtest-config.json");
+
+    CHECK(strcmp(p.data, "C:/Users/me") == 0);
+    return true;
+}
+
+bool test_dirname_relative_with_separator(void)
+{
+    char buf[256];
+    CPath p = cpath_dirname(buf, sizeof(buf), "a/b/c.json");
+
+    CHECK(strcmp(p.data, "a/b") == 0);
+    return true;
+}
+
+bool test_dirname_bare_filename_yields_dot(void)
+{
+    char buf[256];
+    CPath p = cpath_dirname(buf, sizeof(buf), "cgtest-config.json");
+
+    CHECK(strcmp(p.data, ".") == 0);
+    return true;
+}
+
 typedef struct {
     const char *name;
     bool (*fn)(void);
@@ -205,7 +260,13 @@ int main(void)
         { "test_mixed_separators_within_one_path", test_mixed_separators_within_one_path },
         { "test_truncation_is_reported_and_null_terminated", test_truncation_is_reported_and_null_terminated },
         { "test_zero_capacity_is_safely_truncated", test_zero_capacity_is_safely_truncated },
-        { "test_exact_fit_is_not_truncated", test_exact_fit_is_not_truncated }
+        { "test_exact_fit_is_not_truncated", test_exact_fit_is_not_truncated },
+        { "test_dirname_strips_last_component", test_dirname_strips_last_component },
+        { "test_dirname_of_top_level_entry_is_root", test_dirname_of_top_level_entry_is_root },
+        { "test_dirname_of_root_is_root", test_dirname_of_root_is_root },
+        { "test_dirname_windows_drive", test_dirname_windows_drive },
+        { "test_dirname_relative_with_separator", test_dirname_relative_with_separator },
+        { "test_dirname_bare_filename_yields_dot", test_dirname_bare_filename_yields_dot }
     };
     size_t count = sizeof(cases) / sizeof(cases[0]);
     size_t i;

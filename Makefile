@@ -1,6 +1,6 @@
 CC      ?= gcc
 CFLAGS  ?= -std=c99 -Wall -Wextra -pedantic
-CFLAGS  += -Isrc
+CFLAGS  += -Isrc -Ithird_party
 
 BUILD_DIR := build
 
@@ -8,12 +8,13 @@ TEST_CTESTSCANNER_BIN  := $(BUILD_DIR)/test_ctestscanner
 TEST_CPREPROCESSOR_BIN := $(BUILD_DIR)/test_cpreprocessor
 TEST_CPATH_BIN         := $(BUILD_DIR)/test_cpath
 TEST_CPATHLIST_BIN     := $(BUILD_DIR)/test_cpathlist
+TEST_CGTEST_CONFIG_BIN := $(BUILD_DIR)/test_cgtest_config
 
 .PHONY: all test check-c89 clean
 
 all: test
 
-test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_BIN) $(TEST_CPATHLIST_BIN)
+test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_BIN) $(TEST_CPATHLIST_BIN) $(TEST_CGTEST_CONFIG_BIN)
 	@echo "== test_ctestscanner =="
 	@$(TEST_CTESTSCANNER_BIN)
 	@echo
@@ -25,6 +26,9 @@ test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_
 	@echo
 	@echo "== test_cpathlist =="
 	@$(TEST_CPATHLIST_BIN)
+	@echo
+	@echo "== test_cgtest_config =="
+	@$(TEST_CGTEST_CONFIG_BIN)
 
 $(TEST_CTESTSCANNER_BIN): tests/test_ctestscanner.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/ctestscanner.h src/cpreprocessor.h src/clexer.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_ctestscanner.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c -o $@
@@ -38,6 +42,9 @@ $(TEST_CPATH_BIN): tests/test_cpath.c src/cpath.c src/cpath.h | $(BUILD_DIR)
 $(TEST_CPATHLIST_BIN): tests/test_cpathlist.c src/cpathlist.c src/cpath.c src/cpathlist.h src/cpath.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_cpathlist.c src/cpathlist.c src/cpath.c -o $@
 
+$(TEST_CGTEST_CONFIG_BIN): tests/test_cgtest_config.c src/cgtest_config.c src/cpathlist.c src/cpath.c src/cgtest_config.h src/cpathlist.h src/cpath.h third_party/jsmn.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) tests/test_cgtest_config.c src/cgtest_config.c src/cpathlist.c src/cpath.c -o $@
+
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
@@ -46,7 +53,7 @@ $(BUILD_DIR):
 # main() exists yet) purely to catch C89 violations and cross-file
 # link errors, same check used while developing clexer/cpreprocessor.
 check-c89: | $(BUILD_DIR)
-	$(CC) -std=c89 -Wall -Wextra -pedantic -Werror -fPIC -shared -Wl,--no-undefined src/*.c -o $(BUILD_DIR)/libcgtest_src_check.so
+	$(CC) -std=c89 -Wall -Wextra -pedantic -Werror -fPIC -shared -Wl,--no-undefined -Ithird_party src/*.c -o $(BUILD_DIR)/libcgtest_src_check.so
 
 clean:
 	rm -rf $(BUILD_DIR)
