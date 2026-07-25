@@ -1,0 +1,16 @@
+{
+    "compiler_command": "gcc -std=c99 -O3",
+    "include_paths": [
+        "unittests"
+    ],
+    "source_files": [
+        "src/clexer.c",
+        "src/cpreprocessor.c",
+        "src/ctestscanner.c",
+        "src/cpath.c"
+    ],
+    "output_path": "./build",
+    "test_directories": [
+        "tests"
+    ]
+}
