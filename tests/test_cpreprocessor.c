@@ -118,6 +118,39 @@ bool test_has_embed_with_quoted_argument(void)
     return true;
 }
 
+bool test_has_include_with_quoted_argument(void)
+{
+    CPreprocessor pp;
+    const char *src = "#if __has_include(\"myheader.h\")\n#endif\n";
+    cpreprocessor_init(&pp, src, strlen(src));
+
+    CHECK(next_is(&pp, CTOK_PUNCT, "#"));
+    CHECK(next_is(&pp, CTOK_IDENTIFIER, "if"));
+    CHECK(next_is(&pp, CTOK_IDENTIFIER, "__has_include"));
+    CHECK(next_is(&pp, CTOK_PUNCT, "("));
+    CHECK(next_is(&pp, CTOK_HEADER_NAME, "\"myheader.h\""));
+    CHECK(next_is(&pp, CTOK_PUNCT, ")"));
+    CHECK(next_is(&pp, CTOK_PUNCT, "#"));
+    CHECK(next_is(&pp, CTOK_IDENTIFIER, "endif"));
+    CHECK(next_is_eof(&pp));
+    return true;
+}
+
+bool test_has_embed_with_angle_argument(void)
+{
+    CPreprocessor pp;
+    const char *src = "#if __has_embed(<data.bin>)\n#endif\n";
+    cpreprocessor_init(&pp, src, strlen(src));
+
+    CHECK(next_is(&pp, CTOK_PUNCT, "#"));
+    CHECK(next_is(&pp, CTOK_IDENTIFIER, "if"));
+    CHECK(next_is(&pp, CTOK_IDENTIFIER, "__has_embed"));
+    CHECK(next_is(&pp, CTOK_PUNCT, "("));
+    CHECK(next_is(&pp, CTOK_HEADER_NAME, "<data.bin>"));
+    CHECK(next_is(&pp, CTOK_PUNCT, ")"));
+    return true;
+}
+
 bool test_two_has_include_on_same_line(void)
 {
     /* Both occurrences must independently trigger header-name mode. */
@@ -301,6 +334,8 @@ int main(void)
         { "test_embed_directive_becomes_header_name", test_embed_directive_becomes_header_name },
         { "test_has_include_in_if_directive", test_has_include_in_if_directive },
         { "test_has_embed_with_quoted_argument", test_has_embed_with_quoted_argument },
+        { "test_has_include_with_quoted_argument", test_has_include_with_quoted_argument },
+        { "test_has_embed_with_angle_argument", test_has_embed_with_angle_argument },
         { "test_two_has_include_on_same_line", test_two_has_include_on_same_line },
         { "test_other_directive_does_not_trigger_header_name", test_other_directive_does_not_trigger_header_name },
         { "test_ordinary_comparisons_are_unaffected", test_ordinary_comparisons_are_unaffected },
