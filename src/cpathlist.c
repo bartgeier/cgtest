@@ -26,7 +26,7 @@ CPathListStatus cpathlist_register(CPathList *list, const char *base, const char
 
     if (list->count == list->capacity) {
         size_t new_capacity = list->capacity == 0 ? 8 : list->capacity * 2;
-        CPathEntry *grown = (CPathEntry *)realloc(list->entries, new_capacity * sizeof(CPathEntry));
+        char **grown = (char **)realloc(list->entries, new_capacity * sizeof(char *));
         if (grown == NULL) {
             return CPATHLIST_ALLOC_FAILED;
         }
@@ -43,7 +43,7 @@ CPathListStatus cpathlist_register(CPathList *list, const char *base, const char
     memcpy(owned, joined.data, joined.length);
     owned[joined.length] = '\0';
 
-    list->entries[list->count].path = owned;
+    list->entries[list->count] = owned;
     list->count++;
 
     return joined.truncated ? CPATHLIST_TRUNCATED : CPATHLIST_OK;
@@ -53,7 +53,7 @@ void cpathlist_free(CPathList *list)
 {
     size_t i;
     for (i = 0; i < list->count; i++) {
-        free(list->entries[i].path);
+        free(list->entries[i]);
     }
     free(list->entries);
     list->entries = NULL;

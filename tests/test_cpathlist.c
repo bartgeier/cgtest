@@ -29,7 +29,7 @@ bool test_register_single_path(void)
 
     CHECK(status == CPATHLIST_OK);
     CHECK(list.count == 1);
-    CHECK(strcmp(list.entries[0].path, "/home/user/project/src/main.c") == 0);
+    CHECK(strcmp(list.entries[0], "/home/user/project/src/main.c") == 0);
 
     cpathlist_free(&list);
     return true;
@@ -45,9 +45,9 @@ bool test_register_multiple_paths_preserves_order(void)
     CHECK(cpathlist_register(&list, "/a", "three") == CPATHLIST_OK);
 
     CHECK(list.count == 3);
-    CHECK(strcmp(list.entries[0].path, "/a/one") == 0);
-    CHECK(strcmp(list.entries[1].path, "/a/two") == 0);
-    CHECK(strcmp(list.entries[2].path, "/a/three") == 0);
+    CHECK(strcmp(list.entries[0], "/a/one") == 0);
+    CHECK(strcmp(list.entries[1], "/a/two") == 0);
+    CHECK(strcmp(list.entries[2], "/a/three") == 0);
 
     cpathlist_free(&list);
     return true;
@@ -58,8 +58,8 @@ bool test_register_grows_past_initial_capacity(void)
     /* Initial capacity is 8; register enough entries to force at least
      * one realloc of the entries array, then confirm every entry -
      * including the earliest ones - still has correct content. Growing
-     * the array of CPathEntry (pointers) must never disturb the
-     * independently owned strings each pointer points to. */
+     * the array of pointers must never disturb the independently owned
+     * strings each pointer points to. */
     CPathList list;
     char rel[32];
     size_t i;
@@ -75,7 +75,7 @@ bool test_register_grows_past_initial_capacity(void)
     for (i = 0; i < n; i++) {
         char expected[64];
         sprintf(expected, "/a/file%u", (unsigned)i);
-        CHECK(strcmp(list.entries[i].path, expected) == 0);
+        CHECK(strcmp(list.entries[i], expected) == 0);
     }
 
     cpathlist_free(&list);
@@ -102,7 +102,7 @@ bool test_register_reports_truncation(void)
 
     CHECK(status == CPATHLIST_TRUNCATED);
     CHECK(list.count == 1);
-    CHECK(strlen(list.entries[0].path) < sizeof(huge_rel));
+    CHECK(strlen(list.entries[0]) < sizeof(huge_rel));
 
     cpathlist_free(&list);
     return true;

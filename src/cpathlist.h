@@ -3,9 +3,8 @@
  * cpreprocessor.c is layered on clexer.c. Each registered path is
  * joined against a base, normalized, and copied into its own
  * independently owned, exact-fit allocation - not a shared arena -
- * so growing the list (reallocating the array of entries) never
- * invalidates a CPathEntry::path pointer already handed out. Same
- * storage pattern ctestscanner.h uses for CTestFunction::name.
+ * so growing the list (reallocating the array of pointers) never
+ * invalidates an entries[i] pointer already handed out.
  *
  * Scope notes (deliberate simplifications, documented rather than silent):
  *  - cpathlist_register() builds the joined path in a fixed-size
@@ -28,16 +27,12 @@
 extern "C" {
 #endif
 
-/* One registered path. "path" is malloc'd, NUL-terminated, and owned
- * independently of every other entry (see file header comment). */
+/* "entries[i]" is malloc'd, NUL-terminated, and owned independently of
+ * every other entry (see file header comment). */
 typedef struct {
-    char *path;
-} CPathEntry;
-
-typedef struct {
-    CPathEntry *entries;
-    size_t      count;
-    size_t      capacity;
+    char  **entries;
+    size_t  count;
+    size_t  capacity;
 } CPathList;
 
 typedef enum {
