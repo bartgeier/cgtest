@@ -1,7 +1,7 @@
 {
     "compiler_command": "gcc -std=c99 -O3",
     "include_paths": [
-        "unittests"
+        "src"
     ],
     "source_files": [
         "src/clexer.c",
@@ -11,6 +11,6 @@
     ],
     "output_path": "./build",
     "test_directories": [
-        "tests"
+        "unittests"
     ]
 }
