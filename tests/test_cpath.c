@@ -40,6 +40,22 @@ bool test_avoids_double_slash_on_trailing_leading_slash(void)
     return true;
 }
 
+bool test_directory_rel_joins_same_as_file_rel(void)
+{
+    /* cpath_join doesn't distinguish files from directories - it's purely
+     * lexical - so a directory-shaped rel (with or without a trailing
+     * slash) joins exactly like a file-shaped one, and the trailing
+     * slash carries no segment of its own. */
+    char buf[256];
+    CPath with_slash = cpath_join(buf, sizeof(buf), "/home/user/project", "src/include/");
+    char buf2[256];
+    CPath without_slash = cpath_join(buf2, sizeof(buf2), "/home/user/project", "src/include");
+
+    CHECK(strcmp(with_slash.data, "/home/user/project/src/include") == 0);
+    CHECK(strcmp(without_slash.data, with_slash.data) == 0);
+    return true;
+}
+
 bool test_drops_dot_segments(void)
 {
     char buf[256];
@@ -176,6 +192,7 @@ int main(void)
     static const TestCase cases[] = {
         { "test_joins_base_and_relative", test_joins_base_and_relative },
         { "test_avoids_double_slash_on_trailing_leading_slash", test_avoids_double_slash_on_trailing_leading_slash },
+        { "test_directory_rel_joins_same_as_file_rel", test_directory_rel_joins_same_as_file_rel },
         { "test_drops_dot_segments", test_drops_dot_segments },
         { "test_dotdot_climbs_within_bounds", test_dotdot_climbs_within_bounds },
         { "test_dotdot_in_base_and_rel_combine", test_dotdot_in_base_and_rel_combine },
