@@ -6,23 +6,30 @@ BUILD_DIR := build
 
 TEST_CLEXER_BIN        := $(BUILD_DIR)/test_clexer
 TEST_CPREPROCESSOR_BIN := $(BUILD_DIR)/test_cpreprocessor
+TEST_CPATH_BIN          := $(BUILD_DIR)/test_cpath
 
 .PHONY: all test check-c89 clean
 
 all: test
 
-test: check-c89 $(TEST_CLEXER_BIN) $(TEST_CPREPROCESSOR_BIN)
+test: check-c89 $(TEST_CLEXER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_BIN)
 	@echo "== test_clexer =="
 	@$(TEST_CLEXER_BIN)
 	@echo
 	@echo "== test_cpreprocessor =="
 	@$(TEST_CPREPROCESSOR_BIN)
+	@echo
+	@echo "== test_cpath =="
+	@$(TEST_CPATH_BIN)
 
 $(TEST_CLEXER_BIN): tests/test_clexer.c src/clexer.c src/clexer.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_clexer.c src/clexer.c -o $@
 
 $(TEST_CPREPROCESSOR_BIN): tests/test_cpreprocessor.c src/cpreprocessor.c src/clexer.c src/cpreprocessor.h src/clexer.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_cpreprocessor.c src/cpreprocessor.c src/clexer.c -o $@
+
+$(TEST_CPATH_BIN): tests/test_cpath.c src/cpath.c src/cpath.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) tests/test_cpath.c src/cpath.c -o $@
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
