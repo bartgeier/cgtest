@@ -9,12 +9,13 @@ TEST_CPREPROCESSOR_BIN := $(BUILD_DIR)/test_cpreprocessor
 TEST_CPATH_BIN         := $(BUILD_DIR)/test_cpath
 TEST_CPATHLIST_BIN     := $(BUILD_DIR)/test_cpathlist
 TEST_CGTEST_CONFIG_BIN := $(BUILD_DIR)/test_cgtest_config
+TEST_CTESTFILES_BIN    := $(BUILD_DIR)/test_ctestfiles
 
 .PHONY: all test check-c89 clean
 
 all: test
 
-test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_BIN) $(TEST_CPATHLIST_BIN) $(TEST_CGTEST_CONFIG_BIN)
+test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_BIN) $(TEST_CPATHLIST_BIN) $(TEST_CGTEST_CONFIG_BIN) $(TEST_CTESTFILES_BIN)
 	@echo "== test_ctestscanner =="
 	@$(TEST_CTESTSCANNER_BIN)
 	@echo
@@ -29,6 +30,9 @@ test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_
 	@echo
 	@echo "== test_cgtest_config =="
 	@$(TEST_CGTEST_CONFIG_BIN)
+	@echo
+	@echo "== test_ctestfiles =="
+	@$(TEST_CTESTFILES_BIN)
 
 $(TEST_CTESTSCANNER_BIN): tests/test_ctestscanner.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/ctestscanner.h src/cpreprocessor.h src/clexer.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_ctestscanner.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c -o $@
@@ -42,8 +46,11 @@ $(TEST_CPATH_BIN): tests/test_cpath.c src/cpath.c src/cpath.h | $(BUILD_DIR)
 $(TEST_CPATHLIST_BIN): tests/test_cpathlist.c src/cpathlist.c src/cpath.c src/cpathlist.h src/cpath.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_cpathlist.c src/cpathlist.c src/cpath.c -o $@
 
-$(TEST_CGTEST_CONFIG_BIN): tests/test_cgtest_config.c src/cgtest_config.c src/cpathlist.c src/cpath.c src/cgtest_config.h src/cpathlist.h src/cpath.h third_party/jsmn.h | $(BUILD_DIR)
-	$(CC) $(CFLAGS) tests/test_cgtest_config.c src/cgtest_config.c src/cpathlist.c src/cpath.c -o $@
+$(TEST_CGTEST_CONFIG_BIN): tests/test_cgtest_config.c src/cgtest_config.c src/cpathlist.c src/cpath.c src/cmsg.c src/cgtest_config.h src/cpathlist.h src/cpath.h src/cmsg.h third_party/jsmn.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) tests/test_cgtest_config.c src/cgtest_config.c src/cpathlist.c src/cpath.c src/cmsg.c -o $@
+
+$(TEST_CTESTFILES_BIN): tests/test_ctestfiles.c src/ctestfiles.c src/cpathlist.c src/cpath.c src/cmsg.c src/ctestfiles.h src/cpathlist.h src/cpath.h src/cmsg.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) tests/test_ctestfiles.c src/ctestfiles.c src/cpathlist.c src/cpath.c src/cmsg.c -o $@
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)

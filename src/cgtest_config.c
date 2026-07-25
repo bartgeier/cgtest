@@ -13,6 +13,7 @@
 
 #include "cgtest_config.h"
 #include "cpath.h"
+#include "cmsg.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,44 +53,6 @@ static const char *const CGTEST_CONFIG_FIELD_NAMES[CGTEST_FIELD_COUNT] = {
     "test_directories"
 };
 
-static char *cgtest_config_dup(const char *text, size_t length)
-{
-    char *copy = (char *)malloc(length + 1);
-    if (copy == NULL) {
-        return NULL;
-    }
-    memcpy(copy, text, length);
-    copy[length] = '\0';
-    return copy;
-}
-
-/* Writes "prefix" + up to "text_len" bytes of "text" + "suffix" into
- * "buf" (capacity "bufsize"), truncating whichever piece doesn't fit
- * rather than overflowing - "text" may be untrusted (e.g. straight out
- * of the JSON being parsed) and of arbitrary length. */
-static void cgtest_config_build_message(char *buf, size_t bufsize, const char *prefix,
-                                         const char *text, size_t text_len, const char *suffix)
-{
-    size_t pos = 0;
-    size_t i;
-
-    for (i = 0; prefix[i] != '\0' && pos + 1 < bufsize; i++) {
-        buf[pos++] = prefix[i];
-    }
-    for (i = 0; i < text_len && pos + 1 < bufsize; i++) {
-        buf[pos++] = text[i];
-    }
-    for (i = 0; suffix[i] != '\0' && pos + 1 < bufsize; i++) {
-        buf[pos++] = suffix[i];
-    }
-    buf[pos] = '\0';
-}
-
-static void cgtest_config_set_message(char *buf, size_t bufsize, const char *message)
-{
-    cgtest_config_build_message(buf, bufsize, message, "", 0, "");
-}
-
 /* Cleans up whatever "config" already holds (safe on partially-filled
  * or never-filled fields) and reports "message" as the failure. */
 static CGTestConfig cgtest_config_fail(CGTestConfig *config, const char *message)
@@ -103,7 +66,7 @@ static CGTestConfig cgtest_config_fail(CGTestConfig *config, const char *message
     config->ok = 0;
     config->compiler_command = NULL;
     config->output_path = NULL;
-    config->error = cgtest_config_dup(message, strlen(message));
+    config->error = cmsg_dup(message, strlen(message));
     return *config;
 }
 
@@ -126,7 +89,7 @@ static char *jsmn_token_unescape(const char *json, const jsmntok_t *token,
     size_t i;
 
     if (result == NULL) {
-        cgtest_config_set_message(error_buf, error_buf_size, "out of memory");
+        cmsg_set(error_buf, error_buf_size, "out of memory");
         return NULL;
     }
 
@@ -144,7 +107,7 @@ static char *jsmn_token_unescape(const char *json, const jsmntok_t *token,
             case 't':  result[out++] = '\t'; break;
             default:
                 free(result);
-                cgtest_config_set_message(error_buf, error_buf_size,
+                cmsg_set(error_buf, error_buf_size,
                     "cgtest-config.json: \\u escapes are not supported (use literal UTF-8 bytes instead)");
                 return NULL;
             }
@@ -191,7 +154,7 @@ static int cgtest_config_apply_field(CGTestConfig *config, int field, const char
         char *raw;
 
         if (tokens[value_idx].type != JSMN_STRING) {
-            cgtest_config_build_message(error_buf, error_buf_size, "cgtest-config.json: field \"",
+            cmsg_build(error_buf, error_buf_size, "cgtest-config.json: field \"",
                 CGTEST_CONFIG_FIELD_NAMES[field], strlen(CGTEST_CONFIG_FIELD_NAMES[field]), "\" must be a string");
             return -1;
         }
@@ -206,10 +169,10 @@ static int cgtest_config_apply_field(CGTestConfig *config, int field, const char
         } else {
             char scratch[CGTEST_CONFIG_PATH_SCRATCH];
             CPath joined = cpath_join(scratch, sizeof(scratch), base_dir, raw);
-            config->output_path = cgtest_config_dup(joined.data, joined.length);
+            config->output_path = cmsg_dup(joined.data, joined.length);
             free(raw);
             if (config->output_path == NULL) {
-                cgtest_config_set_message(error_buf, error_buf_size, "out of memory");
+                cmsg_set(error_buf, error_buf_size, "out of memory");
                 return -1;
             }
         }
@@ -223,7 +186,7 @@ static int cgtest_config_apply_field(CGTestConfig *config, int field, const char
         int idx = value_idx;
 
         if (tokens[idx].type != JSMN_ARRAY) {
-            cgtest_config_build_message(error_buf, error_buf_size, "cgtest-config.json: field \"",
+            cmsg_build(error_buf, error_buf_size, "cgtest-config.json: field \"",
                 CGTEST_CONFIG_FIELD_NAMES[field], strlen(CGTEST_CONFIG_FIELD_NAMES[field]), "\" must be an array of strings");
             return -1;
         }
@@ -235,7 +198,7 @@ static int cgtest_config_apply_field(CGTestConfig *config, int field, const char
             CPathListStatus status;
 
             if (idx >= token_count || tokens[idx].type != JSMN_STRING) {
-                cgtest_config_build_message(error_buf, error_buf_size, "cgtest-config.json: every element of \"",
+                cmsg_build(error_buf, error_buf_size, "cgtest-config.json: every element of \"",
                     CGTEST_CONFIG_FIELD_NAMES[field], strlen(CGTEST_CONFIG_FIELD_NAMES[field]), "\" must be a string");
                 return -1;
             }
@@ -248,7 +211,7 @@ static int cgtest_config_apply_field(CGTestConfig *config, int field, const char
             status = cpathlist_register(list, base_dir, element);
             free(element);
             if (status == CPATHLIST_ALLOC_FAILED) {
-                cgtest_config_set_message(error_buf, error_buf_size, "out of memory");
+                cmsg_set(error_buf, error_buf_size, "out of memory");
                 return -1;
             }
             idx++;
@@ -307,12 +270,12 @@ CGTestConfig cgtest_config_parse(const char *json, size_t length, const char *ba
 
         field = cgtest_config_match_field(json, &tokens[idx]);
         if (field < 0) {
-            cgtest_config_build_message(error_buf, sizeof(error_buf), "cgtest-config.json: unknown key \"",
+            cmsg_build(error_buf, sizeof(error_buf), "cgtest-config.json: unknown key \"",
                 json + tokens[idx].start, (size_t)(tokens[idx].end - tokens[idx].start), "\"");
             return cgtest_config_fail(&config, error_buf);
         }
         if (seen[field]) {
-            cgtest_config_build_message(error_buf, sizeof(error_buf), "cgtest-config.json: duplicate key \"",
+            cmsg_build(error_buf, sizeof(error_buf), "cgtest-config.json: duplicate key \"",
                 CGTEST_CONFIG_FIELD_NAMES[field], strlen(CGTEST_CONFIG_FIELD_NAMES[field]), "\"");
             return cgtest_config_fail(&config, error_buf);
         }
@@ -332,7 +295,7 @@ CGTestConfig cgtest_config_parse(const char *json, size_t length, const char *ba
 
     for (i = 0; i < CGTEST_FIELD_COUNT; i++) {
         if (!seen[i]) {
-            cgtest_config_build_message(error_buf, sizeof(error_buf), "cgtest-config.json: missing required field \"",
+            cmsg_build(error_buf, sizeof(error_buf), "cgtest-config.json: missing required field \"",
                 CGTEST_CONFIG_FIELD_NAMES[i], strlen(CGTEST_CONFIG_FIELD_NAMES[i]), "\"");
             return cgtest_config_fail(&config, error_buf);
         }
@@ -371,7 +334,7 @@ CGTestConfig cgtest_config_load(const char *config_path)
     f = fopen(abs_config.data, "rb");
     if (f == NULL) {
         char msg[CGTEST_CONFIG_ERROR_BUFSZ];
-        cgtest_config_build_message(msg, sizeof(msg), "cgtest-config.json not found: ",
+        cmsg_build(msg, sizeof(msg), "cgtest-config.json not found: ",
                                      abs_config.data, abs_config.length, "");
         return cgtest_config_fail(&config, msg);
     }
