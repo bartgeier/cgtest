@@ -7,12 +7,13 @@ BUILD_DIR := build
 TEST_CTESTSCANNER_BIN  := $(BUILD_DIR)/test_ctestscanner
 TEST_CPREPROCESSOR_BIN := $(BUILD_DIR)/test_cpreprocessor
 TEST_CPATH_BIN         := $(BUILD_DIR)/test_cpath
+TEST_CPATHLIST_BIN     := $(BUILD_DIR)/test_cpathlist
 
 .PHONY: all test check-c89 clean
 
 all: test
 
-test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_BIN)
+test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_BIN) $(TEST_CPATHLIST_BIN)
 	@echo "== test_ctestscanner =="
 	@$(TEST_CTESTSCANNER_BIN)
 	@echo
@@ -21,6 +22,9 @@ test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_
 	@echo
 	@echo "== test_cpath =="
 	@$(TEST_CPATH_BIN)
+	@echo
+	@echo "== test_cpathlist =="
+	@$(TEST_CPATHLIST_BIN)
 
 $(TEST_CTESTSCANNER_BIN): tests/test_ctestscanner.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/ctestscanner.h src/cpreprocessor.h src/clexer.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_ctestscanner.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c -o $@
@@ -30,6 +34,9 @@ $(TEST_CPREPROCESSOR_BIN): tests/test_cpreprocessor.c src/cpreprocessor.c src/cl
 
 $(TEST_CPATH_BIN): tests/test_cpath.c src/cpath.c src/cpath.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_cpath.c src/cpath.c -o $@
+
+$(TEST_CPATHLIST_BIN): tests/test_cpathlist.c src/cpathlist.c src/cpath.c src/cpathlist.h src/cpath.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) tests/test_cpathlist.c src/cpathlist.c src/cpath.c -o $@
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
