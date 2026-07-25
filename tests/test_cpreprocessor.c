@@ -4,7 +4,7 @@
  * "# embed" (C23), "__has_include(...)" and "__has_embed(...)" (C23),
  * while leaving everything else identical to plain clexer_next_token().
  *
- * Same stand-in convention as test_clexer.c: bool test_<name>(void)
+ * Same stand-in convention as test_ctestscanner.c: bool test_<name>(void)
  * functions, manually invoked by main() below until cgtest.exe exists.
  */
 #include "cpreprocessor.h"

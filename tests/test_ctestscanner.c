@@ -1,4 +1,4 @@
-/* test_clexer.c - unit tests for clexer_find_test_functions(), the
+/* test_ctestscanner.c - unit tests for ctestscanner_find(), the
  * scanner that locates "bool test_<name>(void) { ... }" definitions in
  * a test_*.c source buffer.
  *
@@ -8,7 +8,7 @@
  * in the order it appears, exactly as the spec describes the runner
  * doing once it exists.
  */
-#include "clexer.h"
+#include "ctestscanner.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -24,7 +24,7 @@
 
 static CTestFunction *scan(const char *src, size_t *out_count)
 {
-    return clexer_find_test_functions(src, strlen(src), out_count);
+    return ctestscanner_find(src, strlen(src), out_count);
 }
 
 bool test_finds_single_function(void)
@@ -37,7 +37,7 @@ bool test_finds_single_function(void)
     CHECK(strcmp(fns[0].name, "test_foo") == 0);
     CHECK(fns[0].line == 1);
 
-    clexer_free_test_functions(fns, count);
+    ctestscanner_free(fns, count);
     return true;
 }
 
@@ -58,7 +58,7 @@ bool test_finds_multiple_functions_in_order(void)
     CHECK(strcmp(fns[2].name, "test_third") == 0);
     CHECK(fns[2].line == 3);
 
-    clexer_free_test_functions(fns, count);
+    ctestscanner_free(fns, count);
     return true;
 }
 
@@ -74,7 +74,7 @@ bool test_ignores_prototype_declaration(void)
     CHECK(strcmp(fns[0].name, "test_foo") == 0);
     CHECK(fns[0].line == 2);
 
-    clexer_free_test_functions(fns, count);
+    ctestscanner_free(fns, count);
     return true;
 }
 
@@ -135,7 +135,7 @@ bool test_accepts_exact_test_prefix_as_name(void)
     CHECK(count == 1);
     CHECK(strcmp(fns[0].name, "test_") == 0);
 
-    clexer_free_test_functions(fns, count);
+    ctestscanner_free(fns, count);
     return true;
 }
 
@@ -168,7 +168,7 @@ bool test_handles_signature_split_across_lines(void)
     CHECK(strcmp(fns[0].name, "test_split") == 0);
     CHECK(fns[0].line == 2);
 
-    clexer_free_test_functions(fns, count);
+    ctestscanner_free(fns, count);
     return true;
 }
 
@@ -184,7 +184,7 @@ bool test_handles_comments_between_tokens(void)
     CHECK(count == 1);
     CHECK(strcmp(fns[0].name, "test_commented") == 0);
 
-    clexer_free_test_functions(fns, count);
+    ctestscanner_free(fns, count);
     return true;
 }
 
@@ -200,7 +200,7 @@ bool test_skips_include_directive(void)
     CHECK(strcmp(fns[0].name, "test_after_include") == 0);
     CHECK(fns[0].line == 2);
 
-    clexer_free_test_functions(fns, count);
+    ctestscanner_free(fns, count);
     return true;
 }
 
@@ -220,7 +220,7 @@ bool test_line_numbers_correct_after_spliced_directive(void)
     CHECK(strcmp(fns[0].name, "test_after_define") == 0);
     CHECK(fns[0].line == 3);
 
-    clexer_free_test_functions(fns, count);
+    ctestscanner_free(fns, count);
     return true;
 }
 
@@ -241,7 +241,7 @@ bool test_finds_function_disabled_by_ifdef(void)
     CHECK(count == 1);
     CHECK(strcmp(fns[0].name, "test_hidden") == 0);
 
-    clexer_free_test_functions(fns, count);
+    ctestscanner_free(fns, count);
     return true;
 }
 
@@ -258,7 +258,7 @@ bool test_ignores_prototype_followed_by_directive(void)
     CHECK(count == 1);
     CHECK(strcmp(fns[0].name, "test_foo") == 0);
 
-    clexer_free_test_functions(fns, count);
+    ctestscanner_free(fns, count);
     return true;
 }
 
@@ -312,7 +312,7 @@ bool test_realistic_file_with_setup_and_teardown(void)
     CHECK(strcmp(fns[3].name, "test_teardown") == 0);
     CHECK(fns[3].line == 16);
 
-    clexer_free_test_functions(fns, count);
+    ctestscanner_free(fns, count);
     return true;
 }
 

@@ -73,7 +73,9 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 * cgtest_arq.c cgtest_arq.h command line parser use arq lib from httpe://github.com/bartgeier/arq
 * cgtest_config.c cgtest_config.h use for json parsing jsmn https://github.com/zserge/jsmn
   parses cgtest-config.json
-* clexer.c clexer.h for scanning and listening the test_function with in the test_files.
+* clexer.c clexer.h a C23 lexer/tokenizer.
+* cpreprocessor.c cpreprocessor.h directive-aware layer on top of clexer.c/h (recognizes #include/#embed/__has_include/__has_embed enough to disambiguate header-name tokens).
+* ctestscanner.c ctestscanner.h for scanning and listing the test_function within the test_files, built on top of cpreprocessor.c/h.
 * cgtest_main.c main function
 
 - Search items

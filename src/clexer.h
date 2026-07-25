@@ -1,11 +1,5 @@
-/* clexer.h - a C23-conformant lexer (translation phases 1-3: line splicing,
- * comment/whitespace removal, tokenization into preprocessing-tokens) plus a
- * small helper on top that scans test_*.c files for test functions of the
- * form:
- *
- *     bool test_<name>(void) { ... }
- *
- * in the order they appear in the source.
+/* clexer.h - a C23-conformant lexer: translation phases 1-3 (line splicing,
+ * comment/whitespace removal, tokenization into preprocessing-tokens).
  *
  * Scope notes (deliberate simplifications, documented rather than silent):
  *  - Trigraphs are NOT translated. They were deprecated in C99 and removed
@@ -153,26 +147,6 @@ int clexer_token_starts_with(const CToken *token, const char *prefix);
 /* Human-readable names, mainly for diagnostics/debugging. */
 const char *clexer_keyword_name(CKeyword keyword);
 const char *clexer_punct_name(CPunct punct);
-
-/* One discovered test function. "name" is malloc'd and NUL-terminated. */
-typedef struct {
-    char *name;
-    int   line;
-} CTestFunction;
-
-/* Scans "length" bytes at "source" for function definitions matching
- * "bool test_<name>(void) {", in order of appearance. Preprocessing
- * directive lines are skipped as a unit (this is a purpose-built scanner
- * layered on the tokenizer, not the tokenizer executing the preprocessor).
- *
- * On success returns a malloc'd array of *out_count entries (which may
- * be 0); the caller must release it with clexer_free_test_functions().
- * Returns NULL on allocation failure or when *out_count is 0.
- */
-CTestFunction *clexer_find_test_functions(const char *source, size_t length, size_t *out_count);
-
-/* Frees an array returned by clexer_find_test_functions(). */
-void clexer_free_test_functions(CTestFunction *functions, size_t count);
 
 #ifdef __cplusplus
 }

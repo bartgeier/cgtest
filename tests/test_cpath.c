@@ -2,8 +2,8 @@
  * and normalization function.
  *
  * Written in cgtest's own test convention (bool test_<name>(void)); see
- * test_clexer.c's header comment for why main() below dispatches them
- * manually instead of via a generated cgtest-runner.
+ * test_ctestscanner.c's header comment for why main() below dispatches
+ * them manually instead of via a generated cgtest-runner.
  */
 #include "cpath.h"
 
