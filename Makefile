@@ -10,12 +10,13 @@ TEST_CPATH_BIN         := $(BUILD_DIR)/test_cpath
 TEST_CPATHLIST_BIN     := $(BUILD_DIR)/test_cpathlist
 TEST_CGTEST_CONFIG_BIN := $(BUILD_DIR)/test_cgtest_config
 TEST_CTESTFILES_BIN    := $(BUILD_DIR)/test_ctestfiles
+TEST_CGTEST_ARQ_BIN    := $(BUILD_DIR)/test_cgtest_arq
 
 .PHONY: all test check-c89 clean
 
 all: test
 
-test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_BIN) $(TEST_CPATHLIST_BIN) $(TEST_CGTEST_CONFIG_BIN) $(TEST_CTESTFILES_BIN)
+test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_BIN) $(TEST_CPATHLIST_BIN) $(TEST_CGTEST_CONFIG_BIN) $(TEST_CTESTFILES_BIN) $(TEST_CGTEST_ARQ_BIN)
 	@echo "== test_ctestscanner =="
 	@$(TEST_CTESTSCANNER_BIN)
 	@echo
@@ -33,6 +34,9 @@ test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_
 	@echo
 	@echo "== test_ctestfiles =="
 	@$(TEST_CTESTFILES_BIN)
+	@echo
+	@echo "== test_cgtest_arq =="
+	@$(TEST_CGTEST_ARQ_BIN)
 
 $(TEST_CTESTSCANNER_BIN): tests/test_ctestscanner.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/ctestscanner.h src/cpreprocessor.h src/clexer.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_ctestscanner.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c -o $@
@@ -51,6 +55,9 @@ $(TEST_CGTEST_CONFIG_BIN): tests/test_cgtest_config.c src/cgtest_config.c src/cp
 
 $(TEST_CTESTFILES_BIN): tests/test_ctestfiles.c src/ctestfiles.c src/cpathlist.c src/cpath.c src/cmsg.c src/ctestfiles.h src/cpathlist.h src/cpath.h src/cmsg.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_ctestfiles.c src/ctestfiles.c src/cpathlist.c src/cpath.c src/cmsg.c -o $@
+
+$(TEST_CGTEST_ARQ_BIN): tests/test_cgtest_arq.c src/cgtest_arq.c src/cmsg.c src/cgtest_arq.h src/cmsg.h third_party/arq.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) tests/test_cgtest_arq.c src/cgtest_arq.c src/cmsg.c -o $@
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
