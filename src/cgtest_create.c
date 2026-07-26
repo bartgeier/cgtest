@@ -4,6 +4,14 @@
  * cgtest_config_load() does (getcwd() + cpath_join()), so the
  * "already exists" check and the derived cgtest.h location are both
  * unambiguous regardless of what the caller passed in.
+ *
+ * If "config_path" names an existing directory (e.g. "." or a project
+ * root), "cgtest-config.json" is appended to it rather than treated as
+ * the literal target - a bare directory can never itself be a valid
+ * cgtest-config.json path, so there is no ambiguity in redirecting it.
+ * stat()/S_ISDIR is POSIX, but relied on unqualified here since it's
+ * provided by every libc this project's gcc/clang toolchains target,
+ * including MinGW on Windows (unlike MSVC's non-POSIX _stat).
  */
 #include "cgtest_create.h"
 #include "cpath.h"
@@ -12,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #ifdef _WIN32
 #include <direct.h>
@@ -78,24 +87,30 @@ CGTestCreateResult cgtest_create_run(const char *config_path)
 {
     CGTestCreateResult result;
     char cwd[CGTEST_CREATE_PATH_SCRATCH];
+    char abs_target_scratch[CGTEST_CREATE_PATH_SCRATCH];
     char abs_config_scratch[CGTEST_CREATE_PATH_SCRATCH];
     char dir_scratch[CGTEST_CREATE_PATH_SCRATCH];
     char header_scratch[CGTEST_CREATE_PATH_SCRATCH];
+    CPath abs_target;
     CPath abs_config;
     CPath dir;
     CPath header_path;
-    FILE *existing;
+    struct stat st;
     char error_buf[CGTEST_CREATE_ERROR_BUFSZ];
 
     if (CGTEST_GETCWD(cwd, sizeof(cwd)) == NULL) {
         return cgtest_create_fail("could not determine the current working directory");
     }
 
-    abs_config = cpath_join(abs_config_scratch, sizeof(abs_config_scratch), cwd, config_path);
+    abs_target = cpath_join(abs_target_scratch, sizeof(abs_target_scratch), cwd, config_path);
 
-    existing = fopen(abs_config.data, "rb");
-    if (existing != NULL) {
-        fclose(existing);
+    if (stat(abs_target.data, &st) == 0 && S_ISDIR(st.st_mode)) {
+        abs_config = cpath_join(abs_config_scratch, sizeof(abs_config_scratch), abs_target.data, "cgtest-config.json");
+    } else {
+        abs_config = abs_target;
+    }
+
+    if (stat(abs_config.data, &st) == 0) {
         cmsg_build(error_buf, sizeof(error_buf), "cgtest-config.json already exists: ",
                    abs_config.data, abs_config.length, "");
         return cgtest_create_fail(error_buf);

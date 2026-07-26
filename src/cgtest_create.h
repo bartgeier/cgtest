@@ -23,11 +23,13 @@ typedef struct {
 } CGTestCreateResult;
 
 /* Creates a template cgtest-config.json at "config_path", plus
- * "cgtest.h" alongside it in the same directory. Fails - without
- * writing anything - if a file already exists at "config_path"
- * ("If cgtest-config.json already exist than error and exit
- * cgtest.exe", per specification.md). "config_path"'s directory must
- * already exist; this function never creates directories.
+ * "cgtest.h" alongside it in the same directory. If "config_path"
+ * names an existing directory, "cgtest-config.json" is appended to it
+ * automatically (so e.g. "." creates "./cgtest-config.json"). Fails -
+ * without writing anything - if a cgtest-config.json already exists at
+ * the resolved path ("If cgtest-config.json already exist than error
+ * and exit cgtest.exe", per specification.md). The target directory
+ * must already exist; this function never creates directories.
  */
 CGTestCreateResult cgtest_create_run(const char *config_path);
 

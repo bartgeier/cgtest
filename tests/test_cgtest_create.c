@@ -72,6 +72,24 @@ bool test_creates_config_and_header_files(void)
     return true;
 }
 
+bool test_directory_path_appends_config_filename(void)
+{
+    CGTestCreateResult result;
+    char buf[4096];
+
+    setup_fixture();
+    result = cgtest_create_run(FIXTURE_DIR);
+
+    CHECK(result.ok);
+    CHECK(result.error == NULL);
+    CHECK(read_whole_file(CONFIG_PATH, buf, sizeof(buf)) > 0);
+    CHECK(read_whole_file(HEADER_PATH, buf, sizeof(buf)) > 0);
+
+    cgtest_create_free(&result);
+    teardown_fixture();
+    return true;
+}
+
 bool test_created_config_round_trips_through_parser(void)
 {
     CGTestCreateResult result;
@@ -152,6 +170,7 @@ int main(void)
 {
     static const TestCase cases[] = {
         { "test_creates_config_and_header_files", test_creates_config_and_header_files },
+        { "test_directory_path_appends_config_filename", test_directory_path_appends_config_filename },
         { "test_created_config_round_trips_through_parser", test_created_config_round_trips_through_parser },
         { "test_refuses_to_overwrite_existing_config", test_refuses_to_overwrite_existing_config },
         { "test_missing_directory_is_an_error", test_missing_directory_is_an_error },
