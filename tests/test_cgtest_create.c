@@ -1,8 +1,9 @@
 /* test_cgtest_create.c - unit tests for cgtest_create_run(), which
- * writes a template cgtest-config.json and cgtest.h. Written in
- * cgtest's own test convention (bool test_<name>(void)); see
- * test_ctestscanner.c's header comment for why main() below dispatches
- * them manually instead of via a generated cgtest-runner.
+ * writes a template cgtest-config.json and cgtest.h inside a given
+ * directory (creating that directory if it doesn't exist yet).
+ * Written in cgtest's own test convention (bool test_<name>(void));
+ * see test_ctestscanner.c's header comment for why main() below
+ * dispatches them manually instead of via a generated cgtest-runner.
  *
  * Like test_ctestfiles.c, this inherently needs real filesystem
  * interaction, so each test builds a small throw-away fixture
@@ -54,25 +55,7 @@ static long read_whole_file(const char *path, char *buf, size_t bufsize)
     return (long)read_count;
 }
 
-bool test_creates_config_and_header_files(void)
-{
-    CGTestCreateResult result;
-    char buf[4096];
-
-    setup_fixture();
-    result = cgtest_create_run(CONFIG_PATH);
-
-    CHECK(result.ok);
-    CHECK(result.error == NULL);
-    CHECK(read_whole_file(CONFIG_PATH, buf, sizeof(buf)) > 0);
-    CHECK(read_whole_file(HEADER_PATH, buf, sizeof(buf)) > 0);
-
-    cgtest_create_free(&result);
-    teardown_fixture();
-    return true;
-}
-
-bool test_directory_path_appends_config_filename(void)
+bool test_creates_config_and_header_in_existing_directory(void)
 {
     CGTestCreateResult result;
     char buf[4096];
@@ -90,6 +73,27 @@ bool test_directory_path_appends_config_filename(void)
     return true;
 }
 
+bool test_creates_directory_if_missing(void)
+{
+    CGTestCreateResult result;
+    struct stat st;
+    char buf[4096];
+
+    remove(FIXTURE_DIR); /* make sure it does NOT exist yet */
+    result = cgtest_create_run(FIXTURE_DIR);
+
+    CHECK(result.ok);
+    CHECK(result.error == NULL);
+    CHECK(stat(FIXTURE_DIR, &st) == 0);
+    CHECK(S_ISDIR(st.st_mode));
+    CHECK(read_whole_file(CONFIG_PATH, buf, sizeof(buf)) > 0);
+    CHECK(read_whole_file(HEADER_PATH, buf, sizeof(buf)) > 0);
+
+    cgtest_create_free(&result);
+    teardown_fixture();
+    return true;
+}
+
 bool test_created_config_round_trips_through_parser(void)
 {
     CGTestCreateResult result;
@@ -98,7 +102,7 @@ bool test_created_config_round_trips_through_parser(void)
     long length;
 
     setup_fixture();
-    result = cgtest_create_run(CONFIG_PATH);
+    result = cgtest_create_run(FIXTURE_DIR);
     CHECK(result.ok);
 
     length = read_whole_file(CONFIG_PATH, buf, sizeof(buf));
@@ -126,7 +130,7 @@ bool test_refuses_to_overwrite_existing_config(void)
     fputs("PREEXISTING", f);
     fclose(f);
 
-    result = cgtest_create_run(CONFIG_PATH);
+    result = cgtest_create_run(FIXTURE_DIR);
 
     CHECK(!result.ok);
     CHECK(result.error != NULL);
@@ -141,35 +145,33 @@ bool test_refuses_to_overwrite_existing_config(void)
     return true;
 }
 
-bool test_missing_directory_is_an_error(void)
+bool test_path_that_is_a_regular_file_is_an_error(void)
 {
-    CGTestCreateResult result = cgtest_create_run("build/cgtest_create_fixture_missing/cgtest-config.json");
+    CGTestCreateResult result;
+    FILE *f;
+
+    remove(FIXTURE_DIR);
+    f = fopen(FIXTURE_DIR, "w"); /* a plain file where a directory is expected */
+    CHECK(f != NULL);
+    fclose(f);
+
+    result = cgtest_create_run(FIXTURE_DIR);
 
     CHECK(!result.ok);
     CHECK(result.error != NULL);
+    CHECK(strstr(result.error, "not a directory") != NULL);
 
     cgtest_create_free(&result);
+    remove(FIXTURE_DIR);
     return true;
 }
 
-bool test_nonexistent_directory_with_trailing_slash_is_an_error(void)
+bool test_missing_parent_directory_is_an_error(void)
 {
-    CGTestCreateResult result;
-    struct stat st;
-
-    /* Regression test: a nonexistent directory named with a trailing
-     * slash must not be silently misinterpreted as a literal file
-     * path - stat() alone can't see it's meant as a directory since it
-     * doesn't exist yet, so cpath_join() normalizing the trailing
-     * slash away used to make this get treated as a file named
-     * "cgtest_create_fixture_missing" and written into the parent
-     * directory instead. */
-    result = cgtest_create_run("build/cgtest_create_fixture_missing/");
+    CGTestCreateResult result = cgtest_create_run("build/cgtest_create_fixture_missing/nested");
 
     CHECK(!result.ok);
     CHECK(result.error != NULL);
-    CHECK(stat("build/cgtest_create_fixture_missing", &st) != 0);
-    CHECK(stat("build/cgtest.h", &st) != 0);
 
     cgtest_create_free(&result);
     return true;
@@ -177,7 +179,7 @@ bool test_nonexistent_directory_with_trailing_slash_is_an_error(void)
 
 bool test_free_on_error_is_safe(void)
 {
-    CGTestCreateResult result = cgtest_create_run("build/cgtest_create_fixture_missing/cgtest-config.json");
+    CGTestCreateResult result = cgtest_create_run("build/cgtest_create_fixture_missing/nested");
     CHECK(!result.ok);
     cgtest_create_free(&result);
     cgtest_create_free(&result);
@@ -192,12 +194,12 @@ typedef struct {
 int main(void)
 {
     static const TestCase cases[] = {
-        { "test_creates_config_and_header_files", test_creates_config_and_header_files },
-        { "test_directory_path_appends_config_filename", test_directory_path_appends_config_filename },
+        { "test_creates_config_and_header_in_existing_directory", test_creates_config_and_header_in_existing_directory },
+        { "test_creates_directory_if_missing", test_creates_directory_if_missing },
         { "test_created_config_round_trips_through_parser", test_created_config_round_trips_through_parser },
         { "test_refuses_to_overwrite_existing_config", test_refuses_to_overwrite_existing_config },
-        { "test_missing_directory_is_an_error", test_missing_directory_is_an_error },
-        { "test_nonexistent_directory_with_trailing_slash_is_an_error", test_nonexistent_directory_with_trailing_slash_is_an_error },
+        { "test_path_that_is_a_regular_file_is_an_error", test_path_that_is_a_regular_file_is_an_error },
+        { "test_missing_parent_directory_is_an_error", test_missing_parent_directory_is_an_error },
         { "test_free_on_error_is_safe", test_free_on_error_is_safe }
     };
     size_t count = sizeof(cases) / sizeof(cases[0]);

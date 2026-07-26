@@ -12,9 +12,9 @@ It compiles and runs a test runner from test files.
 ```cgtest.exe --config ./unitest/cgtest/cgtest-config.json```  
 Generates testrunner and excecute it.
 
-```cgtest.exe --create ./unitest/cgtest/cgtest-config.json```  
-Creates a default template cgtest-config.json  
-Creates the cgtest.h file it contains macros for unit tests.
+```cgtest.exe --create ./unitest/cgtest```  
+Creates a default template cgtest-config.json inside ./unitest/cgtest (creating the directory if it doesn't exist yet)  
+Creates the cgtest.h file alongside it, it contains macros for unit tests.
 
 ---
 
@@ -44,8 +44,10 @@ What the project should NOT do.
   * -c --config path to the cgtest-config.json.
     If cgtest-config.json doesn't exist than error and exit cgtest.exe with an appropriate message.  
     ```cgtest.exe --config ./unitest/cgtest/cgtest-config.json```
-  * -C --create path to where cgtest-config.json should be created.
-    If cgtest-config.json already exist than error and exit cgtest.exe with an appropriate message.
+  * -C --create path to the directory cgtest-config.json and cgtest.h should be created in
+    (the argument is always a directory, never the config file's own path; the directory is
+    created if it doesn't exist yet).
+    If cgtest-config.json already exist in that directory than error and exit cgtest.exe with an appropriate message.
   * -v --version of cgtest
   * -h --help of cgtest
 

@@ -1,26 +1,12 @@
 /* cgtest_create.c - see cgtest_create.h.
  *
- * Resolves "config_path" to an absolute path the same way
- * cgtest_config_load() does (getcwd() + cpath_join()), so the
- * "already exists" check and the derived cgtest.h location are both
- * unambiguous regardless of what the caller passed in.
- *
- * If "config_path" names a directory, "cgtest-config.json" is appended
- * to it rather than treated as the literal target - a bare directory
- * can never itself be a valid cgtest-config.json path, so there is no
- * ambiguity in redirecting it. Two independent signals decide "this is
- * a directory": stat()/S_ISDIR (for one that already exists) and a
- * trailing '/' or '\\' on the original argument (for one that doesn't
- * exist yet, where stat() alone can't tell). The trailing-separator
- * check has to run against "config_path" itself, before cpath_join()
- * ever sees it - cpath_join() normalizes trailing separators away
- * (see test_cpath.c's test_directory_rel_joins_same_as_file_rel), so
- * by the time a joined/absolute path is available that signal is
- * already gone.
- *
- * stat()/S_ISDIR is POSIX, but relied on unqualified here since it's
- * provided by every libc this project's gcc/clang toolchains target,
- * including MinGW on Windows (unlike MSVC's non-POSIX _stat).
+ * "dir" is always a directory, never a file path - cgtest-config.json
+ * and cgtest.h are always written as "dir/cgtest-config.json" and
+ * "dir/cgtest.h". "dir" is resolved to an absolute path the same way
+ * cgtest_config_load() does (getcwd() + cpath_join()), created if it
+ * doesn't exist yet (mkdir() - "dir"'s own parent must already exist;
+ * this does not create intermediate directories), then the two
+ * templates are written inside it.
  */
 #include "cgtest_create.h"
 #include "cpath.h"
@@ -34,9 +20,11 @@
 #ifdef _WIN32
 #include <direct.h>
 #define CGTEST_GETCWD _getcwd
+#define CGTEST_MKDIR(path) _mkdir(path)
 #else
 #include <unistd.h>
 #define CGTEST_GETCWD getcwd
+#define CGTEST_MKDIR(path) mkdir(path, 0755)
 #endif
 
 #define CGTEST_CREATE_PATH_SCRATCH 4096
@@ -73,15 +61,6 @@ static const char *const CGTEST_H_TEMPLATE =
     "\n"
     "#endif /* CGTEST_H */\n";
 
-static int cgtest_create_ends_with_separator(const char *path)
-{
-    size_t len = strlen(path);
-    if (len == 0) {
-        return 0;
-    }
-    return path[len - 1] == '/' || path[len - 1] == '\\';
-}
-
 static CGTestCreateResult cgtest_create_fail(const char *message)
 {
     CGTestCreateResult result;
@@ -113,17 +92,15 @@ static int cgtest_create_write_file(const char *path, const char *content,
     return 1;
 }
 
-CGTestCreateResult cgtest_create_run(const char *config_path)
+CGTestCreateResult cgtest_create_run(const char *dir)
 {
     CGTestCreateResult result;
     char cwd[CGTEST_CREATE_PATH_SCRATCH];
-    char abs_target_scratch[CGTEST_CREATE_PATH_SCRATCH];
-    char abs_config_scratch[CGTEST_CREATE_PATH_SCRATCH];
-    char dir_scratch[CGTEST_CREATE_PATH_SCRATCH];
+    char abs_dir_scratch[CGTEST_CREATE_PATH_SCRATCH];
+    char config_scratch[CGTEST_CREATE_PATH_SCRATCH];
     char header_scratch[CGTEST_CREATE_PATH_SCRATCH];
-    CPath abs_target;
-    CPath abs_config;
-    CPath dir;
+    CPath abs_dir;
+    CPath config_path;
     CPath header_path;
     struct stat st;
     char error_buf[CGTEST_CREATE_ERROR_BUFSZ];
@@ -132,24 +109,29 @@ CGTestCreateResult cgtest_create_run(const char *config_path)
         return cgtest_create_fail("could not determine the current working directory");
     }
 
-    abs_target = cpath_join(abs_target_scratch, sizeof(abs_target_scratch), cwd, config_path);
+    abs_dir = cpath_join(abs_dir_scratch, sizeof(abs_dir_scratch), cwd, dir);
 
-    if (cgtest_create_ends_with_separator(config_path) || (stat(abs_target.data, &st) == 0 && S_ISDIR(st.st_mode))) {
-        abs_config = cpath_join(abs_config_scratch, sizeof(abs_config_scratch), abs_target.data, "cgtest-config.json");
-    } else {
-        abs_config = abs_target;
-    }
-
-    if (stat(abs_config.data, &st) == 0) {
-        cmsg_build(error_buf, sizeof(error_buf), "cgtest-config.json already exists: ",
-                   abs_config.data, abs_config.length, "");
+    if (stat(abs_dir.data, &st) != 0) {
+        if (CGTEST_MKDIR(abs_dir.data) != 0) {
+            cmsg_build(error_buf, sizeof(error_buf), "could not create directory ", abs_dir.data, abs_dir.length, "");
+            return cgtest_create_fail(error_buf);
+        }
+    } else if (!S_ISDIR(st.st_mode)) {
+        cmsg_build(error_buf, sizeof(error_buf), "not a directory: ", abs_dir.data, abs_dir.length, "");
         return cgtest_create_fail(error_buf);
     }
 
-    dir = cpath_dirname(dir_scratch, sizeof(dir_scratch), abs_config.data);
-    header_path = cpath_join(header_scratch, sizeof(header_scratch), dir.data, "cgtest.h");
+    config_path = cpath_join(config_scratch, sizeof(config_scratch), abs_dir.data, "cgtest-config.json");
 
-    if (!cgtest_create_write_file(abs_config.data, CGTEST_CONFIG_TEMPLATE, error_buf, sizeof(error_buf))) {
+    if (stat(config_path.data, &st) == 0) {
+        cmsg_build(error_buf, sizeof(error_buf), "cgtest-config.json already exists: ",
+                   config_path.data, config_path.length, "");
+        return cgtest_create_fail(error_buf);
+    }
+
+    header_path = cpath_join(header_scratch, sizeof(header_scratch), abs_dir.data, "cgtest.h");
+
+    if (!cgtest_create_write_file(config_path.data, CGTEST_CONFIG_TEMPLATE, error_buf, sizeof(error_buf))) {
         return cgtest_create_fail(error_buf);
     }
     if (!cgtest_create_write_file(header_path.data, CGTEST_H_TEMPLATE, error_buf, sizeof(error_buf))) {

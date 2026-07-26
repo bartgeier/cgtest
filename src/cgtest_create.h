@@ -22,16 +22,16 @@ typedef struct {
     char *error;   /* malloc'd human-readable message, non-NULL only if !ok */
 } CGTestCreateResult;
 
-/* Creates a template cgtest-config.json at "config_path", plus
- * "cgtest.h" alongside it in the same directory. If "config_path"
- * names an existing directory, "cgtest-config.json" is appended to it
- * automatically (so e.g. "." creates "./cgtest-config.json"). Fails -
- * without writing anything - if a cgtest-config.json already exists at
- * the resolved path ("If cgtest-config.json already exist than error
- * and exit cgtest.exe", per specification.md). The target directory
- * must already exist; this function never creates directories.
+/* Creates a template cgtest-config.json and cgtest.h inside "dir" -
+ * "dir" is always a directory, never a file path (e.g. "." creates
+ * "./cgtest-config.json" and "./cgtest.h", never a literal file named
+ * "."). "dir" is created (via a single mkdir(), not a recursive one -
+ * its own parent must already exist) if it doesn't exist yet. Fails -
+ * without writing anything - if a cgtest-config.json already exists in
+ * "dir" ("If cgtest-config.json already exist than error and exit
+ * cgtest.exe", per specification.md).
  */
-CGTestCreateResult cgtest_create_run(const char *config_path);
+CGTestCreateResult cgtest_create_run(const char *dir);
 
 /* Releases every owned field in "result". Safe to call on a failed
  * (ok == 0) result too. */
