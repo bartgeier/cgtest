@@ -16,7 +16,7 @@ CGTEST_BIN             := $(BUILD_DIR)/cgtest
 
 .PHONY: all test check-c89 clean
 
-all: test
+all: test $(CGTEST_BIN)
 
 test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_BIN) $(TEST_CPATHLIST_BIN) $(TEST_CGTEST_CONFIG_BIN) $(TEST_CTESTFILES_BIN) $(TEST_CGTEST_ARQ_BIN) $(TEST_CGTEST_CREATE_BIN)
 	@echo "== test_ctestscanner =="
