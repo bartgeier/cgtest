@@ -36,10 +36,22 @@
 static const char *const CGTEST_CONFIG_TEMPLATE =
     "{\n"
     "    \"compiler_command\": \"gcc -std=c99 -O3\",\n"
-    "    \"include_paths\": [],\n"
-    "    \"source_files\": [],\n"
-    "    \"output_path\": \".\",\n"
-    "    \"test_directories\": [\".\"]\n"
+    "    \"include_paths\": [\n"
+    "        \"./include\",\n"
+    "        \"./third_party\",\n"
+    "        \"/usr/local/include\"\n"
+    "    ],\n"
+    "    \"source_files\": [\n"
+    "        \"./src/foo.c\",\n"
+    "        \"./src/bar.c\",\n"
+    "        \"./src/baz.c\"\n"
+    "    ],\n"
+    "    \"output_path\": \"./build\",\n"
+    "    \"test_directories\": [\n"
+    "        \"./tests\",\n"
+    "        \"./unittests\",\n"
+    "        \"/home/user/project/tests\"\n"
+    "    ]\n"
     "}\n";
 
 static const char *const CGTEST_H_TEMPLATE =
