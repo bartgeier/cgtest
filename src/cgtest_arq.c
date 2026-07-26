@@ -47,6 +47,9 @@ static void fn_config(Arq_Queue *queue)
 static void fn_create(Arq_Queue *queue)
 {
     raw_m->create_path = arq_cstr_t(queue);
+    if (raw_m->create_path == NULL) {
+        raw_m->create_path = ".";
+    }
 }
 
 static CGTestArgs cgtest_arq_fail(const char *message)
@@ -69,7 +72,7 @@ CGTestArgs cgtest_arq_parse(int argc, char **argv)
         { 'h', "help",    fn_help,    "()" },
         { 'v', "version", fn_version, "()" },
         { 'c', "config",  fn_config,  "(cstr_t path)" },
-        { 'C', "create",  fn_create,  "(cstr_t path)" }
+        { 'C', "create",  fn_create,  "(cstr_t path = NULL)" }
     };
 
     raw.help = 0;

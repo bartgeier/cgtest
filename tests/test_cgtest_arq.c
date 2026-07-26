@@ -122,6 +122,19 @@ bool test_long_create_flag_captures_path(void)
     return true;
 }
 
+bool test_create_flag_without_path_defaults_to_cwd(void)
+{
+    char *argv[] = { "cgtest", "-C", NULL };
+    CGTestArgs args = parse(argv);
+
+    CHECK(args.action == CGTEST_ARG_CREATE);
+    CHECK(args.create_path != NULL);
+    CHECK(strcmp(args.create_path, ".") == 0);
+
+    cgtest_arq_free(&args);
+    return true;
+}
+
 bool test_no_arguments_is_an_error(void)
 {
     char *argv[] = { "cgtest", NULL };
@@ -209,6 +222,7 @@ int main(void)
         { "test_long_config_flag_with_equals_captures_path", test_long_config_flag_with_equals_captures_path },
         { "test_short_create_flag_captures_path", test_short_create_flag_captures_path },
         { "test_long_create_flag_captures_path", test_long_create_flag_captures_path },
+        { "test_create_flag_without_path_defaults_to_cwd", test_create_flag_without_path_defaults_to_cwd },
         { "test_no_arguments_is_an_error", test_no_arguments_is_an_error },
         { "test_combining_config_and_version_is_an_error", test_combining_config_and_version_is_an_error },
         { "test_combining_config_and_create_is_an_error", test_combining_config_and_create_is_an_error },
