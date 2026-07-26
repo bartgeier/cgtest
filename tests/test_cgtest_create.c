@@ -152,6 +152,29 @@ bool test_missing_directory_is_an_error(void)
     return true;
 }
 
+bool test_nonexistent_directory_with_trailing_slash_is_an_error(void)
+{
+    CGTestCreateResult result;
+    struct stat st;
+
+    /* Regression test: a nonexistent directory named with a trailing
+     * slash must not be silently misinterpreted as a literal file
+     * path - stat() alone can't see it's meant as a directory since it
+     * doesn't exist yet, so cpath_join() normalizing the trailing
+     * slash away used to make this get treated as a file named
+     * "cgtest_create_fixture_missing" and written into the parent
+     * directory instead. */
+    result = cgtest_create_run("build/cgtest_create_fixture_missing/");
+
+    CHECK(!result.ok);
+    CHECK(result.error != NULL);
+    CHECK(stat("build/cgtest_create_fixture_missing", &st) != 0);
+    CHECK(stat("build/cgtest.h", &st) != 0);
+
+    cgtest_create_free(&result);
+    return true;
+}
+
 bool test_free_on_error_is_safe(void)
 {
     CGTestCreateResult result = cgtest_create_run("build/cgtest_create_fixture_missing/cgtest-config.json");
@@ -174,6 +197,7 @@ int main(void)
         { "test_created_config_round_trips_through_parser", test_created_config_round_trips_through_parser },
         { "test_refuses_to_overwrite_existing_config", test_refuses_to_overwrite_existing_config },
         { "test_missing_directory_is_an_error", test_missing_directory_is_an_error },
+        { "test_nonexistent_directory_with_trailing_slash_is_an_error", test_nonexistent_directory_with_trailing_slash_is_an_error },
         { "test_free_on_error_is_safe", test_free_on_error_is_safe }
     };
     size_t count = sizeof(cases) / sizeof(cases[0]);

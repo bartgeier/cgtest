@@ -5,10 +5,19 @@
  * "already exists" check and the derived cgtest.h location are both
  * unambiguous regardless of what the caller passed in.
  *
- * If "config_path" names an existing directory (e.g. "." or a project
- * root), "cgtest-config.json" is appended to it rather than treated as
- * the literal target - a bare directory can never itself be a valid
- * cgtest-config.json path, so there is no ambiguity in redirecting it.
+ * If "config_path" names a directory, "cgtest-config.json" is appended
+ * to it rather than treated as the literal target - a bare directory
+ * can never itself be a valid cgtest-config.json path, so there is no
+ * ambiguity in redirecting it. Two independent signals decide "this is
+ * a directory": stat()/S_ISDIR (for one that already exists) and a
+ * trailing '/' or '\\' on the original argument (for one that doesn't
+ * exist yet, where stat() alone can't tell). The trailing-separator
+ * check has to run against "config_path" itself, before cpath_join()
+ * ever sees it - cpath_join() normalizes trailing separators away
+ * (see test_cpath.c's test_directory_rel_joins_same_as_file_rel), so
+ * by the time a joined/absolute path is available that signal is
+ * already gone.
+ *
  * stat()/S_ISDIR is POSIX, but relied on unqualified here since it's
  * provided by every libc this project's gcc/clang toolchains target,
  * including MinGW on Windows (unlike MSVC's non-POSIX _stat).
@@ -64,6 +73,15 @@ static const char *const CGTEST_H_TEMPLATE =
     "\n"
     "#endif /* CGTEST_H */\n";
 
+static int cgtest_create_ends_with_separator(const char *path)
+{
+    size_t len = strlen(path);
+    if (len == 0) {
+        return 0;
+    }
+    return path[len - 1] == '/' || path[len - 1] == '\\';
+}
+
 static CGTestCreateResult cgtest_create_fail(const char *message)
 {
     CGTestCreateResult result;
@@ -116,7 +134,7 @@ CGTestCreateResult cgtest_create_run(const char *config_path)
 
     abs_target = cpath_join(abs_target_scratch, sizeof(abs_target_scratch), cwd, config_path);
 
-    if (stat(abs_target.data, &st) == 0 && S_ISDIR(st.st_mode)) {
+    if (cgtest_create_ends_with_separator(config_path) || (stat(abs_target.data, &st) == 0 && S_ISDIR(st.st_mode))) {
         abs_config = cpath_join(abs_config_scratch, sizeof(abs_config_scratch), abs_target.data, "cgtest-config.json");
     } else {
         abs_config = abs_target;
