@@ -88,8 +88,6 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 * cmsg.c cmsg.h helper for building bounded, truncation-safe human-readable error messages.
 * cgtest_main.c main function
 
-- Search items
-- Sort items
 - Colorized terminal output
 
 ---
