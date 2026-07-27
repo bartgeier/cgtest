@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #define CHECK(cond) \
     do { \
@@ -18,9 +19,36 @@
         } \
     } while (0)
 
+#define FIXTURE_DIR "build/cgtest_config_fixture"
+#define CONFIG_PATH FIXTURE_DIR "/cgtest-config.json"
+
 static CGTestConfig parse(const char *json)
 {
     return cgtest_config_parse(json, strlen(json), "/base");
+}
+
+static void write_fixture_config(void)
+{
+    static const char *const json =
+        "{\n"
+        "    \"compiler_command\": \"gcc -std=c99 -O3\",\n"
+        "    \"include_paths\": [\"src\"],\n"
+        "    \"source_files\": [\"src/a.c\"],\n"
+        "    \"output_path\": \"./build\",\n"
+        "    \"test_directories\": [\"tests\"]\n"
+        "}\n";
+    FILE *f;
+
+    mkdir(FIXTURE_DIR, 0755);
+    f = fopen(CONFIG_PATH, "wb");
+    fputs(json, f);
+    fclose(f);
+}
+
+static void remove_fixture_config(void)
+{
+    remove(CONFIG_PATH);
+    remove(FIXTURE_DIR);
 }
 
 bool test_parses_a_complete_config(void)
@@ -227,6 +255,56 @@ bool test_free_on_failed_config_is_safe(void)
     return true;
 }
 
+bool test_load_accepts_the_config_file_directly(void)
+{
+    CGTestConfig config;
+
+    write_fixture_config();
+    config = cgtest_config_load(CONFIG_PATH);
+
+    CHECK(config.ok);
+    CHECK(config.error == NULL);
+    CHECK(strcmp(config.compiler_command, "gcc -std=c99 -O3") == 0);
+
+    cgtest_config_free(&config);
+    remove_fixture_config();
+    return true;
+}
+
+bool test_load_accepts_the_containing_directory(void)
+{
+    CGTestConfig config;
+
+    write_fixture_config();
+    config = cgtest_config_load(FIXTURE_DIR);
+
+    CHECK(config.ok);
+    CHECK(config.error == NULL);
+    CHECK(strcmp(config.compiler_command, "gcc -std=c99 -O3") == 0);
+    CHECK(config.include_paths.count == 1);
+    CHECK(strstr(config.include_paths.entries[0], "/" FIXTURE_DIR "/src") != NULL);
+
+    cgtest_config_free(&config);
+    remove_fixture_config();
+    return true;
+}
+
+bool test_load_missing_config_in_existing_directory_is_an_error(void)
+{
+    CGTestConfig config;
+
+    mkdir(FIXTURE_DIR, 0755);
+    config = cgtest_config_load(FIXTURE_DIR);
+
+    CHECK(!config.ok);
+    CHECK(config.error != NULL);
+    CHECK(strstr(config.error, "cgtest-config.json not found") != NULL);
+
+    cgtest_config_free(&config);
+    remove(FIXTURE_DIR);
+    return true;
+}
+
 typedef struct {
     const char *name;
     bool (*fn)(void);
@@ -246,7 +324,10 @@ int main(void)
         { "test_empty_json_is_an_error", test_empty_json_is_an_error },
         { "test_non_object_top_level_is_an_error", test_non_object_top_level_is_an_error },
         { "test_string_escapes_are_unescaped", test_string_escapes_are_unescaped },
-        { "test_free_on_failed_config_is_safe", test_free_on_failed_config_is_safe }
+        { "test_free_on_failed_config_is_safe", test_free_on_failed_config_is_safe },
+        { "test_load_accepts_the_config_file_directly", test_load_accepts_the_config_file_directly },
+        { "test_load_accepts_the_containing_directory", test_load_accepts_the_containing_directory },
+        { "test_load_missing_config_in_existing_directory_is_an_error", test_load_missing_config_in_existing_directory_is_an_error }
     };
     size_t count = sizeof(cases) / sizeof(cases[0]);
     size_t i;

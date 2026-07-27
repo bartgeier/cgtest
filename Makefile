@@ -12,13 +12,14 @@ TEST_CGTEST_CONFIG_BIN := $(BUILD_DIR)/test_cgtest_config
 TEST_CTESTFILES_BIN    := $(BUILD_DIR)/test_ctestfiles
 TEST_CGTEST_ARQ_BIN    := $(BUILD_DIR)/test_cgtest_arq
 TEST_CGTEST_CREATE_BIN := $(BUILD_DIR)/test_cgtest_create
+TEST_CGTEST_RUNNER_BIN := $(BUILD_DIR)/test_cgtest_runner
 CGTEST_BIN             := $(BUILD_DIR)/cgtest
 
 .PHONY: all test check-c89 clean
 
 all: test $(CGTEST_BIN)
 
-test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_BIN) $(TEST_CPATHLIST_BIN) $(TEST_CGTEST_CONFIG_BIN) $(TEST_CTESTFILES_BIN) $(TEST_CGTEST_ARQ_BIN) $(TEST_CGTEST_CREATE_BIN)
+test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_BIN) $(TEST_CPATHLIST_BIN) $(TEST_CGTEST_CONFIG_BIN) $(TEST_CTESTFILES_BIN) $(TEST_CGTEST_ARQ_BIN) $(TEST_CGTEST_CREATE_BIN) $(TEST_CGTEST_RUNNER_BIN)
 	@echo "== test_ctestscanner =="
 	@$(TEST_CTESTSCANNER_BIN)
 	@echo
@@ -42,6 +43,9 @@ test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_
 	@echo
 	@echo "== test_cgtest_create =="
 	@$(TEST_CGTEST_CREATE_BIN)
+	@echo
+	@echo "== test_cgtest_runner =="
+	@$(TEST_CGTEST_RUNNER_BIN)
 
 $(TEST_CTESTSCANNER_BIN): tests/test_ctestscanner.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/ctestscanner.h src/cpreprocessor.h src/clexer.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_ctestscanner.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c -o $@
@@ -67,8 +71,11 @@ $(TEST_CGTEST_ARQ_BIN): tests/test_cgtest_arq.c src/cgtest_arq.c src/cmsg.c src/
 $(TEST_CGTEST_CREATE_BIN): tests/test_cgtest_create.c src/cgtest_create.c src/cgtest_config.c src/cpathlist.c src/cpath.c src/cmsg.c src/cgtest_create.h src/cgtest_config.h src/cpathlist.h src/cpath.h src/cmsg.h third_party/jsmn.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_cgtest_create.c src/cgtest_create.c src/cgtest_config.c src/cpathlist.c src/cpath.c src/cmsg.c -o $@
 
-$(CGTEST_BIN): src/cgtest_main.c src/cgtest_arq.c src/cgtest_create.c src/cgtest_config.c src/cpathlist.c src/cpath.c src/cmsg.c | $(BUILD_DIR)
-	$(CC) -std=c89 -Wall -Wextra -pedantic -Ithird_party src/cgtest_main.c src/cgtest_arq.c src/cgtest_create.c src/cgtest_config.c src/cpathlist.c src/cpath.c src/cmsg.c -o $@
+$(TEST_CGTEST_RUNNER_BIN): tests/test_cgtest_runner.c src/cgtest_runner.c src/ctestfiles.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/cpathlist.c src/cpath.c src/cmsg.c src/cgtest_runner.h src/ctestfiles.h src/ctestscanner.h src/cpreprocessor.h src/clexer.h src/cpathlist.h src/cpath.h src/cmsg.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) tests/test_cgtest_runner.c src/cgtest_runner.c src/ctestfiles.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/cpathlist.c src/cpath.c src/cmsg.c -o $@
+
+$(CGTEST_BIN): src/cgtest_main.c src/cgtest_arq.c src/cgtest_create.c src/cgtest_config.c src/cgtest_runner.c src/ctestfiles.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/cpathlist.c src/cpath.c src/cmsg.c | $(BUILD_DIR)
+	$(CC) -std=c89 -Wall -Wextra -pedantic -Ithird_party src/cgtest_main.c src/cgtest_arq.c src/cgtest_create.c src/cgtest_config.c src/cgtest_runner.c src/ctestfiles.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/cpathlist.c src/cpath.c src/cmsg.c -o $@
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)

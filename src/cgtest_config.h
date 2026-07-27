@@ -45,7 +45,10 @@ CGTestConfig cgtest_config_parse(const char *json, size_t length, const char *ba
 /* Reads "config_path" from disk, resolves it to an absolute path
  * (against the current working directory, if it's relative), and
  * parses it via cgtest_config_parse() with that file's own directory
- * as base_dir.
+ * as base_dir. "config_path" may name cgtest-config.json directly, or
+ * a directory containing it (mirroring -C/--create's directory
+ * argument) - if it resolves to a directory, "cgtest-config.json" is
+ * looked up inside it.
  */
 CGTestConfig cgtest_config_load(const char *config_path);
 

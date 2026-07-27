@@ -3,17 +3,14 @@
  * Purely a dispatcher: cgtest_arq_parse() and every module it calls
  * report outcome via a returned struct rather than printing or
  * exiting themselves (see cgtest_arq.h, cgtest_create.h,
- * cgtest_config.h) - this file is the one place allowed to write to
- * stdout/stderr and call exit (via main()'s return value).
- *
- * The RUN action (-c/--config) is not implemented yet: discovering
- * test_*.c files' test_ functions across a whole config, generating
- * cgtest-runner.c, compiling it and running it are all still future
- * work. It is dispatched here as a clearly-labeled stub rather than
- * left out, since -c is already a valid, parsed action.
+ * cgtest_config.h, cgtest_runner.h) - this file is the one place
+ * allowed to write to stdout/stderr and call exit (via main()'s
+ * return value).
  */
 #include "cgtest_arq.h"
 #include "cgtest_create.h"
+#include "cgtest_config.h"
+#include "cgtest_runner.h"
 
 #include <stdio.h>
 
@@ -63,9 +60,27 @@ int main(int argc, char **argv)
         break;
     }
 
-    case CGTEST_ARG_RUN:
+    case CGTEST_ARG_RUN: {
+        CGTestConfig config = cgtest_config_load(args.config_path);
+        if (!config.ok) {
+            fprintf(stderr, "cgtest: %s\n", config.error);
+            exit_code = 1;
+        } else {
+            CGTestRunResult result = cgtest_runner_run(&config);
+            if (!result.ok) {
+                fprintf(stderr, "cgtest: %s\n", result.error);
+                exit_code = 1;
+            } else {
+                exit_code = result.exit_code;
+            }
+            cgtest_runner_free(&result);
+        }
+        cgtest_config_free(&config);
+        break;
+    }
+
     default:
-        fprintf(stderr, "cgtest: --config is not implemented yet\n");
+        fprintf(stderr, "cgtest: internal error: unhandled action\n");
         exit_code = 1;
         break;
     }

@@ -41,9 +41,11 @@ What the project should NOT do.
 ### Pars command-line arguments
   * For parsing the command-line arguments cgtest uses the arq lib from
   https://github.com/bartgeier/arq
-  * -c --config path to the cgtest-config.json.
+  * -c --config path to the cgtest-config.json, or to the directory containing it
+    (if the path is a directory, "cgtest-config.json" is looked up inside it).
     If cgtest-config.json doesn't exist than error and exit cgtest.exe with an appropriate message.  
     ```cgtest.exe --config ./unitest/cgtest/cgtest-config.json```
+    ```cgtest.exe --config ./unitest/cgtest```
   * -C --create path to the directory cgtest-config.json and cgtest.h should be created in
     (the argument is always a directory, never the config file's own path; the directory is
     created if it doesn't exist yet).

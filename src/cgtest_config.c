@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #ifdef _WIN32
 #include <direct.h>
@@ -311,9 +312,12 @@ CGTestConfig cgtest_config_load(const char *config_path)
     CGTestConfig config;
     char cwd[CGTEST_CONFIG_PATH_SCRATCH];
     char abs_config_scratch[CGTEST_CONFIG_PATH_SCRATCH];
+    char file_path_scratch[CGTEST_CONFIG_PATH_SCRATCH];
     char base_dir_scratch[CGTEST_CONFIG_PATH_SCRATCH];
     CPath abs_config;
+    CPath file_path;
     CPath base_dir;
+    struct stat st;
     FILE *f;
     long size;
     char *buffer;
@@ -329,13 +333,24 @@ CGTestConfig cgtest_config_load(const char *config_path)
     }
 
     abs_config = cpath_join(abs_config_scratch, sizeof(abs_config_scratch), cwd, config_path);
-    base_dir = cpath_dirname(base_dir_scratch, sizeof(base_dir_scratch), abs_config.data);
 
-    f = fopen(abs_config.data, "rb");
+    /* "config_path" may name cgtest-config.json directly, or the
+     * directory it lives in (matching -C/--create's directory
+     * argument) - if it's a directory, look for cgtest-config.json
+     * inside it. */
+    if (stat(abs_config.data, &st) == 0 && S_ISDIR(st.st_mode)) {
+        file_path = cpath_join(file_path_scratch, sizeof(file_path_scratch), abs_config.data, "cgtest-config.json");
+    } else {
+        file_path = abs_config;
+    }
+
+    base_dir = cpath_dirname(base_dir_scratch, sizeof(base_dir_scratch), file_path.data);
+
+    f = fopen(file_path.data, "rb");
     if (f == NULL) {
         char msg[CGTEST_CONFIG_ERROR_BUFSZ];
         cmsg_build(msg, sizeof(msg), "cgtest-config.json not found: ",
-                                     abs_config.data, abs_config.length, "");
+                                     file_path.data, file_path.length, "");
         return cgtest_config_fail(&config, msg);
     }
 
