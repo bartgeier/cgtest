@@ -1,0 +1,13 @@
+{
+    "compiler_command": "gcc -std=c99 -O3",
+    "include_paths": [
+        "./src"
+    ],
+    "source_files": [
+        "./src/mathlib.c"
+    ],
+    "output_path": "./build",
+    "test_directories": [
+        "./tests"
+    ]
+}
