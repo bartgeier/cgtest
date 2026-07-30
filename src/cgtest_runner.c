@@ -144,6 +144,15 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
             "{\n"
             "    int total = 0;\n"
             "    int failed = 0;\n"
+            "\n"
+            /* Without this, stdout is fully block-buffered whenever it
+             * isn't a tty (piped, redirected, or captured by an
+             * editor's :make) - every printf() below would then sit
+             * buffered until exit while stderr's FAIL: lines (from
+             * EXPECT_TRUE/EXPECT_FALSE/ASSERT_TRUE/ASSERT_FALSE)
+             * appear immediately, making failures print out of
+             * chronological order. */
+            "    setvbuf(stdout, NULL, _IOLBF, 0);\n"
             "\n")) {
         goto fail;
     }
