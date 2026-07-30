@@ -173,16 +173,17 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
             /* Printed before the call, not after: whether the test
              * passed isn't known until it's actually run, so this
              * announces which test any FAIL: lines below belong to -
-             * same reason GoogleTest has "[ RUN ]" ahead of its
-             * "[ OK ]"/"[ FAILED ]" verdict rather than trying to
-             * print the verdict first. */
-            if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"[RUN] ") ||
+             * same reason GoogleTest has "[ RUN      ]" ahead of its
+             * "[       OK ]"/"[  FAILED  ]" verdict rather than trying
+             * to print the verdict first. Bracket text/width matches
+             * GoogleTest's own literally, not just the general idea. */
+            if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"[ RUN      ] ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
                 !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n    total++;\n    cgtest_failed = 0;\n    ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "();\n    if (!cgtest_failed) {\n        printf(\"[PASS] ") ||
+                !cgtest_runner_buf_append_cstr(&buf, "();\n    if (!cgtest_failed) {\n        printf(\"[       OK ] ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n    } else {\n        printf(\"[FAIL] ") ||
+                !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n    } else {\n        printf(\"[  FAILED  ] ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
                 !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n        failed++;\n    }\n")) {
                 goto fail;
