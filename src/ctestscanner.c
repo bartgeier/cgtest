@@ -9,10 +9,10 @@
 
 enum {
     ST_INIT = 0,
-    ST_SAW_BOOL,
+    ST_SAW_RETURN_VOID,
     ST_SAW_NAME,
     ST_SAW_LPAREN,
-    ST_SAW_VOID
+    ST_SAW_PARAM_VOID
 };
 
 typedef struct {
@@ -63,7 +63,7 @@ static int ctestscanner_is_directive_hash(const CToken *token)
 
 static int ctestscanner_state_after_mismatch(const CToken *token)
 {
-    return (token->type == CTOK_IDENTIFIER && token->keyword == CKW_BOOL) ? ST_SAW_BOOL : ST_INIT;
+    return (token->type == CTOK_IDENTIFIER && token->keyword == CKW_VOID) ? ST_SAW_RETURN_VOID : ST_INIT;
 }
 
 CTestFunction *ctestscanner_find(const char *source, size_t length, size_t *out_count)
@@ -92,10 +92,10 @@ CTestFunction *ctestscanner_find(const char *source, size_t length, size_t *out_
 
         switch (state) {
         case ST_INIT:
-            state = (token.type == CTOK_IDENTIFIER && token.keyword == CKW_BOOL) ? ST_SAW_BOOL : ST_INIT;
+            state = (token.type == CTOK_IDENTIFIER && token.keyword == CKW_VOID) ? ST_SAW_RETURN_VOID : ST_INIT;
             break;
 
-        case ST_SAW_BOOL:
+        case ST_SAW_RETURN_VOID:
             if (token.type == CTOK_IDENTIFIER && token.keyword == CKW_NONE &&
                 clexer_token_starts_with(&token, CTESTSCANNER_TEST_PREFIX)) {
                 name_token = token;
@@ -116,13 +116,13 @@ CTestFunction *ctestscanner_find(const char *source, size_t length, size_t *out_
 
         case ST_SAW_LPAREN:
             if (token.type == CTOK_IDENTIFIER && token.keyword == CKW_VOID) {
-                state = ST_SAW_VOID;
+                state = ST_SAW_PARAM_VOID;
             } else {
                 state = ctestscanner_state_after_mismatch(&token);
             }
             break;
 
-        case ST_SAW_VOID:
+        case ST_SAW_PARAM_VOID:
             if (token.type == CTOK_PUNCT && token.punct == CPUNCT_RPAREN) {
                 CToken next = cpreprocessor_next_token(&pp);
 

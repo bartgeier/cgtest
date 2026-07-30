@@ -51,7 +51,7 @@ bool test_embeds_the_compile_command_as_a_leading_comment(void)
 
     CHECK(source != NULL);
     comment = strstr(source, "/* compile: gcc -std=c99 -I\"src\" -o cgtest-runner cgtest-runner.c */");
-    includes = strstr(source, "#include <stdbool.h>");
+    includes = strstr(source, "#include <stdio.h>");
     CHECK(comment != NULL);
     CHECK(includes != NULL);
     CHECK(comment < includes);
@@ -168,8 +168,8 @@ bool test_run_rejects_duplicate_basenames_across_directories(void)
     mkdir(FIXTURE_DIR, 0755);
     mkdir(FIXTURE_DIR "/dir_a", 0755);
     mkdir(FIXTURE_DIR "/dir_b", 0755);
-    write_file(FIXTURE_DIR "/dir_a/test_dup.c", "bool test_from_a(void) { return true; }\n");
-    write_file(FIXTURE_DIR "/dir_b/test_dup.c", "bool test_from_b(void) { return true; }\n");
+    write_file(FIXTURE_DIR "/dir_a/test_dup.c", "void test_from_a(void) { }\n");
+    write_file(FIXTURE_DIR "/dir_b/test_dup.c", "void test_from_b(void) { }\n");
 
     memset(&config, 0, sizeof(config));
     config.compiler_command = "gcc -std=c99"; /* never actually invoked - see below */

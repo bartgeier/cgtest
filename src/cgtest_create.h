@@ -1,7 +1,8 @@
 /* cgtest_create.h - see specification.md's "--create" example: writes a
- * template cgtest-config.json plus a (for now empty) cgtest.h alongside
- * it, so a new project has something to edit instead of writing
- * cgtest-config.json from scratch.
+ * template cgtest-config.json plus a cgtest.h (CGTEST_CHECK() and the
+ * cgtest_failed flag the generated runner reads) alongside it, so a new
+ * project has something to edit instead of writing cgtest-config.json
+ * from scratch.
  *
  * Both templates are baked into the cgtest binary as string constants
  * rather than shipped as separate files on disk - there is no reliable,

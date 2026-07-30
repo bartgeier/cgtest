@@ -1,7 +1,8 @@
 {
-    "compiler_command": "gcc -std=c99 -O3",
+    "compiler_command": "gcc -std=c89 -pedantic-errors -O3",
     "include_paths": [
-        "./src"
+        "./src",
+        "."
     ],
     "source_files": [
         "./src/mathlib.c"

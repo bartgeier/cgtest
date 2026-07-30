@@ -1,7 +1,7 @@
 /* ctestscanner.h - purpose-built scanner, layered on CPreprocessor, that
  * finds test functions of the form:
  *
- *     bool test_<name>(void) { ... }
+ *     void test_<name>(void) { ... }
  *
  * in a test_*.c source buffer, in the order they appear. This is not
  * part of tokenization or directive-awareness themselves (see clexer.h /
@@ -24,7 +24,7 @@ typedef struct {
 } CTestFunction;
 
 /* Scans "length" bytes at "source" for function definitions matching
- * "bool test_<name>(void) {", in order of appearance. Preprocessing
+ * "void test_<name>(void) {", in order of appearance. Preprocessing
  * directive lines are skipped as a unit via CPreprocessor.
  *
  * On success returns a malloc'd array of *out_count entries (which may

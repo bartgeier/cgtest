@@ -65,10 +65,14 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
   - test_math.c
   - test_strview.c
 * This files are than scanned for functions their nameing starts also with test_... with following signature:
-  - bool test_(void)
-  - bool test_math_add(void) {....}
-  - bool test_goal_sub(void) {....}
-  - bool test_div(void) {....}
+  - void test_(void)
+  - void test_math_add(void) {....}
+  - void test_goal_sub(void) {....}
+  - void test_div(void) {....}
+  - A `void` return keeps test files C89-portable (no `<stdbool.h>` needed). Failures are
+    reported via the `CGTEST_CHECK(cond)` macro from the generated cgtest.h, which sets the
+    `cgtest_failed` flag and returns from the test function; the runner resets that flag
+    before calling each test and reads it back afterwards to decide pass/fail.
 * the cgtest-runner executes those function in the same order they appear in the test_file.
   - That allowes to use the first function in a file as init test setup.
   - That allowes to use the last function in a file as tear down setup.

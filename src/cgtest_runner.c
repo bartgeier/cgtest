@@ -123,8 +123,9 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
         !cgtest_runner_buf_append_cstr(&buf, compile_command) ||
         !cgtest_runner_buf_append_cstr(&buf, " */\n") ||
         !cgtest_runner_buf_append_cstr(&buf,
-            "#include <stdbool.h>\n"
             "#include <stdio.h>\n"
+            "\n"
+            "int cgtest_failed = 0;\n"
             "\n")) {
         goto fail;
     }
@@ -150,9 +151,9 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
     for (i = 0; i < file_count; i++) {
         for (j = 0; j < files[i].function_count; j++) {
             const char *name = files[i].functions[j].name;
-            if (!cgtest_runner_buf_append_cstr(&buf, "    total++;\n    if (") ||
+            if (!cgtest_runner_buf_append_cstr(&buf, "    total++;\n    cgtest_failed = 0;\n    ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "()) {\n        printf(\"[PASS] ") ||
+                !cgtest_runner_buf_append_cstr(&buf, "();\n    if (!cgtest_failed) {\n        printf(\"[PASS] ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
                 !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n    } else {\n        printf(\"[FAIL] ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||

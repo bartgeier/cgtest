@@ -1,5 +1,5 @@
 /* test_ctestscanner.c - unit tests for ctestscanner_find(), the
- * scanner that locates "bool test_<name>(void) { ... }" definitions in
+ * scanner that locates "void test_<name>(void) { ... }" definitions in
  * a test_*.c source buffer.
  *
  * Written in cgtest's own test convention (bool test_<name>(void)) even
@@ -29,7 +29,7 @@ static CTestFunction *scan(const char *src, size_t *out_count)
 
 bool test_finds_single_function(void)
 {
-    const char *src = "bool test_foo(void) { return true; }\n";
+    const char *src = "void test_foo(void) { }\n";
     size_t count;
     CTestFunction *fns = scan(src, &count);
 
@@ -44,9 +44,9 @@ bool test_finds_single_function(void)
 bool test_finds_multiple_functions_in_order(void)
 {
     const char *src =
-        "bool test_first(void) { return true; }\n"
-        "bool test_second(void) { return true; }\n"
-        "bool test_third(void) { return true; }\n";
+        "void test_first(void) { }\n"
+        "void test_second(void) { }\n"
+        "void test_third(void) { }\n";
     size_t count;
     CTestFunction *fns = scan(src, &count);
 
@@ -65,8 +65,8 @@ bool test_finds_multiple_functions_in_order(void)
 bool test_ignores_prototype_declaration(void)
 {
     const char *src =
-        "bool test_foo(void);\n"
-        "bool test_foo(void) { return true; }\n";
+        "void test_foo(void);\n"
+        "void test_foo(void) { }\n";
     size_t count;
     CTestFunction *fns = scan(src, &count);
 
@@ -78,7 +78,7 @@ bool test_ignores_prototype_declaration(void)
     return true;
 }
 
-bool test_ignores_non_bool_return_type(void)
+bool test_ignores_non_void_return_type(void)
 {
     const char *src = "int test_foo(void) { return 0; }\n";
     size_t count;
@@ -89,11 +89,12 @@ bool test_ignores_non_bool_return_type(void)
     return true;
 }
 
-bool test_ignores_underscore_bool_keyword(void)
+bool test_ignores_bool_return_type(void)
 {
-    /* _Bool (C99/C11) is a distinct keyword from C23's "bool"; only the
-     * latter matches the test-function signature. */
-    const char *src = "_Bool test_foo(void) { return 1; }\n";
+    /* The old "bool test_<name>(void)" convention is deliberately no
+     * longer matched - "void" is what keeps generated test files
+     * C89-portable (no <stdbool.h> required). */
+    const char *src = "bool test_foo(void) { return true; }\n";
     size_t count;
     CTestFunction *fns = scan(src, &count);
 
@@ -104,7 +105,7 @@ bool test_ignores_underscore_bool_keyword(void)
 
 bool test_ignores_name_without_test_prefix(void)
 {
-    const char *src = "bool check_foo(void) { return true; }\n";
+    const char *src = "void check_foo(void) { }\n";
     size_t count;
     CTestFunction *fns = scan(src, &count);
 
@@ -117,7 +118,7 @@ bool test_ignores_name_with_test_as_substring_not_prefix(void)
 {
     /* "testify_foo" does not start with the "test_" prefix (5th char
      * differs: 'i' vs '_'). */
-    const char *src = "bool testify_foo(void) { return true; }\n";
+    const char *src = "void testify_foo(void) { }\n";
     size_t count;
     CTestFunction *fns = scan(src, &count);
 
@@ -128,7 +129,7 @@ bool test_ignores_name_with_test_as_substring_not_prefix(void)
 
 bool test_accepts_exact_test_prefix_as_name(void)
 {
-    const char *src = "bool test_(void) { return true; }\n";
+    const char *src = "void test_(void) { }\n";
     size_t count;
     CTestFunction *fns = scan(src, &count);
 
@@ -141,7 +142,7 @@ bool test_accepts_exact_test_prefix_as_name(void)
 
 bool test_ignores_wrong_parameter_list(void)
 {
-    const char *src = "bool test_foo(int x) { return true; }\n";
+    const char *src = "void test_foo(int x) { }\n";
     size_t count;
     CTestFunction *fns = scan(src, &count);
 
@@ -153,13 +154,12 @@ bool test_ignores_wrong_parameter_list(void)
 bool test_handles_signature_split_across_lines(void)
 {
     const char *src =
-        "bool\n"
+        "void\n"
         "test_split\n"
         "(\n"
         "void\n"
         ")\n"
         "{\n"
-        "    return true;\n"
         "}\n";
     size_t count;
     CTestFunction *fns = scan(src, &count);
@@ -175,9 +175,9 @@ bool test_handles_signature_split_across_lines(void)
 bool test_handles_comments_between_tokens(void)
 {
     const char *src =
-        "bool /* return type */ test_commented (/* args */ void /* here */)\n"
+        "void /* return type */ test_commented (/* args */ void /* here */)\n"
         "// about to open\n"
-        "{ return true; }\n";
+        "{ }\n";
     size_t count;
     CTestFunction *fns = scan(src, &count);
 
@@ -192,7 +192,7 @@ bool test_skips_include_directive(void)
 {
     const char *src =
         "#include <stdio.h>\n"
-        "bool test_after_include(void) { return true; }\n";
+        "void test_after_include(void) { }\n";
     size_t count;
     CTestFunction *fns = scan(src, &count);
 
@@ -212,7 +212,7 @@ bool test_line_numbers_correct_after_spliced_directive(void)
     const char *src =
         "#define ADD(a, b) \\\n"
         "    ((a) + (b))\n"
-        "bool test_after_define(void) { return true; }\n";
+        "void test_after_define(void) { }\n";
     size_t count;
     CTestFunction *fns = scan(src, &count);
 
@@ -233,7 +233,7 @@ bool test_finds_function_disabled_by_ifdef(void)
      * #ifdef/#if 0 block is still reported. */
     const char *src =
         "#ifdef DISABLED\n"
-        "bool test_hidden(void) { return true; }\n"
+        "void test_hidden(void) { }\n"
         "#endif\n";
     size_t count;
     CTestFunction *fns = scan(src, &count);
@@ -248,9 +248,9 @@ bool test_finds_function_disabled_by_ifdef(void)
 bool test_ignores_prototype_followed_by_directive(void)
 {
     const char *src =
-        "bool test_foo(void)\n"
+        "void test_foo(void)\n"
         "#ifdef SOMETHING\n"
-        "{ return true; }\n"
+        "{ }\n"
         "#endif\n";
     size_t count;
     CTestFunction *fns = scan(src, &count);
@@ -288,20 +288,20 @@ bool test_realistic_file_with_setup_and_teardown(void)
     const char *src =
         "#include \"cgtest.h\"\n"
         "\n"
-        "bool test_setup(void) { return true; }\n"
+        "void test_setup(void) { }\n"
         "\n"
-        "bool test_math_add(void)\n"
+        "void test_math_add(void)\n"
         "{\n"
-        "    return 1 + 1 == 2;\n"
+        "    CGTEST_CHECK(1 + 1 == 2);\n"
         "}\n"
         "\n"
-        "bool test_math_sub(void) { return 2 - 1 == 1; }\n"
+        "void test_math_sub(void) { CGTEST_CHECK(2 - 1 == 1); }\n"
         "\n"
         "static int helper(void) { return 0; }\n"
         "\n"
-        "bool test_teardown(void);\n"
+        "void test_teardown(void);\n"
         "\n"
-        "bool test_teardown(void) { return true; }\n";
+        "void test_teardown(void) { }\n";
     size_t count;
     CTestFunction *fns = scan(src, &count);
 
@@ -329,8 +329,8 @@ int main(void)
         { "test_finds_single_function", test_finds_single_function },
         { "test_finds_multiple_functions_in_order", test_finds_multiple_functions_in_order },
         { "test_ignores_prototype_declaration", test_ignores_prototype_declaration },
-        { "test_ignores_non_bool_return_type", test_ignores_non_bool_return_type },
-        { "test_ignores_underscore_bool_keyword", test_ignores_underscore_bool_keyword },
+        { "test_ignores_non_void_return_type", test_ignores_non_void_return_type },
+        { "test_ignores_bool_return_type", test_ignores_bool_return_type },
         { "test_ignores_name_without_test_prefix", test_ignores_name_without_test_prefix },
         { "test_ignores_name_with_test_as_substring_not_prefix", test_ignores_name_with_test_as_substring_not_prefix },
         { "test_accepts_exact_test_prefix_as_name", test_accepts_exact_test_prefix_as_name },

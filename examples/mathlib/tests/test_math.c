@@ -6,35 +6,22 @@
  * main() of its own; the generated runner supplies it.
  */
 #include "mathlib.h"
+#include "cgtest.h"
 
-#include <stdbool.h>
-#include <stdio.h>
-
-#define CHECK(cond) \
-    do { \
-        if (!(cond)) { \
-            fprintf(stderr, "  FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
-            return false; \
-        } \
-    } while (0)
-
-bool test_math_add(void)
+void test_math_add(void)
 {
-    CHECK(mathlib_add(2, 3) == 5);
-    CHECK(mathlib_add(-2, 2) == 0);
-    return true;
+    CGTEST_CHECK(mathlib_add(2, 3) == 5);
+    CGTEST_CHECK(mathlib_add(-2, 2) == 0);
 }
 
-bool test_math_sub(void)
+void test_math_sub(void)
 {
-    CHECK(mathlib_sub(5, 3) == 2);
-    CHECK(mathlib_sub(0, 7) == -7);
-    return true;
+    CGTEST_CHECK(mathlib_sub(5, 3) == 2);
+    CGTEST_CHECK(mathlib_sub(0, 7) == -7);
 }
 
-bool test_math_div(void)
+void test_math_div(void)
 {
-    CHECK(mathlib_div(6, 3) == 2);
-    CHECK(mathlib_div(7, 2) == 3);
-    return true;
+    CGTEST_CHECK(mathlib_div(6, 3) == 2);
+    CGTEST_CHECK(mathlib_div(7, 2) == 3);
 }
