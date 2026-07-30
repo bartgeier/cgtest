@@ -149,6 +149,16 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
     }
 
     for (i = 0; i < file_count; i++) {
+        if (files[i].function_count == 0) {
+            continue;
+        }
+
+        if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"== ") ||
+            !cgtest_runner_buf_append_cstr(&buf, cgtest_runner_basename(files[i].label)) ||
+            !cgtest_runner_buf_append_cstr(&buf, " ==\\n\");\n")) {
+            goto fail;
+        }
+
         for (j = 0; j < files[i].function_count; j++) {
             const char *name = files[i].functions[j].name;
             if (!cgtest_runner_buf_append_cstr(&buf, "    total++;\n    cgtest_failed = 0;\n    ") ||
@@ -157,14 +167,18 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
                 !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n    } else {\n        printf(\"[FAIL] ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n        failed++;\n    }\n\n")) {
+                !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n        failed++;\n    }\n")) {
                 goto fail;
             }
+        }
+
+        if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"\\n\");\n\n")) {
+            goto fail;
         }
     }
 
     if (!cgtest_runner_buf_append_cstr(&buf,
-            "    printf(\"\\n%d/%d tests passed\\n\", total - failed, total);\n"
+            "    printf(\"%d/%d tests passed\\n\", total - failed, total);\n"
             "    return failed == 0 ? 0 : 1;\n"
             "}\n")) {
         goto fail;

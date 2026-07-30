@@ -82,6 +82,54 @@ void test_includes_the_file_and_calls_its_function(void)
     CHECK(strstr(source, "test_math_add()") != NULL);
     CHECK(strstr(source, "[PASS] test_math_add") != NULL);
     CHECK(strstr(source, "[FAIL] test_math_add") != NULL);
+    CHECK(strstr(source, "== test_math.c ==") != NULL);
+
+    free(source);
+}
+
+void test_header_uses_bare_basename_and_precedes_its_tests(void)
+{
+    CTestFunction functions[1];
+    CGTestRunnerFile files[1];
+    char *source;
+    const char *header;
+    const char *call;
+
+    functions[0].name = "test_math_add";
+    functions[0].line = 3;
+
+    files[0].label = "/abs/path/test_math.c";
+    files[0].functions = functions;
+    files[0].function_count = 1;
+
+    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    CHECK(source != NULL);
+
+    header = strstr(source, "== test_math.c ==");
+    call = strstr(source, "test_math_add()");
+    CHECK(header != NULL);
+    CHECK(call != NULL);
+    CHECK(header < call);
+
+    free(source);
+}
+
+void test_skips_the_header_for_a_file_with_no_test_functions(void)
+{
+    CGTestRunnerFile files[1];
+    char *source;
+
+    files[0].label = "test_empty.c";
+    files[0].functions = NULL;
+    files[0].function_count = 0;
+
+    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    CHECK(source != NULL);
+
+    /* Still #include'd (it may hold setup/helper code, just no test_
+     * functions of its own), just no "== test_empty.c ==" header. */
+    CHECK(strstr(source, "#include \"test_empty.c\"") != NULL);
+    CHECK(strstr(source, "== test_empty.c ==") == NULL);
 
     free(source);
 }
@@ -209,6 +257,8 @@ int main(void)
         { "test_generates_valid_shell_with_no_files", test_generates_valid_shell_with_no_files },
         { "test_embeds_the_compile_command_as_a_leading_comment", test_embeds_the_compile_command_as_a_leading_comment },
         { "test_includes_the_file_and_calls_its_function", test_includes_the_file_and_calls_its_function },
+        { "test_header_uses_bare_basename_and_precedes_its_tests", test_header_uses_bare_basename_and_precedes_its_tests },
+        { "test_skips_the_header_for_a_file_with_no_test_functions", test_skips_the_header_for_a_file_with_no_test_functions },
         { "test_preserves_function_order_within_a_file", test_preserves_function_order_within_a_file },
         { "test_preserves_file_order_across_files", test_preserves_file_order_across_files },
         { "test_run_rejects_duplicate_basenames_across_directories", test_run_rejects_duplicate_basenames_across_directories }
