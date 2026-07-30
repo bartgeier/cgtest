@@ -170,7 +170,15 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
 
         for (j = 0; j < files[i].function_count; j++) {
             const char *name = files[i].functions[j].name;
-            if (!cgtest_runner_buf_append_cstr(&buf, "    total++;\n    cgtest_failed = 0;\n    ") ||
+            /* Printed before the call, not after: whether the test
+             * passed isn't known until it's actually run, so this
+             * announces which test any FAIL: lines below belong to -
+             * same reason GoogleTest has "[ RUN ]" ahead of its
+             * "[ OK ]"/"[ FAILED ]" verdict rather than trying to
+             * print the verdict first. */
+            if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"[RUN] ") ||
+                !cgtest_runner_buf_append_cstr(&buf, name) ||
+                !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n    total++;\n    cgtest_failed = 0;\n    ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
                 !cgtest_runner_buf_append_cstr(&buf, "();\n    if (!cgtest_failed) {\n        printf(\"[PASS] ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
