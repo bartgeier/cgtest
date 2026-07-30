@@ -8,11 +8,17 @@
 
 void test_div_truncates_toward_zero(void)
 {
-    EXPECT_TRUE(mathlib_div(7, 2) == 3);
-    EXPECT_TRUE(mathlib_div(-7, 2) == -3);
-    EXPECT_TRUE(mathlib_div(7, -2) == -3);
+    int divisor = 2;
+
+    /* ASSERT_FALSE: same zero-divisor precondition as test_math.c's
+     * ASSERT_TRUE(divisor != 0), just phrased negatively - either
+     * reads naturally depending on the check. */
+    ASSERT_FALSE(divisor == 0);
+    EXPECT_TRUE(mathlib_div(7, divisor) == 3);
+    EXPECT_TRUE(mathlib_div(-7, divisor) == -3);
+    EXPECT_TRUE(mathlib_div(7, -divisor) == -3);
     /* Rules out the plausible-but-wrong floor-division alternative. */
-    EXPECT_FALSE(mathlib_div(-7, 2) == -4);
+    EXPECT_FALSE(mathlib_div(-7, divisor) == -4);
 }
 
 void test_add_is_commutative(void)
