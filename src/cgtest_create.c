@@ -70,17 +70,61 @@ static const char *const CGTEST_H_TEMPLATE_HEAD1 =
 
 static const char *const CGTEST_H_TEMPLATE_HEAD2 =
     "#include <stdio.h>\n"
+    "#include <string.h>\n"
+    "\n"
+    "#ifdef _WIN32\n"
+    "#include <direct.h>\n"
+    "#define CGTEST_GETCWD _getcwd\n"
+    "#else\n"
+    "#include <unistd.h>\n"
+    "#define CGTEST_GETCWD getcwd\n"
+    "#endif\n"
     "\n"
     "/* The generated runner reads this after calling each test to\n"
     " * decide pass/fail, resetting it to 0 first. */\n"
     "extern int cgtest_failed;\n"
     "\n";
 
+static const char *const CGTEST_H_TEMPLATE_RELPATH1 =
+    "/* Shortens __FILE__ to a path relative to the current working\n"
+    " * directory (falls back to the full path if it isn't under it),\n"
+    " * so FAIL messages stay short - jump-to-file in an editor's\n"
+    " * quickfix list still works as long as the editor's own cwd\n"
+    " * matches wherever the test binary was run from. */\n"
+    "static const char *cgtest_relpath(const char *file)\n"
+    "{\n"
+    "    static char cwd[4096];\n"
+    "    size_t i;\n"
+    "    size_t len;\n"
+    "\n"
+    "    if (CGTEST_GETCWD(cwd, sizeof(cwd)) == NULL) {\n"
+    "        return file;\n"
+    "    }\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_RELPATH2 =
+    "    len = strlen(cwd);\n"
+    "    for (i = 0; i < len; i++) {\n"
+    "        char a = file[i];\n"
+    "        char b = cwd[i];\n"
+    "        if (a == '\\\\') a = '/';\n"
+    "        if (b == '\\\\') b = '/';\n"
+    "        if (a != b) {\n"
+    "            return file;\n"
+    "        }\n"
+    "    }\n"
+    "    if (file[len] != '/' && file[len] != '\\\\') {\n"
+    "        return file;\n"
+    "    }\n"
+    "    return file + len + 1;\n"
+    "}\n"
+    "\n";
+
 static const char *const CGTEST_H_TEMPLATE_EXPECT_TRUE =
     "#define EXPECT_TRUE(cond) \\\n"
     "    do { \\\n"
     "        if (!(cond)) { \\\n"
-    "            fprintf(stderr, \"  FAIL %s:%d: EXPECT_TRUE(%s)\\n\", __FILE__, __LINE__, #cond); \\\n"
+    "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_TRUE(%s)\\n\", cgtest_relpath(__FILE__), __LINE__, #cond); \\\n"
     "            cgtest_failed = 1; \\\n"
     "        } \\\n"
     "    } while (0)\n"
@@ -90,7 +134,7 @@ static const char *const CGTEST_H_TEMPLATE_EXPECT_FALSE =
     "#define EXPECT_FALSE(cond) \\\n"
     "    do { \\\n"
     "        if (cond) { \\\n"
-    "            fprintf(stderr, \"  FAIL %s:%d: EXPECT_FALSE(%s)\\n\", __FILE__, __LINE__, #cond); \\\n"
+    "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_FALSE(%s)\\n\", cgtest_relpath(__FILE__), __LINE__, #cond); \\\n"
     "            cgtest_failed = 1; \\\n"
     "        } \\\n"
     "    } while (0)\n"
@@ -100,7 +144,7 @@ static const char *const CGTEST_H_TEMPLATE_ASSERT_TRUE =
     "#define ASSERT_TRUE(cond) \\\n"
     "    do { \\\n"
     "        if (!(cond)) { \\\n"
-    "            fprintf(stderr, \"  FAIL %s:%d: ASSERT_TRUE(%s)\\n\", __FILE__, __LINE__, #cond); \\\n"
+    "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_TRUE(%s)\\n\", cgtest_relpath(__FILE__), __LINE__, #cond); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            return; \\\n"
     "        } \\\n"
@@ -111,7 +155,7 @@ static const char *const CGTEST_H_TEMPLATE_ASSERT_FALSE =
     "#define ASSERT_FALSE(cond) \\\n"
     "    do { \\\n"
     "        if (cond) { \\\n"
-    "            fprintf(stderr, \"  FAIL %s:%d: ASSERT_FALSE(%s)\\n\", __FILE__, __LINE__, #cond); \\\n"
+    "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_FALSE(%s)\\n\", cgtest_relpath(__FILE__), __LINE__, #cond); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            return; \\\n"
     "        } \\\n"
@@ -206,6 +250,7 @@ CGTestCreateResult cgtest_create_run(const char *dir)
     }
     if (!cgtest_create_write_file(header_path.data, error_buf, sizeof(error_buf),
                                    CGTEST_H_TEMPLATE_HEAD1, CGTEST_H_TEMPLATE_HEAD2,
+                                   CGTEST_H_TEMPLATE_RELPATH1, CGTEST_H_TEMPLATE_RELPATH2,
                                    CGTEST_H_TEMPLATE_EXPECT_TRUE, CGTEST_H_TEMPLATE_EXPECT_FALSE,
                                    CGTEST_H_TEMPLATE_ASSERT_TRUE, CGTEST_H_TEMPLATE_ASSERT_FALSE,
                                    (const char *)NULL)) {

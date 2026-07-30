@@ -10,15 +10,55 @@
  * dereference), EXPECT otherwise. */
 
 #include <stdio.h>
+#include <string.h>
+
+#ifdef _WIN32
+#include <direct.h>
+#define CGTEST_GETCWD _getcwd
+#else
+#include <unistd.h>
+#define CGTEST_GETCWD getcwd
+#endif
 
 /* The generated runner reads this after calling each test to
  * decide pass/fail, resetting it to 0 first. */
 extern int cgtest_failed;
 
+/* Shortens __FILE__ to a path relative to the current working
+ * directory (falls back to the full path if it isn't under it),
+ * so FAIL messages stay short - jump-to-file in an editor's
+ * quickfix list still works as long as the editor's own cwd
+ * matches wherever the test binary was run from. */
+static const char *cgtest_relpath(const char *file)
+{
+    static char cwd[4096];
+    size_t i;
+    size_t len;
+
+    if (CGTEST_GETCWD(cwd, sizeof(cwd)) == NULL) {
+        return file;
+    }
+
+    len = strlen(cwd);
+    for (i = 0; i < len; i++) {
+        char a = file[i];
+        char b = cwd[i];
+        if (a == '\\') a = '/';
+        if (b == '\\') b = '/';
+        if (a != b) {
+            return file;
+        }
+    }
+    if (file[len] != '/' && file[len] != '\\') {
+        return file;
+    }
+    return file + len + 1;
+}
+
 #define EXPECT_TRUE(cond) \
     do { \
         if (!(cond)) { \
-            fprintf(stderr, "  FAIL %s:%d: EXPECT_TRUE(%s)\n", __FILE__, __LINE__, #cond); \
+            fprintf(stderr, "%s:%d: FAIL: EXPECT_TRUE(%s)\n", cgtest_relpath(__FILE__), __LINE__, #cond); \
             cgtest_failed = 1; \
         } \
     } while (0)
@@ -26,7 +66,7 @@ extern int cgtest_failed;
 #define EXPECT_FALSE(cond) \
     do { \
         if (cond) { \
-            fprintf(stderr, "  FAIL %s:%d: EXPECT_FALSE(%s)\n", __FILE__, __LINE__, #cond); \
+            fprintf(stderr, "%s:%d: FAIL: EXPECT_FALSE(%s)\n", cgtest_relpath(__FILE__), __LINE__, #cond); \
             cgtest_failed = 1; \
         } \
     } while (0)
@@ -34,7 +74,7 @@ extern int cgtest_failed;
 #define ASSERT_TRUE(cond) \
     do { \
         if (!(cond)) { \
-            fprintf(stderr, "  FAIL %s:%d: ASSERT_TRUE(%s)\n", __FILE__, __LINE__, #cond); \
+            fprintf(stderr, "%s:%d: FAIL: ASSERT_TRUE(%s)\n", cgtest_relpath(__FILE__), __LINE__, #cond); \
             cgtest_failed = 1; \
             return; \
         } \
@@ -43,7 +83,7 @@ extern int cgtest_failed;
 #define ASSERT_FALSE(cond) \
     do { \
         if (cond) { \
-            fprintf(stderr, "  FAIL %s:%d: ASSERT_FALSE(%s)\n", __FILE__, __LINE__, #cond); \
+            fprintf(stderr, "%s:%d: FAIL: ASSERT_FALSE(%s)\n", cgtest_relpath(__FILE__), __LINE__, #cond); \
             cgtest_failed = 1; \
             return; \
         } \
