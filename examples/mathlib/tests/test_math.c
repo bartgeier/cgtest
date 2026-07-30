@@ -10,18 +10,24 @@
 
 void test_math_add(void)
 {
-    CGTEST_CHECK(mathlib_add(2, 3) == 5);
-    CGTEST_CHECK(mathlib_add(-2, 2) == 0);
+    EXPECT_TRUE(mathlib_add(2, 3) == 5);
+    EXPECT_TRUE(mathlib_add(-2, 2) == 0);
 }
 
 void test_math_sub(void)
 {
-    CGTEST_CHECK(mathlib_sub(5, 3) == 2);
-    CGTEST_CHECK(mathlib_sub(0, 7) == -7);
+    EXPECT_TRUE(mathlib_sub(5, 3) == 2);
+    EXPECT_TRUE(mathlib_sub(0, 7) == -7);
 }
 
 void test_math_div(void)
 {
-    CGTEST_CHECK(mathlib_div(6, 3) == 2);
-    CGTEST_CHECK(mathlib_div(7, 2) == 3);
+    int divisor = 3;
+
+    /* ASSERT_TRUE: a genuine precondition - dividing by zero below
+     * would be undefined behavior, so this check must stop the test
+     * immediately on failure rather than let it continue. */
+    ASSERT_TRUE(divisor != 0);
+    EXPECT_TRUE(mathlib_div(6, divisor) == 2);
+    EXPECT_TRUE(mathlib_div(7, 2) == 3);
 }

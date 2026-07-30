@@ -70,9 +70,12 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
   - void test_goal_sub(void) {....}
   - void test_div(void) {....}
   - A `void` return keeps test files C89-portable (no `<stdbool.h>` needed). Failures are
-    reported via the `CGTEST_CHECK(cond)` macro from the generated cgtest.h, which sets the
-    `cgtest_failed` flag and returns from the test function; the runner resets that flag
-    before calling each test and reads it back afterwards to decide pass/fail.
+    reported via macros from the generated cgtest.h, in the GoogleTest style:
+    `EXPECT_TRUE(cond)`/`EXPECT_FALSE(cond)` log a failure and let the test function keep
+    running; `ASSERT_TRUE(cond)`/`ASSERT_FALSE(cond)` log a failure and return from the test
+    function immediately (for a precondition the rest of the function depends on). All four
+    set the `cgtest_failed` flag; the runner resets that flag before calling each test and
+    reads it back afterwards to decide pass/fail.
 * the cgtest-runner executes those function in the same order they appear in the test_file.
   - That allowes to use the first function in a file as init test setup.
   - That allowes to use the last function in a file as tear down setup.
