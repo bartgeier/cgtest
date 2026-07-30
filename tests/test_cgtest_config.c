@@ -1,21 +1,23 @@
 /* test_cgtest_config.c - unit tests for cgtest_config_parse(), the
  * cgtest-config.json parser. Written in cgtest's own test convention
- * (bool test_<name>(void)); see test_ctestscanner.c's header comment
+ * (void test_<name>(void)); see test_ctestscanner.c's header comment
  * for why main() below dispatches them manually instead of via a
  * generated cgtest-runner.
  */
 #include "cgtest_config.h"
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+
+static int test_failed = 0;
 
 #define CHECK(cond) \
     do { \
         if (!(cond)) { \
             fprintf(stderr, "  FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
-            return false; \
+            test_failed = 1; \
+            return; \
         } \
     } while (0)
 
@@ -51,7 +53,7 @@ static void remove_fixture_config(void)
     remove(FIXTURE_DIR);
 }
 
-bool test_parses_a_complete_config(void)
+void test_parses_a_complete_config(void)
 {
     const char *json =
         "{"
@@ -76,10 +78,9 @@ bool test_parses_a_complete_config(void)
     CHECK(strcmp(config.test_directories.entries[0], "/base/tests") == 0);
 
     cgtest_config_free(&config);
-    return true;
 }
 
-bool test_field_order_does_not_matter(void)
+void test_field_order_does_not_matter(void)
 {
     const char *json =
         "{"
@@ -95,10 +96,9 @@ bool test_field_order_does_not_matter(void)
     CHECK(strcmp(config.compiler_command, "gcc") == 0);
 
     cgtest_config_free(&config);
-    return true;
 }
 
-bool test_missing_field_is_reported_by_name(void)
+void test_missing_field_is_reported_by_name(void)
 {
     const char *json =
         "{"
@@ -114,10 +114,9 @@ bool test_missing_field_is_reported_by_name(void)
     CHECK(strstr(config.error, "compiler_command") != NULL);
 
     cgtest_config_free(&config);
-    return true;
 }
 
-bool test_unknown_key_is_a_hard_error(void)
+void test_unknown_key_is_a_hard_error(void)
 {
     const char *json =
         "{"
@@ -134,10 +133,9 @@ bool test_unknown_key_is_a_hard_error(void)
     CHECK(strstr(config.error, "includes_paths") != NULL);
 
     cgtest_config_free(&config);
-    return true;
 }
 
-bool test_duplicate_key_is_an_error(void)
+void test_duplicate_key_is_an_error(void)
 {
     const char *json =
         "{"
@@ -154,10 +152,9 @@ bool test_duplicate_key_is_an_error(void)
     CHECK(strstr(config.error, "compiler_command") != NULL);
 
     cgtest_config_free(&config);
-    return true;
 }
 
-bool test_wrong_type_for_string_field_is_an_error(void)
+void test_wrong_type_for_string_field_is_an_error(void)
 {
     const char *json =
         "{"
@@ -173,10 +170,9 @@ bool test_wrong_type_for_string_field_is_an_error(void)
     CHECK(strstr(config.error, "compiler_command") != NULL);
 
     cgtest_config_free(&config);
-    return true;
 }
 
-bool test_wrong_type_for_array_element_is_an_error(void)
+void test_wrong_type_for_array_element_is_an_error(void)
 {
     const char *json =
         "{"
@@ -192,10 +188,9 @@ bool test_wrong_type_for_array_element_is_an_error(void)
     CHECK(strstr(config.error, "include_paths") != NULL);
 
     cgtest_config_free(&config);
-    return true;
 }
 
-bool test_invalid_json_is_an_error(void)
+void test_invalid_json_is_an_error(void)
 {
     CGTestConfig config = parse("{ this is not json ");
 
@@ -203,10 +198,9 @@ bool test_invalid_json_is_an_error(void)
     CHECK(config.error != NULL);
 
     cgtest_config_free(&config);
-    return true;
 }
 
-bool test_empty_json_is_an_error(void)
+void test_empty_json_is_an_error(void)
 {
     CGTestConfig config = parse("");
 
@@ -214,10 +208,9 @@ bool test_empty_json_is_an_error(void)
     CHECK(config.error != NULL);
 
     cgtest_config_free(&config);
-    return true;
 }
 
-bool test_non_object_top_level_is_an_error(void)
+void test_non_object_top_level_is_an_error(void)
 {
     CGTestConfig config = parse("[\"just\", \"an\", \"array\"]");
 
@@ -225,10 +218,9 @@ bool test_non_object_top_level_is_an_error(void)
     CHECK(config.error != NULL);
 
     cgtest_config_free(&config);
-    return true;
 }
 
-bool test_string_escapes_are_unescaped(void)
+void test_string_escapes_are_unescaped(void)
 {
     const char *json =
         "{"
@@ -244,18 +236,16 @@ bool test_string_escapes_are_unescaped(void)
     CHECK(strcmp(config.compiler_command, "gcc \"quoted\"") == 0);
 
     cgtest_config_free(&config);
-    return true;
 }
 
-bool test_free_on_failed_config_is_safe(void)
+void test_free_on_failed_config_is_safe(void)
 {
     CGTestConfig config = parse("not json at all {{{");
     CHECK(!config.ok);
     cgtest_config_free(&config);
-    return true;
 }
 
-bool test_load_accepts_the_config_file_directly(void)
+void test_load_accepts_the_config_file_directly(void)
 {
     CGTestConfig config;
 
@@ -268,10 +258,9 @@ bool test_load_accepts_the_config_file_directly(void)
 
     cgtest_config_free(&config);
     remove_fixture_config();
-    return true;
 }
 
-bool test_load_accepts_the_containing_directory(void)
+void test_load_accepts_the_containing_directory(void)
 {
     CGTestConfig config;
 
@@ -286,10 +275,9 @@ bool test_load_accepts_the_containing_directory(void)
 
     cgtest_config_free(&config);
     remove_fixture_config();
-    return true;
 }
 
-bool test_load_missing_config_in_existing_directory_is_an_error(void)
+void test_load_missing_config_in_existing_directory_is_an_error(void)
 {
     CGTestConfig config;
 
@@ -302,12 +290,11 @@ bool test_load_missing_config_in_existing_directory_is_an_error(void)
 
     cgtest_config_free(&config);
     remove(FIXTURE_DIR);
-    return true;
 }
 
 typedef struct {
     const char *name;
-    bool (*fn)(void);
+    void (*fn)(void);
 } TestCase;
 
 int main(void)
@@ -334,9 +321,10 @@ int main(void)
     size_t failed = 0;
 
     for (i = 0; i < count; i++) {
-        bool ok = cases[i].fn();
-        printf("[%s] %s\n", ok ? "PASS" : "FAIL", cases[i].name);
-        if (!ok) {
+        test_failed = 0;
+        cases[i].fn();
+        printf("[%s] %s\n", test_failed ? "FAIL" : "PASS", cases[i].name);
+        if (test_failed) {
             failed++;
         }
     }

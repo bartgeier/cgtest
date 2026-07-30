@@ -4,7 +4,7 @@
  * "# embed" (C23), "__has_include(...)" and "__has_embed(...)" (C23),
  * while leaving everything else identical to plain clexer_next_token().
  *
- * Same stand-in convention as test_ctestscanner.c: bool test_<name>(void)
+ * Same stand-in convention as test_ctestscanner.c: void test_<name>(void)
  * functions, manually invoked by main() below until cgtest.exe exists.
  */
 #include "cpreprocessor.h"
@@ -13,11 +13,14 @@
 #include <stdio.h>
 #include <string.h>
 
+static int test_failed = 0;
+
 #define CHECK(cond) \
     do { \
         if (!(cond)) { \
             fprintf(stderr, "  FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
-            return false; \
+            test_failed = 1; \
+            return; \
         } \
     } while (0)
 
@@ -46,7 +49,7 @@ static bool next_is_eof(CPreprocessor *pp)
 
 /* ---- tests ---------------------------------------------------------- */
 
-bool test_angle_include_becomes_header_name(void)
+void test_angle_include_becomes_header_name(void)
 {
     CPreprocessor pp;
     cpreprocessor_init(&pp, "#include <stdio.h>\n", strlen("#include <stdio.h>\n"));
@@ -55,10 +58,9 @@ bool test_angle_include_becomes_header_name(void)
     CHECK(next_is(&pp, CTOK_IDENTIFIER, "include"));
     CHECK(next_is(&pp, CTOK_HEADER_NAME, "<stdio.h>"));
     CHECK(next_is_eof(&pp));
-    return true;
 }
 
-bool test_quoted_include_becomes_header_name(void)
+void test_quoted_include_becomes_header_name(void)
 {
     CPreprocessor pp;
     const char *src = "#include \"myheader.h\"\n";
@@ -68,10 +70,9 @@ bool test_quoted_include_becomes_header_name(void)
     CHECK(next_is(&pp, CTOK_IDENTIFIER, "include"));
     CHECK(next_is(&pp, CTOK_HEADER_NAME, "\"myheader.h\""));
     CHECK(next_is_eof(&pp));
-    return true;
 }
 
-bool test_embed_directive_becomes_header_name(void)
+void test_embed_directive_becomes_header_name(void)
 {
     /* C23 #embed also takes a header-name argument. */
     CPreprocessor pp;
@@ -82,10 +83,9 @@ bool test_embed_directive_becomes_header_name(void)
     CHECK(next_is(&pp, CTOK_IDENTIFIER, "embed"));
     CHECK(next_is(&pp, CTOK_HEADER_NAME, "<data.bin>"));
     CHECK(next_is_eof(&pp));
-    return true;
 }
 
-bool test_has_include_in_if_directive(void)
+void test_has_include_in_if_directive(void)
 {
     CPreprocessor pp;
     const char *src = "#if __has_include(<stdio.h>)\n#endif\n";
@@ -100,10 +100,9 @@ bool test_has_include_in_if_directive(void)
     CHECK(next_is(&pp, CTOK_PUNCT, "#"));
     CHECK(next_is(&pp, CTOK_IDENTIFIER, "endif"));
     CHECK(next_is_eof(&pp));
-    return true;
 }
 
-bool test_has_embed_with_quoted_argument(void)
+void test_has_embed_with_quoted_argument(void)
 {
     CPreprocessor pp;
     const char *src = "#if __has_embed(\"art.png\")\n#endif\n";
@@ -115,10 +114,9 @@ bool test_has_embed_with_quoted_argument(void)
     CHECK(next_is(&pp, CTOK_PUNCT, "("));
     CHECK(next_is(&pp, CTOK_HEADER_NAME, "\"art.png\""));
     CHECK(next_is(&pp, CTOK_PUNCT, ")"));
-    return true;
 }
 
-bool test_has_include_with_quoted_argument(void)
+void test_has_include_with_quoted_argument(void)
 {
     CPreprocessor pp;
     const char *src = "#if __has_include(\"myheader.h\")\n#endif\n";
@@ -133,10 +131,9 @@ bool test_has_include_with_quoted_argument(void)
     CHECK(next_is(&pp, CTOK_PUNCT, "#"));
     CHECK(next_is(&pp, CTOK_IDENTIFIER, "endif"));
     CHECK(next_is_eof(&pp));
-    return true;
 }
 
-bool test_has_embed_with_angle_argument(void)
+void test_has_embed_with_angle_argument(void)
 {
     CPreprocessor pp;
     const char *src = "#if __has_embed(<data.bin>)\n#endif\n";
@@ -148,10 +145,9 @@ bool test_has_embed_with_angle_argument(void)
     CHECK(next_is(&pp, CTOK_PUNCT, "("));
     CHECK(next_is(&pp, CTOK_HEADER_NAME, "<data.bin>"));
     CHECK(next_is(&pp, CTOK_PUNCT, ")"));
-    return true;
 }
 
-bool test_two_has_include_on_same_line(void)
+void test_two_has_include_on_same_line(void)
 {
     /* Both occurrences must independently trigger header-name mode. */
     CPreprocessor pp;
@@ -169,10 +165,9 @@ bool test_two_has_include_on_same_line(void)
     CHECK(next_is(&pp, CTOK_PUNCT, "("));
     CHECK(next_is(&pp, CTOK_HEADER_NAME, "<b.h>"));
     CHECK(next_is(&pp, CTOK_PUNCT, ")"));
-    return true;
 }
 
-bool test_other_directive_does_not_trigger_header_name(void)
+void test_other_directive_does_not_trigger_header_name(void)
 {
     /* "#define" is neither include nor embed - '<' after it must stay an
      * ordinary less-than punctuator, never a header-name. */
@@ -197,10 +192,9 @@ bool test_other_directive_does_not_trigger_header_name(void)
     CHECK(next_is(&pp, CTOK_IDENTIFIER, "b"));
     CHECK(next_is(&pp, CTOK_PUNCT, ")"));
     CHECK(next_is(&pp, CTOK_PUNCT, ")"));
-    return true;
 }
 
-bool test_ordinary_comparisons_are_unaffected(void)
+void test_ordinary_comparisons_are_unaffected(void)
 {
     /* No directive at all: '<' and '>' must behave as plain operators. */
     CPreprocessor pp;
@@ -221,10 +215,9 @@ bool test_ordinary_comparisons_are_unaffected(void)
     CHECK(next_is(&pp, CTOK_PUNCT, "{"));
     CHECK(next_is(&pp, CTOK_PUNCT, "}"));
     CHECK(next_is_eof(&pp));
-    return true;
 }
 
-bool test_has_include_identifier_without_paren_is_not_misdetected(void)
+void test_has_include_identifier_without_paren_is_not_misdetected(void)
 {
     /* __has_include used as a plain identifier (not actually called)
      * must not corrupt tokenization of what follows it. */
@@ -237,10 +230,9 @@ bool test_has_include_identifier_without_paren_is_not_misdetected(void)
     CHECK(next_is(&pp, CTOK_PP_NUMBER, "1"));
     CHECK(next_is(&pp, CTOK_PUNCT, ";"));
     CHECK(next_is_eof(&pp));
-    return true;
 }
 
-bool test_macro_named_include_falls_back_to_identifier(void)
+void test_macro_named_include_falls_back_to_identifier(void)
 {
     /* "#include FOO_HEADER" (macro-based header, common in real code):
      * there is no literal '<' or '"' right after "include", so it must
@@ -256,10 +248,9 @@ bool test_macro_named_include_falls_back_to_identifier(void)
     CHECK(next_is(&pp, CTOK_IDENTIFIER, "x"));
     CHECK(next_is(&pp, CTOK_PUNCT, ";"));
     CHECK(next_is_eof(&pp));
-    return true;
 }
 
-bool test_include_with_nothing_after_does_not_leak_into_next_line(void)
+void test_include_with_nothing_after_does_not_leak_into_next_line(void)
 {
     /* Malformed: "#include" with no header-name before the line ends.
      * The '<...>' on the FOLLOWING line must not be swallowed as if it
@@ -277,10 +268,9 @@ bool test_include_with_nothing_after_does_not_leak_into_next_line(void)
     CHECK(next_is(&pp, CTOK_IDENTIFIER, "h"));
     CHECK(next_is(&pp, CTOK_PUNCT, ">"));
     CHECK(next_is_eof(&pp));
-    return true;
 }
 
-bool test_consecutive_include_directives_both_recognized(void)
+void test_consecutive_include_directives_both_recognized(void)
 {
     /* Regression: after the first directive's header-name state resets,
      * the SECOND '#include' must still be tracked correctly - a naive
@@ -297,10 +287,9 @@ bool test_consecutive_include_directives_both_recognized(void)
     CHECK(next_is(&pp, CTOK_IDENTIFIER, "include"));
     CHECK(next_is(&pp, CTOK_HEADER_NAME, "<b.h>"));
     CHECK(next_is_eof(&pp));
-    return true;
 }
 
-bool test_hash_at_line_start_required(void)
+void test_hash_at_line_start_required(void)
 {
     /* A '#' that is NOT the first token on its line is just the ordinary
      * punctuator (e.g. stringizing inside a macro body); it must not be
@@ -316,14 +305,13 @@ bool test_hash_at_line_start_required(void)
     CHECK(next_is(&pp, CTOK_IDENTIFIER, "x"));
     CHECK(next_is(&pp, CTOK_PUNCT, ">"));
     CHECK(next_is_eof(&pp));
-    return true;
 }
 
 /* --- stand-in test runner: cgtest-runner does not exist yet -------- */
 
 typedef struct {
     const char *name;
-    bool (*fn)(void);
+    void (*fn)(void);
 } TestCase;
 
 int main(void)
@@ -350,9 +338,10 @@ int main(void)
     size_t failed = 0;
 
     for (i = 0; i < count; i++) {
-        bool ok = cases[i].fn();
-        printf("[%s] %s\n", ok ? "PASS" : "FAIL", cases[i].name);
-        if (!ok) {
+        test_failed = 0;
+        cases[i].fn();
+        printf("[%s] %s\n", test_failed ? "FAIL" : "PASS", cases[i].name);
+        if (test_failed) {
             failed++;
         }
     }

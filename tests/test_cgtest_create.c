@@ -1,7 +1,7 @@
 /* test_cgtest_create.c - unit tests for cgtest_create_run(), which
  * writes a template cgtest-config.json and cgtest.h inside a given
  * directory (creating that directory if it doesn't exist yet).
- * Written in cgtest's own test convention (bool test_<name>(void));
+ * Written in cgtest's own test convention (void test_<name>(void));
  * see test_ctestscanner.c's header comment for why main() below
  * dispatches them manually instead of via a generated cgtest-runner.
  *
@@ -12,16 +12,18 @@
 #include "cgtest_create.h"
 #include "cgtest_config.h"
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+
+static int test_failed = 0;
 
 #define CHECK(cond) \
     do { \
         if (!(cond)) { \
             fprintf(stderr, "  FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
-            return false; \
+            test_failed = 1; \
+            return; \
         } \
     } while (0)
 
@@ -55,7 +57,7 @@ static long read_whole_file(const char *path, char *buf, size_t bufsize)
     return (long)read_count;
 }
 
-bool test_creates_config_and_header_in_existing_directory(void)
+void test_creates_config_and_header_in_existing_directory(void)
 {
     CGTestCreateResult result;
     char buf[4096];
@@ -70,10 +72,9 @@ bool test_creates_config_and_header_in_existing_directory(void)
 
     cgtest_create_free(&result);
     teardown_fixture();
-    return true;
 }
 
-bool test_creates_directory_if_missing(void)
+void test_creates_directory_if_missing(void)
 {
     CGTestCreateResult result;
     struct stat st;
@@ -91,10 +92,9 @@ bool test_creates_directory_if_missing(void)
 
     cgtest_create_free(&result);
     teardown_fixture();
-    return true;
 }
 
-bool test_created_config_round_trips_through_parser(void)
+void test_created_config_round_trips_through_parser(void)
 {
     CGTestCreateResult result;
     CGTestConfig config;
@@ -115,10 +115,9 @@ bool test_created_config_round_trips_through_parser(void)
     cgtest_config_free(&config);
     cgtest_create_free(&result);
     teardown_fixture();
-    return true;
 }
 
-bool test_refuses_to_overwrite_existing_config(void)
+void test_refuses_to_overwrite_existing_config(void)
 {
     CGTestCreateResult result;
     FILE *f;
@@ -142,10 +141,9 @@ bool test_refuses_to_overwrite_existing_config(void)
     cgtest_create_free(&result);
     remove(CONFIG_PATH);
     teardown_fixture();
-    return true;
 }
 
-bool test_path_that_is_a_regular_file_is_an_error(void)
+void test_path_that_is_a_regular_file_is_an_error(void)
 {
     CGTestCreateResult result;
     FILE *f;
@@ -163,10 +161,9 @@ bool test_path_that_is_a_regular_file_is_an_error(void)
 
     cgtest_create_free(&result);
     remove(FIXTURE_DIR);
-    return true;
 }
 
-bool test_missing_parent_directory_is_an_error(void)
+void test_missing_parent_directory_is_an_error(void)
 {
     CGTestCreateResult result = cgtest_create_run("build/cgtest_create_fixture_missing/nested");
 
@@ -174,21 +171,19 @@ bool test_missing_parent_directory_is_an_error(void)
     CHECK(result.error != NULL);
 
     cgtest_create_free(&result);
-    return true;
 }
 
-bool test_free_on_error_is_safe(void)
+void test_free_on_error_is_safe(void)
 {
     CGTestCreateResult result = cgtest_create_run("build/cgtest_create_fixture_missing/nested");
     CHECK(!result.ok);
     cgtest_create_free(&result);
     cgtest_create_free(&result);
-    return true;
 }
 
 typedef struct {
     const char *name;
-    bool (*fn)(void);
+    void (*fn)(void);
 } TestCase;
 
 int main(void)
@@ -207,9 +202,10 @@ int main(void)
     size_t failed = 0;
 
     for (i = 0; i < count; i++) {
-        bool ok = cases[i].fn();
-        printf("[%s] %s\n", ok ? "PASS" : "FAIL", cases[i].name);
-        if (!ok) {
+        test_failed = 0;
+        cases[i].fn();
+        printf("[%s] %s\n", test_failed ? "FAIL" : "PASS", cases[i].name);
+        if (test_failed) {
             failed++;
         }
     }

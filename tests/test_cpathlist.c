@@ -1,25 +1,27 @@
 /* test_cpathlist.c - unit tests for cpathlist_register()/cpathlist_free(),
  * the growable list of resolved absolute paths built on cpath_join().
  *
- * Written in cgtest's own test convention (bool test_<name>(void)); see
+ * Written in cgtest's own test convention (void test_<name>(void)); see
  * test_ctestscanner.c's header comment for why main() below dispatches
  * them manually instead of via a generated cgtest-runner.
  */
 #include "cpathlist.h"
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+
+static int test_failed = 0;
 
 #define CHECK(cond) \
     do { \
         if (!(cond)) { \
             fprintf(stderr, "  FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
-            return false; \
+            test_failed = 1; \
+            return; \
         } \
     } while (0)
 
-bool test_register_single_path(void)
+void test_register_single_path(void)
 {
     CPathList list;
     CPathListStatus status;
@@ -32,10 +34,9 @@ bool test_register_single_path(void)
     CHECK(strcmp(list.entries[0], "/home/user/project/src/main.c") == 0);
 
     cpathlist_free(&list);
-    return true;
 }
 
-bool test_register_multiple_paths_preserves_order(void)
+void test_register_multiple_paths_preserves_order(void)
 {
     CPathList list;
 
@@ -50,10 +51,9 @@ bool test_register_multiple_paths_preserves_order(void)
     CHECK(strcmp(list.entries[2], "/a/three") == 0);
 
     cpathlist_free(&list);
-    return true;
 }
 
-bool test_register_grows_past_initial_capacity(void)
+void test_register_grows_past_initial_capacity(void)
 {
     /* Initial capacity is 8; register enough entries to force at least
      * one realloc of the entries array, then confirm every entry -
@@ -79,10 +79,9 @@ bool test_register_grows_past_initial_capacity(void)
     }
 
     cpathlist_free(&list);
-    return true;
 }
 
-bool test_register_reports_truncation(void)
+void test_register_reports_truncation(void)
 {
     /* A single path segment longer than cpathlist's internal scratch
      * buffer (4096 bytes) must still be registered, but reported as
@@ -105,21 +104,19 @@ bool test_register_reports_truncation(void)
     CHECK(strlen(list.entries[0]) < sizeof(huge_rel));
 
     cpathlist_free(&list);
-    return true;
 }
 
-bool test_free_on_never_registered_list_is_safe(void)
+void test_free_on_never_registered_list_is_safe(void)
 {
     CPathList list;
 
     cpathlist_init(&list);
     cpathlist_free(&list);
-    return true;
 }
 
 typedef struct {
     const char *name;
-    bool (*fn)(void);
+    void (*fn)(void);
 } TestCase;
 
 int main(void)
@@ -136,9 +133,10 @@ int main(void)
     size_t failed = 0;
 
     for (i = 0; i < count; i++) {
-        bool ok = cases[i].fn();
-        printf("[%s] %s\n", ok ? "PASS" : "FAIL", cases[i].name);
-        if (!ok) {
+        test_failed = 0;
+        cases[i].fn();
+        printf("[%s] %s\n", test_failed ? "FAIL" : "PASS", cases[i].name);
+        if (test_failed) {
             failed++;
         }
     }

@@ -2,7 +2,7 @@
  * scanner that locates "void test_<name>(void) { ... }" definitions in
  * a test_*.c source buffer.
  *
- * Written in cgtest's own test convention (bool test_<name>(void)) even
+ * Written in cgtest's own test convention (void test_<name>(void)) even
  * though cgtest.exe itself doesn't exist yet to run these: main() below
  * stands in for the generated cgtest-runner, calling each test_ function
  * in the order it appears, exactly as the spec describes the runner
@@ -10,15 +10,17 @@
  */
 #include "ctestscanner.h"
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+
+static int test_failed = 0;
 
 #define CHECK(cond) \
     do { \
         if (!(cond)) { \
             fprintf(stderr, "  FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
-            return false; \
+            test_failed = 1; \
+            return; \
         } \
     } while (0)
 
@@ -27,7 +29,7 @@ static CTestFunction *scan(const char *src, size_t *out_count)
     return ctestscanner_find(src, strlen(src), out_count);
 }
 
-bool test_finds_single_function(void)
+void test_finds_single_function(void)
 {
     const char *src = "void test_foo(void) { }\n";
     size_t count;
@@ -38,10 +40,9 @@ bool test_finds_single_function(void)
     CHECK(fns[0].line == 1);
 
     ctestscanner_free(fns, count);
-    return true;
 }
 
-bool test_finds_multiple_functions_in_order(void)
+void test_finds_multiple_functions_in_order(void)
 {
     const char *src =
         "void test_first(void) { }\n"
@@ -59,10 +60,9 @@ bool test_finds_multiple_functions_in_order(void)
     CHECK(fns[2].line == 3);
 
     ctestscanner_free(fns, count);
-    return true;
 }
 
-bool test_ignores_prototype_declaration(void)
+void test_ignores_prototype_declaration(void)
 {
     const char *src =
         "void test_foo(void);\n"
@@ -75,10 +75,9 @@ bool test_ignores_prototype_declaration(void)
     CHECK(fns[0].line == 2);
 
     ctestscanner_free(fns, count);
-    return true;
 }
 
-bool test_ignores_non_void_return_type(void)
+void test_ignores_non_void_return_type(void)
 {
     const char *src = "int test_foo(void) { return 0; }\n";
     size_t count;
@@ -86,10 +85,9 @@ bool test_ignores_non_void_return_type(void)
 
     CHECK(count == 0);
     CHECK(fns == NULL);
-    return true;
 }
 
-bool test_ignores_bool_return_type(void)
+void test_ignores_bool_return_type(void)
 {
     /* The old "bool test_<name>(void)" convention is deliberately no
      * longer matched - "void" is what keeps generated test files
@@ -100,10 +98,9 @@ bool test_ignores_bool_return_type(void)
 
     CHECK(count == 0);
     CHECK(fns == NULL);
-    return true;
 }
 
-bool test_ignores_name_without_test_prefix(void)
+void test_ignores_name_without_test_prefix(void)
 {
     const char *src = "void check_foo(void) { }\n";
     size_t count;
@@ -111,10 +108,9 @@ bool test_ignores_name_without_test_prefix(void)
 
     CHECK(count == 0);
     CHECK(fns == NULL);
-    return true;
 }
 
-bool test_ignores_name_with_test_as_substring_not_prefix(void)
+void test_ignores_name_with_test_as_substring_not_prefix(void)
 {
     /* "testify_foo" does not start with the "test_" prefix (5th char
      * differs: 'i' vs '_'). */
@@ -124,10 +120,9 @@ bool test_ignores_name_with_test_as_substring_not_prefix(void)
 
     CHECK(count == 0);
     CHECK(fns == NULL);
-    return true;
 }
 
-bool test_accepts_exact_test_prefix_as_name(void)
+void test_accepts_exact_test_prefix_as_name(void)
 {
     const char *src = "void test_(void) { }\n";
     size_t count;
@@ -137,10 +132,9 @@ bool test_accepts_exact_test_prefix_as_name(void)
     CHECK(strcmp(fns[0].name, "test_") == 0);
 
     ctestscanner_free(fns, count);
-    return true;
 }
 
-bool test_ignores_wrong_parameter_list(void)
+void test_ignores_wrong_parameter_list(void)
 {
     const char *src = "void test_foo(int x) { }\n";
     size_t count;
@@ -148,10 +142,9 @@ bool test_ignores_wrong_parameter_list(void)
 
     CHECK(count == 0);
     CHECK(fns == NULL);
-    return true;
 }
 
-bool test_handles_signature_split_across_lines(void)
+void test_handles_signature_split_across_lines(void)
 {
     const char *src =
         "void\n"
@@ -169,10 +162,9 @@ bool test_handles_signature_split_across_lines(void)
     CHECK(fns[0].line == 2);
 
     ctestscanner_free(fns, count);
-    return true;
 }
 
-bool test_handles_comments_between_tokens(void)
+void test_handles_comments_between_tokens(void)
 {
     const char *src =
         "void /* return type */ test_commented (/* args */ void /* here */)\n"
@@ -185,10 +177,9 @@ bool test_handles_comments_between_tokens(void)
     CHECK(strcmp(fns[0].name, "test_commented") == 0);
 
     ctestscanner_free(fns, count);
-    return true;
 }
 
-bool test_skips_include_directive(void)
+void test_skips_include_directive(void)
 {
     const char *src =
         "#include <stdio.h>\n"
@@ -201,10 +192,9 @@ bool test_skips_include_directive(void)
     CHECK(fns[0].line == 2);
 
     ctestscanner_free(fns, count);
-    return true;
 }
 
-bool test_line_numbers_correct_after_spliced_directive(void)
+void test_line_numbers_correct_after_spliced_directive(void)
 {
     /* The #define below spans two physical lines via a backslash
      * continuation; the following test function must still be reported
@@ -221,10 +211,9 @@ bool test_line_numbers_correct_after_spliced_directive(void)
     CHECK(fns[0].line == 3);
 
     ctestscanner_free(fns, count);
-    return true;
 }
 
-bool test_finds_function_disabled_by_ifdef(void)
+void test_finds_function_disabled_by_ifdef(void)
 {
     /* Documented limitation: directive LINES are skipped as opaque
      * tokens, but their conditional-compilation MEANING is not
@@ -242,10 +231,9 @@ bool test_finds_function_disabled_by_ifdef(void)
     CHECK(strcmp(fns[0].name, "test_hidden") == 0);
 
     ctestscanner_free(fns, count);
-    return true;
 }
 
-bool test_ignores_prototype_followed_by_directive(void)
+void test_ignores_prototype_followed_by_directive(void)
 {
     const char *src =
         "void test_foo(void)\n"
@@ -259,10 +247,9 @@ bool test_ignores_prototype_followed_by_directive(void)
     CHECK(strcmp(fns[0].name, "test_foo") == 0);
 
     ctestscanner_free(fns, count);
-    return true;
 }
 
-bool test_returns_null_on_no_matches(void)
+void test_returns_null_on_no_matches(void)
 {
     const char *src = "int not_a_test(void) { return 0; }\n";
     size_t count;
@@ -270,20 +257,18 @@ bool test_returns_null_on_no_matches(void)
 
     CHECK(count == 0);
     CHECK(fns == NULL);
-    return true;
 }
 
-bool test_returns_null_on_empty_source(void)
+void test_returns_null_on_empty_source(void)
 {
     size_t count;
     CTestFunction *fns = scan("", &count);
 
     CHECK(count == 0);
     CHECK(fns == NULL);
-    return true;
 }
 
-bool test_realistic_file_with_setup_and_teardown(void)
+void test_realistic_file_with_setup_and_teardown(void)
 {
     const char *src =
         "#include \"cgtest.h\"\n"
@@ -313,14 +298,13 @@ bool test_realistic_file_with_setup_and_teardown(void)
     CHECK(fns[3].line == 16);
 
     ctestscanner_free(fns, count);
-    return true;
 }
 
 /* --- stand-in test runner: cgtest-runner does not exist yet -------- */
 
 typedef struct {
     const char *name;
-    bool (*fn)(void);
+    void (*fn)(void);
 } TestCase;
 
 int main(void)
@@ -350,9 +334,10 @@ int main(void)
     size_t failed = 0;
 
     for (i = 0; i < count; i++) {
-        bool ok = cases[i].fn();
-        printf("[%s] %s\n", ok ? "PASS" : "FAIL", cases[i].name);
-        if (!ok) {
+        test_failed = 0;
+        cases[i].fn();
+        printf("[%s] %s\n", test_failed ? "FAIL" : "PASS", cases[i].name);
+        if (test_failed) {
             failed++;
         }
     }

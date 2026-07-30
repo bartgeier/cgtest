@@ -10,27 +10,29 @@
  * duplicate-basename check, which fails before any compiler is
  * invoked - still no real compilation needed.
  *
- * Written in cgtest's own test convention (bool test_<name>(void)); see
+ * Written in cgtest's own test convention (void test_<name>(void)); see
  * test_ctestscanner.c's header comment for why main() below dispatches
  * them manually instead of via a generated cgtest-runner.
  */
 #include "cgtest_runner.h"
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
+static int test_failed = 0;
+
 #define CHECK(cond) \
     do { \
         if (!(cond)) { \
             fprintf(stderr, "  FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
-            return false; \
+            test_failed = 1; \
+            return; \
         } \
     } while (0)
 
-bool test_generates_valid_shell_with_no_files(void)
+void test_generates_valid_shell_with_no_files(void)
 {
     char *source = cgtest_runner_generate_source(NULL, 0, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
 
@@ -40,10 +42,9 @@ bool test_generates_valid_shell_with_no_files(void)
     CHECK(strstr(source, "#include \"") == NULL);
 
     free(source);
-    return true;
 }
 
-bool test_embeds_the_compile_command_as_a_leading_comment(void)
+void test_embeds_the_compile_command_as_a_leading_comment(void)
 {
     char *source = cgtest_runner_generate_source(NULL, 0, "gcc -std=c99 -I\"src\" -o cgtest-runner cgtest-runner.c");
     const char *comment;
@@ -57,10 +58,9 @@ bool test_embeds_the_compile_command_as_a_leading_comment(void)
     CHECK(comment < includes);
 
     free(source);
-    return true;
 }
 
-bool test_includes_the_file_and_calls_its_function(void)
+void test_includes_the_file_and_calls_its_function(void)
 {
     CTestFunction functions[1];
     CGTestRunnerFile files[1];
@@ -84,10 +84,9 @@ bool test_includes_the_file_and_calls_its_function(void)
     CHECK(strstr(source, "[FAIL] test_math_add") != NULL);
 
     free(source);
-    return true;
 }
 
-bool test_preserves_function_order_within_a_file(void)
+void test_preserves_function_order_within_a_file(void)
 {
     CTestFunction functions[2];
     CGTestRunnerFile files[1];
@@ -114,10 +113,9 @@ bool test_preserves_function_order_within_a_file(void)
     CHECK(first_call < second_call);
 
     free(source);
-    return true;
 }
 
-bool test_preserves_file_order_across_files(void)
+void test_preserves_file_order_across_files(void)
 {
     CTestFunction fn_a[1];
     CTestFunction fn_b[1];
@@ -148,7 +146,6 @@ bool test_preserves_file_order_across_files(void)
     CHECK(call_a < call_b);
 
     free(source);
-    return true;
 }
 
 #define FIXTURE_DIR "build/cgtest_runner_fixture"
@@ -160,7 +157,7 @@ static void write_file(const char *path, const char *content)
     fclose(f);
 }
 
-bool test_run_rejects_duplicate_basenames_across_directories(void)
+void test_run_rejects_duplicate_basenames_across_directories(void)
 {
     CGTestConfig config;
     CGTestRunResult result;
@@ -199,12 +196,11 @@ bool test_run_rejects_duplicate_basenames_across_directories(void)
     remove(FIXTURE_DIR "/dir_a");
     remove(FIXTURE_DIR "/dir_b");
     remove(FIXTURE_DIR);
-    return true;
 }
 
 typedef struct {
     const char *name;
-    bool (*fn)(void);
+    void (*fn)(void);
 } TestCase;
 
 int main(void)
@@ -222,9 +218,10 @@ int main(void)
     size_t failed = 0;
 
     for (i = 0; i < count; i++) {
-        bool ok = cases[i].fn();
-        printf("[%s] %s\n", ok ? "PASS" : "FAIL", cases[i].name);
-        if (!ok) {
+        test_failed = 0;
+        cases[i].fn();
+        printf("[%s] %s\n", test_failed ? "FAIL" : "PASS", cases[i].name);
+        if (test_failed) {
             failed++;
         }
     }
