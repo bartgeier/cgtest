@@ -179,9 +179,12 @@ static const char *const CGTEST_H_TEMPLATE_EXPECT_EQ_INT =
     "    do { \\\n"
     "        long cgtest_exp_ = (long)(expected); \\\n"
     "        long cgtest_act_ = (long)(actual); \\\n"
-    "        if (cgtest_exp_ != cgtest_act_) { \\\n"
-    "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_EQ_INT(%s, %s) expected %ld, actual %ld\\n\", \\\n"
-    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \\\n"
+    "        if (cgtest_exp_ != cgtest_act_) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_EXPECT_EQ_INT2 =
+    "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_EQ_INT(%s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \\\n"
+    "            fprintf(stderr, \"  expected: %ld\\n  actual:   %ld\\n\", cgtest_exp_, cgtest_act_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "        } \\\n"
     "    } while (0)\n"
@@ -192,9 +195,12 @@ static const char *const CGTEST_H_TEMPLATE_ASSERT_EQ_INT =
     "    do { \\\n"
     "        long cgtest_exp_ = (long)(expected); \\\n"
     "        long cgtest_act_ = (long)(actual); \\\n"
-    "        if (cgtest_exp_ != cgtest_act_) { \\\n"
-    "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_EQ_INT(%s, %s) expected %ld, actual %ld\\n\", \\\n"
-    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \\\n"
+    "        if (cgtest_exp_ != cgtest_act_) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_ASSERT_EQ_INT2 =
+    "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_EQ_INT(%s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \\\n"
+    "            fprintf(stderr, \"  expected: %ld\\n  actual:   %ld\\n\", cgtest_exp_, cgtest_act_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            return; \\\n"
     "        } \\\n"
@@ -206,9 +212,12 @@ static const char *const CGTEST_H_TEMPLATE_EXPECT_EQ_UINT =
     "    do { \\\n"
     "        unsigned long cgtest_exp_ = (unsigned long)(expected); \\\n"
     "        unsigned long cgtest_act_ = (unsigned long)(actual); \\\n"
-    "        if (cgtest_exp_ != cgtest_act_) { \\\n"
-    "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_EQ_UINT(%s, %s) expected %lu, actual %lu\\n\", \\\n"
-    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \\\n"
+    "        if (cgtest_exp_ != cgtest_act_) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_EXPECT_EQ_UINT2 =
+    "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_EQ_UINT(%s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \\\n"
+    "            fprintf(stderr, \"  expected: %lu\\n  actual:   %lu\\n\", cgtest_exp_, cgtest_act_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "        } \\\n"
     "    } while (0)\n"
@@ -222,8 +231,9 @@ static const char *const CGTEST_H_TEMPLATE_ASSERT_EQ_UINT =
     "        if (cgtest_exp_ != cgtest_act_) { \\\n";
 
 static const char *const CGTEST_H_TEMPLATE_ASSERT_EQ_UINT2 =
-    "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_EQ_UINT(%s, %s) expected %lu, actual %lu\\n\", \\\n"
-    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \\\n"
+    "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_EQ_UINT(%s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \\\n"
+    "            fprintf(stderr, \"  expected: %lu\\n  actual:   %lu\\n\", cgtest_exp_, cgtest_act_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            return; \\\n"
     "        } \\\n"
@@ -240,9 +250,12 @@ static const char *const CGTEST_H_TEMPLATE_EXPECT_EQ_DOUBLE =
     "    do { \\\n"
     "        double cgtest_exp_ = (double)(expected); \\\n"
     "        double cgtest_act_ = (double)(actual); \\\n"
-    "        if (cgtest_exp_ != cgtest_act_) { \\\n"
-    "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_EQ_DOUBLE(%s, %s) expected %g, actual %g\\n\", \\\n"
-    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \\\n"
+    "        if (cgtest_exp_ != cgtest_act_) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_EXPECT_EQ_DOUBLE2 =
+    "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_EQ_DOUBLE(%s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \\\n"
+    "            fprintf(stderr, \"  expected: %g\\n  actual:   %g\\n\", cgtest_exp_, cgtest_act_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "        } \\\n"
     "    } while (0)\n"
@@ -253,9 +266,12 @@ static const char *const CGTEST_H_TEMPLATE_ASSERT_EQ_DOUBLE =
     "    do { \\\n"
     "        double cgtest_exp_ = (double)(expected); \\\n"
     "        double cgtest_act_ = (double)(actual); \\\n"
-    "        if (cgtest_exp_ != cgtest_act_) { \\\n"
-    "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_EQ_DOUBLE(%s, %s) expected %g, actual %g\\n\", \\\n"
-    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \\\n"
+    "        if (cgtest_exp_ != cgtest_act_) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_ASSERT_EQ_DOUBLE2 =
+    "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_EQ_DOUBLE(%s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \\\n"
+    "            fprintf(stderr, \"  expected: %g\\n  actual:   %g\\n\", cgtest_exp_, cgtest_act_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            return; \\\n"
     "        } \\\n"
@@ -267,9 +283,12 @@ static const char *const CGTEST_H_TEMPLATE_EXPECT_EQ_PTR =
     "    do { \\\n"
     "        const void *cgtest_exp_ = (const void *)(expected); \\\n"
     "        const void *cgtest_act_ = (const void *)(actual); \\\n"
-    "        if (cgtest_exp_ != cgtest_act_) { \\\n"
-    "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_EQ_PTR(%s, %s) expected %p, actual %p\\n\", \\\n"
-    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \\\n"
+    "        if (cgtest_exp_ != cgtest_act_) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_EXPECT_EQ_PTR2 =
+    "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_EQ_PTR(%s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \\\n"
+    "            fprintf(stderr, \"  expected: %p\\n  actual:   %p\\n\", cgtest_exp_, cgtest_act_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "        } \\\n"
     "    } while (0)\n"
@@ -280,9 +299,12 @@ static const char *const CGTEST_H_TEMPLATE_ASSERT_EQ_PTR =
     "    do { \\\n"
     "        const void *cgtest_exp_ = (const void *)(expected); \\\n"
     "        const void *cgtest_act_ = (const void *)(actual); \\\n"
-    "        if (cgtest_exp_ != cgtest_act_) { \\\n"
-    "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_EQ_PTR(%s, %s) expected %p, actual %p\\n\", \\\n"
-    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \\\n"
+    "        if (cgtest_exp_ != cgtest_act_) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_ASSERT_EQ_PTR2 =
+    "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_EQ_PTR(%s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \\\n"
+    "            fprintf(stderr, \"  expected: %p\\n  actual:   %p\\n\", cgtest_exp_, cgtest_act_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            return; \\\n"
     "        } \\\n"
@@ -297,9 +319,12 @@ static const char *const CGTEST_H_TEMPLATE_EXPECT_EQ_STR =
     "    do { \\\n"
     "        const char *cgtest_exp_ = (expected); \\\n"
     "        const char *cgtest_act_ = (actual); \\\n"
-    "        if (strcmp(cgtest_exp_, cgtest_act_) != 0) { \\\n"
-    "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_EQ_STR(%s, %s) expected \\\"%s\\\", actual \\\"%s\\\"\\n\", \\\n"
-    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \\\n"
+    "        if (strcmp(cgtest_exp_, cgtest_act_) != 0) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_EXPECT_EQ_STR2 =
+    "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_EQ_STR(%s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \\\n"
+    "            fprintf(stderr, \"  expected: \\\"%s\\\"\\n  actual:   \\\"%s\\\"\\n\", cgtest_exp_, cgtest_act_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "        } \\\n"
     "    } while (0)\n"
@@ -310,9 +335,12 @@ static const char *const CGTEST_H_TEMPLATE_ASSERT_EQ_STR =
     "    do { \\\n"
     "        const char *cgtest_exp_ = (expected); \\\n"
     "        const char *cgtest_act_ = (actual); \\\n"
-    "        if (strcmp(cgtest_exp_, cgtest_act_) != 0) { \\\n"
-    "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_EQ_STR(%s, %s) expected \\\"%s\\\", actual \\\"%s\\\"\\n\", \\\n"
-    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \\\n"
+    "        if (strcmp(cgtest_exp_, cgtest_act_) != 0) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_ASSERT_EQ_STR2 =
+    "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_EQ_STR(%s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \\\n"
+    "            fprintf(stderr, \"  expected: \\\"%s\\\"\\n  actual:   \\\"%s\\\"\\n\", cgtest_exp_, cgtest_act_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            return; \\\n"
     "        } \\\n"
@@ -412,12 +440,16 @@ CGTestCreateResult cgtest_create_run(const char *dir)
                                    CGTEST_H_TEMPLATE_RELPATH1, CGTEST_H_TEMPLATE_RELPATH2,
                                    CGTEST_H_TEMPLATE_EXPECT_TRUE, CGTEST_H_TEMPLATE_EXPECT_FALSE,
                                    CGTEST_H_TEMPLATE_ASSERT_TRUE, CGTEST_H_TEMPLATE_ASSERT_FALSE,
-                                   CGTEST_H_TEMPLATE_EXPECT_EQ_INT, CGTEST_H_TEMPLATE_ASSERT_EQ_INT,
-                                   CGTEST_H_TEMPLATE_EXPECT_EQ_UINT, CGTEST_H_TEMPLATE_ASSERT_EQ_UINT,
-                                   CGTEST_H_TEMPLATE_ASSERT_EQ_UINT2,
-                                   CGTEST_H_TEMPLATE_EXPECT_EQ_DOUBLE, CGTEST_H_TEMPLATE_ASSERT_EQ_DOUBLE,
-                                   CGTEST_H_TEMPLATE_EXPECT_EQ_PTR, CGTEST_H_TEMPLATE_ASSERT_EQ_PTR,
-                                   CGTEST_H_TEMPLATE_EXPECT_EQ_STR, CGTEST_H_TEMPLATE_ASSERT_EQ_STR,
+                                   CGTEST_H_TEMPLATE_EXPECT_EQ_INT, CGTEST_H_TEMPLATE_EXPECT_EQ_INT2,
+                                   CGTEST_H_TEMPLATE_ASSERT_EQ_INT, CGTEST_H_TEMPLATE_ASSERT_EQ_INT2,
+                                   CGTEST_H_TEMPLATE_EXPECT_EQ_UINT, CGTEST_H_TEMPLATE_EXPECT_EQ_UINT2,
+                                   CGTEST_H_TEMPLATE_ASSERT_EQ_UINT, CGTEST_H_TEMPLATE_ASSERT_EQ_UINT2,
+                                   CGTEST_H_TEMPLATE_EXPECT_EQ_DOUBLE, CGTEST_H_TEMPLATE_EXPECT_EQ_DOUBLE2,
+                                   CGTEST_H_TEMPLATE_ASSERT_EQ_DOUBLE, CGTEST_H_TEMPLATE_ASSERT_EQ_DOUBLE2,
+                                   CGTEST_H_TEMPLATE_EXPECT_EQ_PTR, CGTEST_H_TEMPLATE_EXPECT_EQ_PTR2,
+                                   CGTEST_H_TEMPLATE_ASSERT_EQ_PTR, CGTEST_H_TEMPLATE_ASSERT_EQ_PTR2,
+                                   CGTEST_H_TEMPLATE_EXPECT_EQ_STR, CGTEST_H_TEMPLATE_EXPECT_EQ_STR2,
+                                   CGTEST_H_TEMPLATE_ASSERT_EQ_STR, CGTEST_H_TEMPLATE_ASSERT_EQ_STR2,
                                    CGTEST_H_TEMPLATE_FOOTER,
                                    (const char *)NULL)) {
         return cgtest_create_fail(error_buf);

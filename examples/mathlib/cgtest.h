@@ -97,8 +97,9 @@ static const char *cgtest_relpath(const char *file)
         long cgtest_exp_ = (long)(expected); \
         long cgtest_act_ = (long)(actual); \
         if (cgtest_exp_ != cgtest_act_) { \
-            fprintf(stderr, "%s:%d: FAIL: EXPECT_EQ_INT(%s, %s) expected %ld, actual %ld\n", \
-                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \
+            fprintf(stderr, "%s:%d: FAIL: EXPECT_EQ_INT(%s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \
+            fprintf(stderr, "  expected: %ld\n  actual:   %ld\n", cgtest_exp_, cgtest_act_); \
             cgtest_failed = 1; \
         } \
     } while (0)
@@ -108,8 +109,9 @@ static const char *cgtest_relpath(const char *file)
         long cgtest_exp_ = (long)(expected); \
         long cgtest_act_ = (long)(actual); \
         if (cgtest_exp_ != cgtest_act_) { \
-            fprintf(stderr, "%s:%d: FAIL: ASSERT_EQ_INT(%s, %s) expected %ld, actual %ld\n", \
-                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \
+            fprintf(stderr, "%s:%d: FAIL: ASSERT_EQ_INT(%s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \
+            fprintf(stderr, "  expected: %ld\n  actual:   %ld\n", cgtest_exp_, cgtest_act_); \
             cgtest_failed = 1; \
             return; \
         } \
@@ -120,8 +122,9 @@ static const char *cgtest_relpath(const char *file)
         unsigned long cgtest_exp_ = (unsigned long)(expected); \
         unsigned long cgtest_act_ = (unsigned long)(actual); \
         if (cgtest_exp_ != cgtest_act_) { \
-            fprintf(stderr, "%s:%d: FAIL: EXPECT_EQ_UINT(%s, %s) expected %lu, actual %lu\n", \
-                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \
+            fprintf(stderr, "%s:%d: FAIL: EXPECT_EQ_UINT(%s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \
+            fprintf(stderr, "  expected: %lu\n  actual:   %lu\n", cgtest_exp_, cgtest_act_); \
             cgtest_failed = 1; \
         } \
     } while (0)
@@ -131,8 +134,9 @@ static const char *cgtest_relpath(const char *file)
         unsigned long cgtest_exp_ = (unsigned long)(expected); \
         unsigned long cgtest_act_ = (unsigned long)(actual); \
         if (cgtest_exp_ != cgtest_act_) { \
-            fprintf(stderr, "%s:%d: FAIL: ASSERT_EQ_UINT(%s, %s) expected %lu, actual %lu\n", \
-                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \
+            fprintf(stderr, "%s:%d: FAIL: ASSERT_EQ_UINT(%s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \
+            fprintf(stderr, "  expected: %lu\n  actual:   %lu\n", cgtest_exp_, cgtest_act_); \
             cgtest_failed = 1; \
             return; \
         } \
@@ -143,8 +147,9 @@ static const char *cgtest_relpath(const char *file)
         double cgtest_exp_ = (double)(expected); \
         double cgtest_act_ = (double)(actual); \
         if (cgtest_exp_ != cgtest_act_) { \
-            fprintf(stderr, "%s:%d: FAIL: EXPECT_EQ_DOUBLE(%s, %s) expected %g, actual %g\n", \
-                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \
+            fprintf(stderr, "%s:%d: FAIL: EXPECT_EQ_DOUBLE(%s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \
+            fprintf(stderr, "  expected: %g\n  actual:   %g\n", cgtest_exp_, cgtest_act_); \
             cgtest_failed = 1; \
         } \
     } while (0)
@@ -154,8 +159,9 @@ static const char *cgtest_relpath(const char *file)
         double cgtest_exp_ = (double)(expected); \
         double cgtest_act_ = (double)(actual); \
         if (cgtest_exp_ != cgtest_act_) { \
-            fprintf(stderr, "%s:%d: FAIL: ASSERT_EQ_DOUBLE(%s, %s) expected %g, actual %g\n", \
-                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \
+            fprintf(stderr, "%s:%d: FAIL: ASSERT_EQ_DOUBLE(%s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \
+            fprintf(stderr, "  expected: %g\n  actual:   %g\n", cgtest_exp_, cgtest_act_); \
             cgtest_failed = 1; \
             return; \
         } \
@@ -166,8 +172,9 @@ static const char *cgtest_relpath(const char *file)
         const void *cgtest_exp_ = (const void *)(expected); \
         const void *cgtest_act_ = (const void *)(actual); \
         if (cgtest_exp_ != cgtest_act_) { \
-            fprintf(stderr, "%s:%d: FAIL: EXPECT_EQ_PTR(%s, %s) expected %p, actual %p\n", \
-                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \
+            fprintf(stderr, "%s:%d: FAIL: EXPECT_EQ_PTR(%s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \
+            fprintf(stderr, "  expected: %p\n  actual:   %p\n", cgtest_exp_, cgtest_act_); \
             cgtest_failed = 1; \
         } \
     } while (0)
@@ -177,8 +184,9 @@ static const char *cgtest_relpath(const char *file)
         const void *cgtest_exp_ = (const void *)(expected); \
         const void *cgtest_act_ = (const void *)(actual); \
         if (cgtest_exp_ != cgtest_act_) { \
-            fprintf(stderr, "%s:%d: FAIL: ASSERT_EQ_PTR(%s, %s) expected %p, actual %p\n", \
-                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \
+            fprintf(stderr, "%s:%d: FAIL: ASSERT_EQ_PTR(%s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \
+            fprintf(stderr, "  expected: %p\n  actual:   %p\n", cgtest_exp_, cgtest_act_); \
             cgtest_failed = 1; \
             return; \
         } \
@@ -189,8 +197,9 @@ static const char *cgtest_relpath(const char *file)
         const char *cgtest_exp_ = (expected); \
         const char *cgtest_act_ = (actual); \
         if (strcmp(cgtest_exp_, cgtest_act_) != 0) { \
-            fprintf(stderr, "%s:%d: FAIL: EXPECT_EQ_STR(%s, %s) expected \"%s\", actual \"%s\"\n", \
-                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \
+            fprintf(stderr, "%s:%d: FAIL: EXPECT_EQ_STR(%s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \
+            fprintf(stderr, "  expected: \"%s\"\n  actual:   \"%s\"\n", cgtest_exp_, cgtest_act_); \
             cgtest_failed = 1; \
         } \
     } while (0)
@@ -200,8 +209,9 @@ static const char *cgtest_relpath(const char *file)
         const char *cgtest_exp_ = (expected); \
         const char *cgtest_act_ = (actual); \
         if (strcmp(cgtest_exp_, cgtest_act_) != 0) { \
-            fprintf(stderr, "%s:%d: FAIL: ASSERT_EQ_STR(%s, %s) expected \"%s\", actual \"%s\"\n", \
-                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, cgtest_exp_, cgtest_act_); \
+            fprintf(stderr, "%s:%d: FAIL: ASSERT_EQ_STR(%s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \
+            fprintf(stderr, "  expected: \"%s\"\n  actual:   \"%s\"\n", cgtest_exp_, cgtest_act_); \
             cgtest_failed = 1; \
             return; \
         } \
