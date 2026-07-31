@@ -124,6 +124,20 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
         !cgtest_runner_buf_append_cstr(&buf, " */\n") ||
         !cgtest_runner_buf_append_cstr(&buf,
             "#include <stdio.h>\n"
+            /* isatty() is POSIX, not ISO C, so it needs its own header
+             * per platform - used below to decide whether the
+             * [ RUN ]/[ OK ]/[ FAILED ] lines get ANSI color codes.
+             * Same reasoning as GoogleTest's own color detection: color
+             * codes are only meaningful on a real terminal, and would
+             * otherwise pollute output piped into a log file or an
+             * editor's quickfix list. */
+            "#ifdef _WIN32\n"
+            "#include <io.h>\n"
+            "#define CGTEST_ISATTY(fd) _isatty(fd)\n"
+            "#else\n"
+            "#include <unistd.h>\n"
+            "#define CGTEST_ISATTY(fd) isatty(fd)\n"
+            "#endif\n"
             "\n"
             "int cgtest_failed = 0;\n"
             "\n")) {
@@ -146,6 +160,9 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
             "    int failed = 0;\n"
             "    int file_total = 0;\n"
             "    int file_failed = 0;\n"
+            "    const char *cgtest_green;\n"
+            "    const char *cgtest_red;\n"
+            "    const char *cgtest_reset;\n"
             "\n"
             /* Without this, stdout is fully block-buffered whenever it
              * isn't a tty (piped, redirected, or captured by an
@@ -155,6 +172,9 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
              * appear immediately, making failures print out of
              * chronological order. */
             "    setvbuf(stdout, NULL, _IOLBF, 0);\n"
+            "    cgtest_green = CGTEST_ISATTY(1) ? \"\\x1b[32m\" : \"\";\n"
+            "    cgtest_red   = CGTEST_ISATTY(1) ? \"\\x1b[31m\" : \"\";\n"
+            "    cgtest_reset = CGTEST_ISATTY(1) ? \"\\x1b[0m\"  : \"\";\n"
             "\n")) {
         goto fail;
     }
@@ -180,15 +200,15 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
              * "[       OK ]"/"[  FAILED  ]" verdict rather than trying
              * to print the verdict first. Bracket text/width matches
              * GoogleTest's own literally, not just the general idea. */
-            if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"[ RUN      ] ") ||
+            if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"%s[ RUN      ] ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n    total++;\n    file_total++;\n    cgtest_failed = 0;\n    ") ||
+                !cgtest_runner_buf_append_cstr(&buf, "%s\\n\", cgtest_green, cgtest_reset);\n    total++;\n    file_total++;\n    cgtest_failed = 0;\n    ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "();\n    if (!cgtest_failed) {\n        printf(\"[       OK ] ") ||
+                !cgtest_runner_buf_append_cstr(&buf, "();\n    if (!cgtest_failed) {\n        printf(\"%s[       OK ] ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n    } else {\n        printf(\"[  FAILED  ] ") ||
+                !cgtest_runner_buf_append_cstr(&buf, "%s\\n\", cgtest_green, cgtest_reset);\n    } else {\n        printf(\"%s[  FAILED  ] ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n        failed++;\n        file_failed++;\n    }\n")) {
+                !cgtest_runner_buf_append_cstr(&buf, "%s\\n\", cgtest_red, cgtest_reset);\n        failed++;\n        file_failed++;\n    }\n")) {
                 goto fail;
             }
         }
