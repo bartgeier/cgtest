@@ -218,7 +218,7 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
         }
 
         if (!cgtest_runner_buf_append_cstr(&buf,
-                "    printf(\"   %s%d/%d passed%s\\n\\n\", file_failed == 0 ? cgtest_green : cgtest_red, "
+                "    printf(\"             %s%d/%d passed%s\\n\\n\", file_failed == 0 ? cgtest_green : cgtest_red, "
                 "file_total - file_failed, file_total, cgtest_reset);\n\n")) {
             goto fail;
         }
