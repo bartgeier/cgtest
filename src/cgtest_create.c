@@ -40,6 +40,7 @@
 static const char *const CGTEST_CONFIG_TEMPLATE =
     "{\n"
     "    \"compiler_command\": \"gcc -std=c99 -O3\",\n"
+    "    \"msvc\": false,\n"
     "    \"include_paths\": [\n"
     "        \"./include\",\n"
     "        \"./third_party\",\n"
@@ -55,8 +56,7 @@ static const char *const CGTEST_CONFIG_TEMPLATE =
     "        \"./tests\",\n"
     "        \"./unittests\",\n"
     "        \"/home/user/project/tests\"\n"
-    "    ],\n"
-    "    \"msvc\": false\n"
+    "    ]\n"
     "}\n";
 
 /* Split into several literals rather than one: ISO C90 compilers are
