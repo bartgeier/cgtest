@@ -193,7 +193,7 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
             }
         }
 
-        if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"%d/%d tests passed\\n\\n\", file_total - file_failed, file_total);\n\n")) {
+        if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"\\n%d/%d passed\\n\\n\", file_total - file_failed, file_total);\n\n")) {
             goto fail;
         }
     }
