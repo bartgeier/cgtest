@@ -1,5 +1,6 @@
 {
     "compiler_command": "gcc -std=c89 -pedantic-errors -O3",
+    "msvc": false,
     "include_paths": [
         "./src",
         "."
