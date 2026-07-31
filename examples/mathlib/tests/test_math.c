@@ -31,3 +31,10 @@ void test_math_div(void)
     EXPECT_EQ_INT(2, mathlib_div(6, divisor));
     EXPECT_EQ_INT(3, mathlib_div(7, 2));
 }
+
+void test_math_sign(void)
+{
+    EXPECT_EQ_STR("positive", mathlib_sign(5));
+    EXPECT_EQ_STR("negative", mathlib_sign(-3));
+    EXPECT_EQ_STR("zero", mathlib_sign(0));
+}
