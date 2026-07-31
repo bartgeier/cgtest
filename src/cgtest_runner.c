@@ -218,13 +218,15 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
         }
 
         if (!cgtest_runner_buf_append_cstr(&buf,
-                "    printf(\"\\n%d/%d passed\\n\\n\", file_total - file_failed, file_total);\n\n")) {
+                "    printf(\"\\n%s%d/%d passed%s\\n\\n\", file_failed == 0 ? cgtest_green : cgtest_red, "
+                "file_total - file_failed, file_total, cgtest_reset);\n\n")) {
             goto fail;
         }
     }
 
     if (!cgtest_runner_buf_append_cstr(&buf,
-            "    printf(\"total %d/%d tests passed\\n\", total - failed, total);\n"
+            "    printf(\"total %s%d/%d tests passed%s\\n\", failed == 0 ? cgtest_green : cgtest_red, "
+            "total - failed, total, cgtest_reset);\n"
             "    return failed == 0 ? 0 : 1;\n"
             "}\n")) {
         goto fail;
