@@ -205,6 +205,67 @@ static void write_file(const char *path, const char *content)
     fclose(f);
 }
 
+void test_build_compile_command_uses_gcc_flags_by_default(void)
+{
+    CGTestConfig config;
+    char *cmd;
+
+    memset(&config, 0, sizeof(config));
+    config.compiler_command = "gcc -std=c99";
+    cpathlist_init(&config.include_paths);
+    cpathlist_init(&config.source_files);
+    cpathlist_init(&config.test_directories);
+    cpathlist_register(&config.include_paths, "", "src");
+    cpathlist_register(&config.source_files, "", "src/mathlib.c");
+    cpathlist_register(&config.test_directories, "", "tests");
+
+    cmd = cgtest_runner_build_compile_command(&config, "build/cgtest-runner.c", "build/cgtest-runner");
+
+    CHECK(cmd != NULL);
+    CHECK(strstr(cmd, "-I\"src\"") != NULL);
+    CHECK(strstr(cmd, "-I\"tests\"") != NULL);
+    CHECK(strstr(cmd, "\"src/mathlib.c\"") != NULL);
+    CHECK(strstr(cmd, "-o \"build/cgtest-runner\"") != NULL);
+    CHECK(strstr(cmd, "/I") == NULL);
+    CHECK(strstr(cmd, "/Fe") == NULL);
+
+    free(cmd);
+    cpathlist_free(&config.include_paths);
+    cpathlist_free(&config.source_files);
+    cpathlist_free(&config.test_directories);
+}
+
+void test_build_compile_command_uses_msvc_flags_when_configured(void)
+{
+    CGTestConfig config;
+    char *cmd;
+
+    memset(&config, 0, sizeof(config));
+    config.compiler_command = "cl /TC /W4";
+    config.msvc = 1;
+    cpathlist_init(&config.include_paths);
+    cpathlist_init(&config.source_files);
+    cpathlist_init(&config.test_directories);
+    cpathlist_register(&config.include_paths, "", "src");
+    cpathlist_register(&config.source_files, "", "src/mathlib.c");
+    cpathlist_register(&config.test_directories, "", "tests");
+
+    cmd = cgtest_runner_build_compile_command(&config, "build/cgtest-runner.c", "build/cgtest-runner.exe");
+
+    CHECK(cmd != NULL);
+    CHECK(strstr(cmd, "/I\"src\"") != NULL);
+    CHECK(strstr(cmd, "/I\"tests\"") != NULL);
+    CHECK(strstr(cmd, "\"src/mathlib.c\"") != NULL);
+    CHECK(strstr(cmd, "/Fe:\"build/cgtest-runner.exe\"") != NULL);
+    CHECK(strstr(cmd, "-I") == NULL);
+    CHECK(strstr(cmd, " -o ") == NULL);
+
+    free(cmd);
+    cpathlist_free(&config.include_paths);
+    cpathlist_free(&config.source_files);
+    cpathlist_free(&config.test_directories);
+}
+
 void test_run_rejects_duplicate_basenames_across_directories(void)
 {
     CGTestConfig config;
@@ -261,6 +322,8 @@ int main(void)
         { "test_skips_the_header_for_a_file_with_no_test_functions", test_skips_the_header_for_a_file_with_no_test_functions },
         { "test_preserves_function_order_within_a_file", test_preserves_function_order_within_a_file },
         { "test_preserves_file_order_across_files", test_preserves_file_order_across_files },
+        { "test_build_compile_command_uses_gcc_flags_by_default", test_build_compile_command_uses_gcc_flags_by_default },
+        { "test_build_compile_command_uses_msvc_flags_when_configured", test_build_compile_command_uses_msvc_flags_when_configured },
         { "test_run_rejects_duplicate_basenames_across_directories", test_run_rejects_duplicate_basenames_across_directories }
     };
     size_t count = sizeof(cases) / sizeof(cases[0]);

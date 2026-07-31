@@ -294,15 +294,16 @@ static char *cgtest_runner_read_file(const char *path, size_t *out_length)
  * in via its own #include "<basename>" line (see
  * cgtest_runner_generate_source()), so compiling them again here would
  * duplicate every test_ function's definition and fail to link.
- * Instead, every test_directories entry is added as its own -I so the
- * compiler's quoted-include search finds each bare filename - safe
- * because cgtest_runner_run() has already rejected any basename that
- * appears in more than one test_directories entry. */
-static char *cgtest_runner_build_compile_command(const CGTestConfig *config,
-                                                  const char *runner_c_path, const char *runner_bin_path)
+ * Instead, every test_directories entry is added as its own include
+ * flag so the compiler's quoted-include search finds each bare
+ * filename - safe because cgtest_runner_run() has already rejected any
+ * basename that appears in more than one test_directories entry. */
+char *cgtest_runner_build_compile_command(const CGTestConfig *config,
+                                           const char *runner_c_path, const char *runner_bin_path)
 {
     CGTestRunnerBuf buf;
     size_t i;
+    const char *include_flag = config->msvc ? " /I\"" : " -I\"";
 
     if (!cgtest_runner_buf_init(&buf)) {
         return NULL;
@@ -313,14 +314,14 @@ static char *cgtest_runner_build_compile_command(const CGTestConfig *config,
     }
 
     for (i = 0; i < config->include_paths.count; i++) {
-        if (!cgtest_runner_buf_append_cstr(&buf, " -I\"") ||
+        if (!cgtest_runner_buf_append_cstr(&buf, include_flag) ||
             !cgtest_runner_buf_append_cstr(&buf, config->include_paths.entries[i]) ||
             !cgtest_runner_buf_append_cstr(&buf, "\"")) {
             goto fail;
         }
     }
     for (i = 0; i < config->test_directories.count; i++) {
-        if (!cgtest_runner_buf_append_cstr(&buf, " -I\"") ||
+        if (!cgtest_runner_buf_append_cstr(&buf, include_flag) ||
             !cgtest_runner_buf_append_cstr(&buf, config->test_directories.entries[i]) ||
             !cgtest_runner_buf_append_cstr(&buf, "\"")) {
             goto fail;
@@ -335,10 +336,23 @@ static char *cgtest_runner_build_compile_command(const CGTestConfig *config,
     }
     if (!cgtest_runner_buf_append_cstr(&buf, " \"") ||
         !cgtest_runner_buf_append_cstr(&buf, runner_c_path) ||
-        !cgtest_runner_buf_append_cstr(&buf, "\" -o \"") ||
-        !cgtest_runner_buf_append_cstr(&buf, runner_bin_path) ||
         !cgtest_runner_buf_append_cstr(&buf, "\"")) {
         goto fail;
+    }
+    if (config->msvc) {
+        /* cl.exe has no "-o" - the output name is set via "/Fe:path",
+         * directly adjacent to the flag, no space before the quote. */
+        if (!cgtest_runner_buf_append_cstr(&buf, " /Fe:\"") ||
+            !cgtest_runner_buf_append_cstr(&buf, runner_bin_path) ||
+            !cgtest_runner_buf_append_cstr(&buf, "\"")) {
+            goto fail;
+        }
+    } else {
+        if (!cgtest_runner_buf_append_cstr(&buf, " -o \"") ||
+            !cgtest_runner_buf_append_cstr(&buf, runner_bin_path) ||
+            !cgtest_runner_buf_append_cstr(&buf, "\"")) {
+            goto fail;
+        }
     }
 
     return buf.data;
@@ -438,11 +452,11 @@ CGTestRunResult cgtest_runner_run(const CGTestConfig *config)
 
     /* The generated source #includes each file by its bare basename
      * (see cgtest_runner_generate_source()), resolved at compile time
-     * via a -I per test_directories entry - so two files sharing a
-     * basename across different test_directories would silently
-     * resolve to whichever one the compiler's search order finds
-     * first. Reject that up front rather than risk compiling the
-     * wrong file. */
+     * via an include flag per test_directories entry - so two files
+     * sharing a basename across different test_directories would
+     * silently resolve to whichever one the compiler's search order
+     * finds first. Reject that up front rather than risk compiling
+     * the wrong file. */
     for (i = 0; i < runner_file_count; i++) {
         size_t k;
         for (k = i + 1; k < runner_file_count; k++) {

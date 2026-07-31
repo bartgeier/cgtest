@@ -59,6 +59,10 @@ What the project should NOT do.
   * Source file list
   * Output path to generate cgtest-runner.c and cgtest-runner.exe
   * Directory list where to find the test_*.c files.  
+  * `msvc` (optional, defaults to `false`): switches the flags cgtest appends to
+    `compiler_command` from GCC/Clang style (`-I"path"`, `-o "path"`) to MSVC
+    `cl.exe` style (`/I"path"`, `/Fe:"path"`) - `compiler_command` alone can't
+    express this, since `cl.exe` doesn't accept `-I`/`-o` at all.
 
 Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 * Search test directorys for files their nameing starts with test_...  

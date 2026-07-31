@@ -4,13 +4,14 @@
  * to an absolute path via cpath_join()/cpathlist_register(), relative
  * to the config file's own directory.
  *
- * All 5 fields (compiler_command, include_paths, source_files,
- * output_path, test_directories) are required. A missing field, an
- * unrecognized key, or a field with the wrong JSON type is a load
- * error (see specification.md: "error and exit ... with an
+ * The 5 fields compiler_command, include_paths, source_files,
+ * output_path, and test_directories are required. A missing required
+ * field, an unrecognized key, or a field with the wrong JSON type is a
+ * load error (see specification.md: "error and exit ... with an
  * appropriate message" - this module never terminates the process
  * itself, it just reports failure via CGTestConfig::ok/error and
- * leaves acting on that to the caller).
+ * leaves acting on that to the caller). "msvc" is the one optional
+ * field, defaulting to false when absent.
  */
 #ifndef CGTEST_CONFIG_H
 #define CGTEST_CONFIG_H
@@ -31,6 +32,7 @@ typedef struct {
     CPathList  source_files;      /* absolute .c files compiled alongside the runner */
     char      *output_path;       /* absolute dir; cgtest-runner.c/.exe get generated here */
     CPathList  test_directories;  /* absolute dirs scanned for test_*.c files */
+    int        msvc;              /* optional, defaults to 0; see cgtest_runner.h */
 } CGTestConfig;
 
 /* Parses "json" (a "length"-byte buffer, not necessarily NUL-terminated)

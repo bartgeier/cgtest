@@ -80,6 +80,62 @@ void test_parses_a_complete_config(void)
     cgtest_config_free(&config);
 }
 
+void test_msvc_defaults_to_false_when_absent(void)
+{
+    const char *json =
+        "{"
+        "\"compiler_command\": \"gcc -std=c99 -O3\","
+        "\"include_paths\": [\"src\"],"
+        "\"source_files\": [\"src/a.c\"],"
+        "\"output_path\": \"./build\","
+        "\"test_directories\": [\"tests\"]"
+        "}";
+    CGTestConfig config = parse(json);
+
+    CHECK(config.ok);
+    CHECK(config.msvc == 0);
+
+    cgtest_config_free(&config);
+}
+
+void test_msvc_can_be_set_true(void)
+{
+    const char *json =
+        "{"
+        "\"compiler_command\": \"cl /TC /W4\","
+        "\"include_paths\": [\"src\"],"
+        "\"source_files\": [\"src/a.c\"],"
+        "\"output_path\": \"./build\","
+        "\"test_directories\": [\"tests\"],"
+        "\"msvc\": true"
+        "}";
+    CGTestConfig config = parse(json);
+
+    CHECK(config.ok);
+    CHECK(config.msvc == 1);
+
+    cgtest_config_free(&config);
+}
+
+void test_msvc_wrong_type_is_an_error(void)
+{
+    const char *json =
+        "{"
+        "\"compiler_command\": \"gcc\","
+        "\"include_paths\": [\"src\"],"
+        "\"source_files\": [\"src/a.c\"],"
+        "\"output_path\": \"./build\","
+        "\"test_directories\": [\"tests\"],"
+        "\"msvc\": \"yes\""
+        "}";
+    CGTestConfig config = parse(json);
+
+    CHECK(!config.ok);
+    CHECK(strstr(config.error, "msvc") != NULL);
+
+    cgtest_config_free(&config);
+}
+
 void test_field_order_does_not_matter(void)
 {
     const char *json =
@@ -301,6 +357,9 @@ int main(void)
 {
     static const TestCase cases[] = {
         { "test_parses_a_complete_config", test_parses_a_complete_config },
+        { "test_msvc_defaults_to_false_when_absent", test_msvc_defaults_to_false_when_absent },
+        { "test_msvc_can_be_set_true", test_msvc_can_be_set_true },
+        { "test_msvc_wrong_type_is_an_error", test_msvc_wrong_type_is_an_error },
         { "test_field_order_does_not_matter", test_field_order_does_not_matter },
         { "test_missing_field_is_reported_by_name", test_missing_field_is_reported_by_name },
         { "test_unknown_key_is_a_hard_error", test_unknown_key_is_a_hard_error },

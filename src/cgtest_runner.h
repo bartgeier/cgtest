@@ -11,17 +11,18 @@
  * already has each function's real definition in scope by the time
  * main() calls it, so no forward declaration is needed. A bare
  * filename only resolves because cgtest_runner_run() adds every
- * test_directories entry as its own -I to the compile command
- * (see cgtest_runner_run()'s duplicate-basename check below for why
- * that's still safe). Two tradeoffs worth knowing:
+ * test_directories entry as its own include flag to the compile
+ * command (see cgtest_runner_run()'s duplicate-basename check below
+ * for why that's still safe). Two tradeoffs worth knowing:
  *  - every included file shares one translation unit, so two test
  *    files defining a same-named helper (not just a test_ function)
  *    would collide - acceptable here since cgtest's own test_*.c
  *    convention keeps files self-contained;
  *  - two test files with the same basename in different
  *    test_directories would otherwise resolve ambiguously (whichever
- *    -I the compiler searches first) - cgtest_runner_run() rejects
- *    this case outright instead of risking a silently-wrong include.
+ *    include path the compiler searches first) - cgtest_runner_run()
+ *    rejects this case outright instead of risking a silently-wrong
+ *    include.
  *
  * Like cgtest_config.h, the source-generation step is split out as a
  * pure function (cgtest_runner_generate_source()) so it's unit-
@@ -73,6 +74,23 @@ typedef struct {
  */
 char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_count, const char *compile_command);
 
+/* Builds the full compiler invocation for "config": config->compiler_command
+ * verbatim, then an include flag for every include_paths and
+ * test_directories entry, then every source_files entry, then
+ * "runner_c_path" itself, then the flag(s) naming "runner_bin_path" as
+ * the output. Two flag dialects, chosen by config->msvc: GCC/Clang's
+ * "-I\"path\"" and "-o \"path\"" (msvc == 0, the default), or MSVC
+ * cl.exe's "/I\"path\"" and "/Fe:\"path\"" (msvc != 0) - cl.exe accepts
+ * neither "-I" nor "-o", so a plain compiler_command change alone can't
+ * target it.
+ *
+ * Pure - performs no filesystem access itself. Returns a malloc'd,
+ * NUL-terminated string the caller owns (free() it); returns NULL only
+ * on allocation failure.
+ */
+char *cgtest_runner_build_compile_command(const CGTestConfig *config,
+                                           const char *runner_c_path, const char *runner_bin_path);
+
 typedef struct {
     int   ok;         /* 0 = failed before a runner binary could be produced/run; see error */
     char *error;      /* malloc'd human-readable message, non-NULL only if !ok */
@@ -87,10 +105,11 @@ typedef struct {
  *     config->output_path/cgtest-runner.c (creating output_path if it
  *     doesn't exist yet, same as cgtest_create_run()'s directory
  *     handling).
- *  4. Compile it there via config->compiler_command, config->include_paths,
- *     and config->source_files, plus a -I for every test_directories
- *     entry (so cgtest-runner.c's bare-filename #include lines resolve) -
- *     every discovered test file is pulled in that way, not compiled
+ *  4. Compile it there via cgtest_runner_build_compile_command(): config->
+ *     compiler_command, config->include_paths, and config->source_files,
+ *     plus an include flag for every test_directories entry (so
+ *     cgtest-runner.c's bare-filename #include lines resolve) - every
+ *     discovered test file is pulled in that way, not compiled
  *     separately.
  *  5. Execute the resulting binary.
  *

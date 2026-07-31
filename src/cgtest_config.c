@@ -49,6 +49,7 @@ enum {
     CGTEST_FIELD_SOURCE_FILES,
     CGTEST_FIELD_OUTPUT_PATH,
     CGTEST_FIELD_TEST_DIRECTORIES,
+    CGTEST_FIELD_MSVC,  /* optional - skipped by the required-fields check below */
     CGTEST_FIELD_COUNT
 };
 
@@ -57,7 +58,8 @@ static const char *const CGTEST_CONFIG_FIELD_NAMES[CGTEST_FIELD_COUNT] = {
     "include_paths",
     "source_files",
     "output_path",
-    "test_directories"
+    "test_directories",
+    "msvc"
 };
 
 /* Cleans up whatever "config" already holds (safe on partially-filled
@@ -186,6 +188,22 @@ static int cgtest_config_apply_field(CGTestConfig *config, int field, const char
         return value_idx + 1;
     }
 
+    if (field == CGTEST_FIELD_MSVC) {
+        const jsmntok_t *token = &tokens[value_idx];
+        size_t token_len = (size_t)(token->end - token->start);
+
+        if (token->type == JSMN_PRIMITIVE && token_len == 4 && memcmp(json + token->start, "true", 4) == 0) {
+            config->msvc = 1;
+        } else if (token->type == JSMN_PRIMITIVE && token_len == 5 && memcmp(json + token->start, "false", 5) == 0) {
+            config->msvc = 0;
+        } else {
+            cmsg_build(error_buf, error_buf_size, "cgtest-config.json: field \"",
+                CGTEST_CONFIG_FIELD_NAMES[field], strlen(CGTEST_CONFIG_FIELD_NAMES[field]), "\" must be a boolean");
+            return -1;
+        }
+        return value_idx + 1;
+    }
+
     {
         CPathList *list = cgtest_config_list_for_field(config, field);
         int count;
@@ -301,6 +319,9 @@ CGTestConfig cgtest_config_parse(const char *json, size_t length, const char *ba
     }
 
     for (i = 0; i < CGTEST_FIELD_COUNT; i++) {
+        if (i == CGTEST_FIELD_MSVC) {
+            continue;
+        }
         if (!seen[i]) {
             cmsg_build(error_buf, sizeof(error_buf), "cgtest-config.json: missing required field \"",
                 CGTEST_CONFIG_FIELD_NAMES[i], strlen(CGTEST_CONFIG_FIELD_NAMES[i]), "\"");
