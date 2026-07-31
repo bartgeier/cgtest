@@ -200,29 +200,31 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
              * "[       OK ]"/"[  FAILED  ]" verdict rather than trying
              * to print the verdict first. Bracket text/width matches
              * GoogleTest's own literally, not just the general idea. */
-            if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"%s[ RUN      ] ") ||
+            /* Color wraps only the bracket token itself, matching
+             * GoogleTest exactly: its PrettyUnitTestResultPrinter
+             * colors "[ RUN      ]"/"[       OK ]"/"[  FAILED  ]" but
+             * prints the test name after it in the default color. */
+            if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"%s[ RUN      ]%s ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "%s\\n\", cgtest_green, cgtest_reset);\n    total++;\n    file_total++;\n    cgtest_failed = 0;\n    ") ||
+                !cgtest_runner_buf_append_cstr(&buf, "\\n\", cgtest_green, cgtest_reset);\n    total++;\n    file_total++;\n    cgtest_failed = 0;\n    ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "();\n    if (!cgtest_failed) {\n        printf(\"%s[       OK ] ") ||
+                !cgtest_runner_buf_append_cstr(&buf, "();\n    if (!cgtest_failed) {\n        printf(\"%s[       OK ]%s ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "%s\\n\", cgtest_green, cgtest_reset);\n    } else {\n        printf(\"%s[  FAILED  ] ") ||
+                !cgtest_runner_buf_append_cstr(&buf, "\\n\", cgtest_green, cgtest_reset);\n    } else {\n        printf(\"%s[  FAILED  ]%s ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "%s\\n\", cgtest_red, cgtest_reset);\n        failed++;\n        file_failed++;\n    }\n")) {
+                !cgtest_runner_buf_append_cstr(&buf, "\\n\", cgtest_red, cgtest_reset);\n        failed++;\n        file_failed++;\n    }\n")) {
                 goto fail;
             }
         }
 
         if (!cgtest_runner_buf_append_cstr(&buf,
-                "    printf(\"\\n%s%d/%d passed%s\\n\\n\", file_failed == 0 ? cgtest_green : cgtest_red, "
-                "file_total - file_failed, file_total, cgtest_reset);\n\n")) {
+                "    printf(\"\\n%d/%d passed\\n\\n\", file_total - file_failed, file_total);\n\n")) {
             goto fail;
         }
     }
 
     if (!cgtest_runner_buf_append_cstr(&buf,
-            "    printf(\"total %s%d/%d tests passed%s\\n\", failed == 0 ? cgtest_green : cgtest_red, "
-            "total - failed, total, cgtest_reset);\n"
+            "    printf(\"total %d/%d tests passed\\n\", total - failed, total);\n"
             "    return failed == 0 ? 0 : 1;\n"
             "}\n")) {
         goto fail;

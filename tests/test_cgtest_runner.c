@@ -80,8 +80,8 @@ void test_includes_the_file_and_calls_its_function(void)
     CHECK(strstr(source, "/abs/path") == NULL);
     CHECK(strstr(source, "extern") == NULL);
     CHECK(strstr(source, "test_math_add()") != NULL);
-    CHECK(strstr(source, "[       OK ] test_math_add") != NULL);
-    CHECK(strstr(source, "[  FAILED  ] test_math_add") != NULL);
+    CHECK(strstr(source, "[       OK ]%s test_math_add") != NULL);
+    CHECK(strstr(source, "[  FAILED  ]%s test_math_add") != NULL);
     CHECK(strstr(source, "== test_math.c ==") != NULL);
 
     free(source);
