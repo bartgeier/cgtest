@@ -144,6 +144,8 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
             "{\n"
             "    int total = 0;\n"
             "    int failed = 0;\n"
+            "    int file_total = 0;\n"
+            "    int file_failed = 0;\n"
             "\n"
             /* Without this, stdout is fully block-buffered whenever it
              * isn't a tty (piped, redirected, or captured by an
@@ -162,7 +164,8 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
             continue;
         }
 
-        if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"== ") ||
+        if (!cgtest_runner_buf_append_cstr(&buf, "    file_total = 0;\n    file_failed = 0;\n") ||
+            !cgtest_runner_buf_append_cstr(&buf, "    printf(\"== ") ||
             !cgtest_runner_buf_append_cstr(&buf, cgtest_runner_basename(files[i].label)) ||
             !cgtest_runner_buf_append_cstr(&buf, " ==\\n\");\n")) {
             goto fail;
@@ -179,18 +182,18 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
              * GoogleTest's own literally, not just the general idea. */
             if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"[ RUN      ] ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n    total++;\n    cgtest_failed = 0;\n    ") ||
+                !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n    total++;\n    file_total++;\n    cgtest_failed = 0;\n    ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
                 !cgtest_runner_buf_append_cstr(&buf, "();\n    if (!cgtest_failed) {\n        printf(\"[       OK ] ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
                 !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n    } else {\n        printf(\"[  FAILED  ] ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n        failed++;\n    }\n")) {
+                !cgtest_runner_buf_append_cstr(&buf, "\\n\");\n        failed++;\n        file_failed++;\n    }\n")) {
                 goto fail;
             }
         }
 
-        if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"\\n\");\n\n")) {
+        if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"%d/%d tests passed\\n\\n\", file_total - file_failed, file_total);\n\n")) {
             goto fail;
         }
     }
