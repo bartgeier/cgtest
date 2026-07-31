@@ -14,21 +14,23 @@ void test_div_truncates_toward_zero(void)
      * ASSERT_TRUE(divisor != 0), just phrased negatively - either
      * reads naturally depending on the check. */
     ASSERT_FALSE(divisor == 0);
-    EXPECT_TRUE(mathlib_div(7, divisor) == 3);
-    EXPECT_TRUE(mathlib_div(-7, divisor) == -3);
-    EXPECT_TRUE(mathlib_div(7, -divisor) == -3);
-    /* Rules out the plausible-but-wrong floor-division alternative. */
+    EXPECT_EQ_INT(3, mathlib_div(7, divisor));
+    EXPECT_EQ_INT(-3, mathlib_div(-7, divisor));
+    EXPECT_EQ_INT(-3, mathlib_div(7, -divisor));
+    /* Rules out the plausible-but-wrong floor-division alternative -
+     * EXPECT_FALSE, not EXPECT_EQ_INT, since this is a "must not
+     * equal" check rather than an "equals this" one. */
     EXPECT_FALSE(mathlib_div(-7, divisor) == -4);
 }
 
 void test_add_is_commutative(void)
 {
-    EXPECT_TRUE(mathlib_add(3, 5) == mathlib_add(5, 3));
-    EXPECT_TRUE(mathlib_add(-4, 9) == mathlib_add(9, -4));
+    EXPECT_EQ_INT(mathlib_add(3, 5), mathlib_add(5, 3));
+    EXPECT_EQ_INT(mathlib_add(-4, 9), mathlib_add(9, -4));
 }
 
 void test_sub_of_a_number_from_itself_is_zero(void)
 {
-    EXPECT_TRUE(mathlib_sub(42, 42) == 0);
-    EXPECT_TRUE(mathlib_sub(-7, -7) == 0);
+    EXPECT_EQ_INT(0, mathlib_sub(42, 42));
+    EXPECT_EQ_INT(0, mathlib_sub(-7, -7));
 }

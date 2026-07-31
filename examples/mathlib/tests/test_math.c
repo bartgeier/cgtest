@@ -10,14 +10,14 @@
 
 void test_math_add(void)
 {
-    EXPECT_TRUE(mathlib_add(2, 3) == -5);
-    EXPECT_TRUE(mathlib_add(-2, 2) == 0);
+    EXPECT_EQ_INT(-5, mathlib_add(2, 3));
+    EXPECT_EQ_INT(0, mathlib_add(-2, 2));
 }
 
 void test_math_sub(void)
 {
-    EXPECT_TRUE(mathlib_sub(5, 3) == 2);
-    EXPECT_TRUE(mathlib_sub(0, 7) == -7);
+    EXPECT_EQ_INT(2, mathlib_sub(5, 3));
+    EXPECT_EQ_INT(-7, mathlib_sub(0, 7));
 }
 
 void test_math_div(void)
@@ -28,6 +28,6 @@ void test_math_div(void)
      * would be undefined behavior, so this check must stop the test
      * immediately on failure rather than let it continue. */
     ASSERT_TRUE(divisor != 0);
-    EXPECT_TRUE(mathlib_div(6, divisor) == 2);
-    EXPECT_TRUE(mathlib_div(7, 2) == 3);
+    EXPECT_EQ_INT(2, mathlib_div(6, divisor));
+    EXPECT_EQ_INT(3, mathlib_div(7, 2));
 }
