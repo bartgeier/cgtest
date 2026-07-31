@@ -125,6 +125,73 @@ static const char *const CGTEST_H_TEMPLATE_RELPATH2 =
     "}\n"
     "\n";
 
+/* Prints one "  <prefix>\"...\"\n" line per '\n' found in "s" - used by
+ * EXPECT_EQ_STR/ASSERT_EQ_STR so a real newline embedded in a tested
+ * string can't visually merge with the FAIL block around it. Every
+ * other non-printable byte - "\r", "\t", other named C escapes, and
+ * anything outside 0x20-0x7e (including ESC, which could otherwise
+ * inject an arbitrary terminal escape sequence) - is hex-escaped
+ * inline instead of passed through raw; none of those are printed as
+ * a real control byte, so unlike "\n" none of them need their own
+ * line break either. Lines after the first are indented to line up
+ * under the opening quote. */
+static const char *const CGTEST_H_TEMPLATE_STRFIELD1 =
+    "static void cgtest_print_str_field(const char *prefix, const char *s)\n"
+    "{\n"
+    "    size_t indent = strlen(prefix);\n"
+    "    int first = 1;\n"
+    "    size_t i;\n"
+    "    unsigned char c;\n"
+    "\n"
+    "    for (;;) {\n"
+    "        if (first) {\n"
+    "            fprintf(stderr, \"%s\\\"\", prefix);\n"
+    "            first = 0;\n"
+    "        } else {\n"
+    "            for (i = 0; i < indent; i++) {\n"
+    "                fputc(' ', stderr);\n"
+    "            }\n"
+    "            fputc('\"', stderr);\n"
+    "        }\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_STRFIELD2 =
+    "        for (;;) {\n"
+    "            c = (unsigned char)*s;\n"
+    "            if (c == '\\0') {\n"
+    "                fputs(\"\\\"\\n\", stderr);\n"
+    "                return;\n"
+    "            }\n"
+    "            if (c == '\\n') {\n"
+    "                fputs(\"\\\\n\\\"\\n\", stderr);\n"
+    "                s++;\n"
+    "                break;\n"
+    "            }\n"
+    "            switch (c) {\n"
+    "                case '\\r': fputs(\"\\\\r\", stderr); break;\n"
+    "                case '\\t': fputs(\"\\\\t\", stderr); break;\n";
+
+static const char *const CGTEST_H_TEMPLATE_STRFIELD3 =
+    "                case '\\a': fputs(\"\\\\a\", stderr); break;\n"
+    "                case '\\b': fputs(\"\\\\b\", stderr); break;\n"
+    "                case '\\v': fputs(\"\\\\v\", stderr); break;\n"
+    "                case '\\f': fputs(\"\\\\f\", stderr); break;\n";
+
+static const char *const CGTEST_H_TEMPLATE_STRFIELD4 =
+    "                default:\n"
+    "                    if (c < 0x20 || c >= 0x7f) {\n"
+    "                        fprintf(stderr, \"\\\\x%02x\", (unsigned int)c);\n"
+    "                    } else {\n"
+    "                        fputc((int)c, stderr);\n"
+    "                    }\n"
+    "                    break;\n"
+    "            }\n"
+    "            s++;\n"
+    "        }\n"
+    "    }\n"
+    "}\n"
+    "\n";
+
 static const char *const CGTEST_H_TEMPLATE_EXPECT_TRUE =
     "#define EXPECT_TRUE(cond) \\\n"
     "    do { \\\n"
@@ -324,7 +391,8 @@ static const char *const CGTEST_H_TEMPLATE_EXPECT_EQ_STR =
 static const char *const CGTEST_H_TEMPLATE_EXPECT_EQ_STR2 =
     "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_EQ_STR(%s, %s)\\n\", \\\n"
     "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \\\n"
-    "            fprintf(stderr, \"  expected: \\\"%s\\\"\\n  actual:   \\\"%s\\\"\\n\", cgtest_exp_, cgtest_act_); \\\n"
+    "            cgtest_print_str_field(\"  expected: \", cgtest_exp_); \\\n"
+    "            cgtest_print_str_field(\"  actual:   \", cgtest_act_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "        } \\\n"
     "    } while (0)\n"
@@ -340,7 +408,8 @@ static const char *const CGTEST_H_TEMPLATE_ASSERT_EQ_STR =
 static const char *const CGTEST_H_TEMPLATE_ASSERT_EQ_STR2 =
     "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_EQ_STR(%s, %s)\\n\", \\\n"
     "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \\\n"
-    "            fprintf(stderr, \"  expected: \\\"%s\\\"\\n  actual:   \\\"%s\\\"\\n\", cgtest_exp_, cgtest_act_); \\\n"
+    "            cgtest_print_str_field(\"  expected: \", cgtest_exp_); \\\n"
+    "            cgtest_print_str_field(\"  actual:   \", cgtest_act_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            return; \\\n"
     "        } \\\n"
@@ -438,6 +507,8 @@ CGTestCreateResult cgtest_create_run(const char *dir)
     if (!cgtest_create_write_file(header_path.data, error_buf, sizeof(error_buf),
                                    CGTEST_H_TEMPLATE_HEAD1, CGTEST_H_TEMPLATE_HEAD1B, CGTEST_H_TEMPLATE_HEAD2,
                                    CGTEST_H_TEMPLATE_RELPATH1, CGTEST_H_TEMPLATE_RELPATH2,
+                                   CGTEST_H_TEMPLATE_STRFIELD1, CGTEST_H_TEMPLATE_STRFIELD2,
+                                   CGTEST_H_TEMPLATE_STRFIELD3, CGTEST_H_TEMPLATE_STRFIELD4,
                                    CGTEST_H_TEMPLATE_EXPECT_TRUE, CGTEST_H_TEMPLATE_EXPECT_FALSE,
                                    CGTEST_H_TEMPLATE_ASSERT_TRUE, CGTEST_H_TEMPLATE_ASSERT_FALSE,
                                    CGTEST_H_TEMPLATE_EXPECT_EQ_INT, CGTEST_H_TEMPLATE_EXPECT_EQ_INT2,

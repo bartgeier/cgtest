@@ -58,6 +58,55 @@ static const char *cgtest_relpath(const char *file)
     return file + len + 1;
 }
 
+static void cgtest_print_str_field(const char *prefix, const char *s)
+{
+    size_t indent = strlen(prefix);
+    int first = 1;
+    size_t i;
+    unsigned char c;
+
+    for (;;) {
+        if (first) {
+            fprintf(stderr, "%s\"", prefix);
+            first = 0;
+        } else {
+            for (i = 0; i < indent; i++) {
+                fputc(' ', stderr);
+            }
+            fputc('"', stderr);
+        }
+
+        for (;;) {
+            c = (unsigned char)*s;
+            if (c == '\0') {
+                fputs("\"\n", stderr);
+                return;
+            }
+            if (c == '\n') {
+                fputs("\\n\"\n", stderr);
+                s++;
+                break;
+            }
+            switch (c) {
+                case '\r': fputs("\\r", stderr); break;
+                case '\t': fputs("\\t", stderr); break;
+                case '\a': fputs("\\a", stderr); break;
+                case '\b': fputs("\\b", stderr); break;
+                case '\v': fputs("\\v", stderr); break;
+                case '\f': fputs("\\f", stderr); break;
+                default:
+                    if (c < 0x20 || c >= 0x7f) {
+                        fprintf(stderr, "\\x%02x", (unsigned int)c);
+                    } else {
+                        fputc((int)c, stderr);
+                    }
+                    break;
+            }
+            s++;
+        }
+    }
+}
+
 #define EXPECT_TRUE(cond) \
     do { \
         if (!(cond)) { \
@@ -199,7 +248,8 @@ static const char *cgtest_relpath(const char *file)
         if (strcmp(cgtest_exp_, cgtest_act_) != 0) { \
             fprintf(stderr, "%s:%d: FAIL: EXPECT_EQ_STR(%s, %s)\n", \
                     cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \
-            fprintf(stderr, "  expected: \"%s\"\n  actual:   \"%s\"\n", cgtest_exp_, cgtest_act_); \
+            cgtest_print_str_field("  expected: ", cgtest_exp_); \
+            cgtest_print_str_field("  actual:   ", cgtest_act_); \
             cgtest_failed = 1; \
         } \
     } while (0)
@@ -211,7 +261,8 @@ static const char *cgtest_relpath(const char *file)
         if (strcmp(cgtest_exp_, cgtest_act_) != 0) { \
             fprintf(stderr, "%s:%d: FAIL: ASSERT_EQ_STR(%s, %s)\n", \
                     cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \
-            fprintf(stderr, "  expected: \"%s\"\n  actual:   \"%s\"\n", cgtest_exp_, cgtest_act_); \
+            cgtest_print_str_field("  expected: ", cgtest_exp_); \
+            cgtest_print_str_field("  actual:   ", cgtest_act_); \
             cgtest_failed = 1; \
             return; \
         } \
