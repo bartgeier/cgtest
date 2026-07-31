@@ -1,6 +1,7 @@
 /* cgtest_create.h - see specification.md's "--create" example: writes a
  * template cgtest-config.json plus a cgtest.h (EXPECT_TRUE/EXPECT_FALSE/
- * ASSERT_TRUE/ASSERT_FALSE and the cgtest_failed flag the generated
+ * ASSERT_TRUE/ASSERT_FALSE, the EXPECT_EQ_ and ASSERT_EQ_ family for
+ * INT/UINT/DOUBLE/PTR/STR, and the cgtest_failed flag the generated
  * runner reads) alongside it, so a new project has something to edit
  * instead of writing cgtest-config.json from scratch.
  *
