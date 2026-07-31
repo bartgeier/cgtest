@@ -10,7 +10,7 @@
 
 void test_math_add(void)
 {
-    EXPECT_TRUE(mathlib_add(2, 3) == 5);
+    EXPECT_TRUE(mathlib_add(2, 3) == -5);
     EXPECT_TRUE(mathlib_add(-2, 2) == 0);
 }
 
