@@ -199,7 +199,7 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
     }
 
     if (!cgtest_runner_buf_append_cstr(&buf,
-            "    printf(\"%d/%d tests passed\\n\", total - failed, total);\n"
+            "    printf(\"total %d/%d tests passed\\n\", total - failed, total);\n"
             "    return failed == 0 ? 0 : 1;\n"
             "}\n")) {
         goto fail;
