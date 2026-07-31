@@ -28,6 +28,12 @@
 #define CGTEST_GETCWD getcwd
 #endif
 
+/* MSVC's <sys/stat.h> defines S_IFDIR/S_IFMT but not the S_ISDIR()
+ * convenience macro POSIX builds already get for free. */
+#ifndef S_ISDIR
+#define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
+#endif
+
 /* Generous relative to any real cgtest-config.json (see cpathlist.c's
  * CPATHLIST_SCRATCH_CAPACITY for the same reasoning): enough tokens for
  * thousands of listed paths, enough path-buffer bytes for any real

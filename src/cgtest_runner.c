@@ -46,6 +46,12 @@ static int cgtest_runner_decode_exit(int system_result)
 }
 #endif
 
+/* MSVC's <sys/stat.h> defines S_IFDIR/S_IFMT but not the S_ISDIR()
+ * convenience macro POSIX builds already get for free. */
+#ifndef S_ISDIR
+#define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
+#endif
+
 #define CGTEST_RUNNER_PATH_SCRATCH 4096
 #define CGTEST_RUNNER_ERROR_BUFSZ  256
 
