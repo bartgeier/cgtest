@@ -98,6 +98,16 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
     parameterized on the operator that decides failure (`!=` for `EQ_`, `==` for `NE_`), the
     printed label/format, and whether to `return` afterwards - only the label text and
     operator differ between the four generated macros of a family.
+  - `EXPECT_NEAR_DOUBLE(expected, actual, abs_error)`/`ASSERT_NEAR_DOUBLE(...)` (GoogleTest's
+    `EXPECT_NEAR`) check `expected` and `actual` are within a caller-supplied `abs_error` of
+    each other, instead of `EXPECT_EQ_DOUBLE`'s exact equality - the right choice once the
+    values are results of floating-point arithmetic that may differ by a rounding error. On
+    failure it prints the actual difference alongside the max allowed one, not just the two
+    operands. No `<math.h>`/`fabs()` dependency - the absolute difference is computed with a
+    plain sign flip. `float` operands work the same way `EXPECT_EQ_DOUBLE` already covers
+    `float`: the cast to `double` is a lossless widening conversion. There's no `NE_` form of
+    this one (GoogleTest doesn't have one either) - "must differ by more than X" isn't a
+    common enough need to justify it.
 * the cgtest-runner executes those function in the same order they appear in the test_file.
   - That allowes to use the first function in a file as init test setup.
   - That allowes to use the last function in a file as tear down setup.

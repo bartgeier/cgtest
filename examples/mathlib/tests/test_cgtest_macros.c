@@ -84,6 +84,16 @@ void test_assert_ne_double(void)
     ASSERT_NE_DOUBLE(4.2, 4.3);
 }
 
+void test_expect_near_double(void)
+{
+    EXPECT_NEAR_DOUBLE(4.2, 4.2000001, 0.001);
+}
+
+void test_assert_near_double(void)
+{
+    ASSERT_NEAR_DOUBLE(4.2, 4.2000001, 0.001);
+}
+
 void test_expect_eq_ptr(void)
 {
     int x = 0;

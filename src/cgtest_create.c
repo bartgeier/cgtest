@@ -77,7 +77,10 @@ static const char *const CGTEST_H_TEMPLATE_HEAD1 =
 static const char *const CGTEST_H_TEMPLATE_HEAD1B =
     " * The EXPECT_EQ_/EXPECT_NE_ macros (INT/UINT/DOUBLE/PTR/STR/\n"
     " * STR_NOCASE, and their ASSERT_ counterparts) additionally print\n"
-    " * both operands' values on failure. */\n"
+    " * both operands' values on failure. EXPECT_NEAR_DOUBLE/\n"
+    " * ASSERT_NEAR_DOUBLE(expected, actual, abs_error) check the two\n"
+    " * are within abs_error of each other instead of exactly equal -\n"
+    " * the right choice for results of floating-point arithmetic. */\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_HEAD2 =
@@ -357,6 +360,42 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_DOUBLE2 =
     "    CGTEST_CMP_DOUBLE_(\"ASSERT_NE_DOUBLE\", ==, \"  unexpected: %g\\n  actual:     %g\\n\", return, unexpected, actual)\n"
     "\n";
 
+/* Unlike EXPECT_EQ_DOUBLE, this takes a caller-supplied tolerance
+ * instead of comparing exactly - the right choice once "expected"/
+ * "actual" are results of floating-point arithmetic that may differ
+ * by a harmless rounding error. No <math.h>/fabs() dependency -
+ * the sign flip below is all that's needed for an absolute value. */
+static const char *const CGTEST_H_TEMPLATE_NEAR_DOUBLE1 =
+    "#define CGTEST_NEAR_DOUBLE_(macro_name, on_fail, expected, actual, abs_error) \\\n"
+    "    do { \\\n"
+    "        double cgtest_exp_ = (double)(expected); \\\n"
+    "        double cgtest_act_ = (double)(actual); \\\n"
+    "        double cgtest_tol_ = (double)(abs_error); \\\n"
+    "        double cgtest_diff_ = cgtest_exp_ - cgtest_act_; \\\n"
+    "        if (cgtest_diff_ < 0) { \\\n"
+    "            cgtest_diff_ = -cgtest_diff_; \\\n"
+    "        } \\\n"
+    "        if (cgtest_diff_ > cgtest_tol_) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_NEAR_DOUBLE2 =
+    "            fprintf(stderr, \"%s:%d: FAIL: \" macro_name \"(%s, %s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, #abs_error); \\\n"
+    "            fprintf(stderr, \"  expected: %g\\n  actual:   %g\\n  diff:     %g (max allowed: %g)\\n\", \\\n"
+    "                    cgtest_exp_, cgtest_act_, cgtest_diff_, cgtest_tol_); \\\n"
+    "            cgtest_failed = 1; \\\n"
+    "            on_fail; \\\n"
+    "        } \\\n"
+    "    } while (0)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_NEAR_DOUBLE3 =
+    "#define EXPECT_NEAR_DOUBLE(expected, actual, abs_error) \\\n"
+    "    CGTEST_NEAR_DOUBLE_(\"EXPECT_NEAR_DOUBLE\", ((void)0), expected, actual, abs_error)\n"
+    "\n"
+    "#define ASSERT_NEAR_DOUBLE(expected, actual, abs_error) \\\n"
+    "    CGTEST_NEAR_DOUBLE_(\"ASSERT_NEAR_DOUBLE\", return, expected, actual, abs_error)\n"
+    "\n";
+
 static const char *const CGTEST_H_TEMPLATE_CMP_PTR1 =
     "#define CGTEST_CMP_PTR_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \\\n"
     "    do { \\\n"
@@ -592,6 +631,8 @@ CGTestCreateResult cgtest_create_run(const char *dir)
                                    CGTEST_H_TEMPLATE_EQ_NE_UINT, CGTEST_H_TEMPLATE_EQ_NE_UINT2,
                                    CGTEST_H_TEMPLATE_CMP_DOUBLE1, CGTEST_H_TEMPLATE_CMP_DOUBLE2,
                                    CGTEST_H_TEMPLATE_EQ_NE_DOUBLE, CGTEST_H_TEMPLATE_EQ_NE_DOUBLE2,
+                                   CGTEST_H_TEMPLATE_NEAR_DOUBLE1, CGTEST_H_TEMPLATE_NEAR_DOUBLE2,
+                                   CGTEST_H_TEMPLATE_NEAR_DOUBLE3,
                                    CGTEST_H_TEMPLATE_CMP_PTR1, CGTEST_H_TEMPLATE_CMP_PTR2,
                                    CGTEST_H_TEMPLATE_EQ_NE_PTR, CGTEST_H_TEMPLATE_EQ_NE_PTR2,
                                    CGTEST_H_TEMPLATE_STRCASECMP1, CGTEST_H_TEMPLATE_STRCASECMP2,

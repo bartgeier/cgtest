@@ -10,7 +10,10 @@
  * dereference), EXPECT otherwise.
  * The EXPECT_EQ_/EXPECT_NE_ macros (INT/UINT/DOUBLE/PTR/STR/
  * STR_NOCASE, and their ASSERT_ counterparts) additionally print
- * both operands' values on failure. */
+ * both operands' values on failure. EXPECT_NEAR_DOUBLE/
+ * ASSERT_NEAR_DOUBLE(expected, actual, abs_error) check the two
+ * are within abs_error of each other instead of exactly equal -
+ * the right choice for results of floating-point arithmetic. */
 
 #include <ctype.h>
 #include <stdio.h>
@@ -216,6 +219,31 @@ static void cgtest_print_str_field(const char *prefix, const char *s)
 
 #define ASSERT_NE_DOUBLE(unexpected, actual) \
     CGTEST_CMP_DOUBLE_("ASSERT_NE_DOUBLE", ==, "  unexpected: %g\n  actual:     %g\n", return, unexpected, actual)
+
+#define CGTEST_NEAR_DOUBLE_(macro_name, on_fail, expected, actual, abs_error) \
+    do { \
+        double cgtest_exp_ = (double)(expected); \
+        double cgtest_act_ = (double)(actual); \
+        double cgtest_tol_ = (double)(abs_error); \
+        double cgtest_diff_ = cgtest_exp_ - cgtest_act_; \
+        if (cgtest_diff_ < 0) { \
+            cgtest_diff_ = -cgtest_diff_; \
+        } \
+        if (cgtest_diff_ > cgtest_tol_) { \
+            fprintf(stderr, "%s:%d: FAIL: " macro_name "(%s, %s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, #abs_error); \
+            fprintf(stderr, "  expected: %g\n  actual:   %g\n  diff:     %g (max allowed: %g)\n", \
+                    cgtest_exp_, cgtest_act_, cgtest_diff_, cgtest_tol_); \
+            cgtest_failed = 1; \
+            on_fail; \
+        } \
+    } while (0)
+
+#define EXPECT_NEAR_DOUBLE(expected, actual, abs_error) \
+    CGTEST_NEAR_DOUBLE_("EXPECT_NEAR_DOUBLE", ((void)0), expected, actual, abs_error)
+
+#define ASSERT_NEAR_DOUBLE(expected, actual, abs_error) \
+    CGTEST_NEAR_DOUBLE_("ASSERT_NEAR_DOUBLE", return, expected, actual, abs_error)
 
 #define CGTEST_CMP_PTR_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \
     do { \
