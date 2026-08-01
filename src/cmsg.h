@@ -4,7 +4,7 @@
  * a file path. Never overflows the caller's buffer; truncates the
  * embedded text rather than the surrounding message shape.
  *
- * Shared by cgtest_config.c and ctestfiles.c, both of which need to
+ * Shared by cgtest_project.c and ctestfiles.c, both of which need to
  * report specific, human-readable failures (see specification.md:
  * "error and exit ... with an appropriate message") without risking a
  * buffer overflow on attacker- or mistake-controlled input length.

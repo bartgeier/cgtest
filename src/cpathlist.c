@@ -7,7 +7,7 @@
 
 /* Generous relative to real filesystem path length limits (Linux's
  * PATH_MAX is typically 4096; Windows historically 260 but modern APIs
- * support far more) - long enough that legitimate config paths never
+ * support far more) - long enough that legitimate project paths never
  * hit it, small enough to be a trivial stack buffer. */
 #define CPATHLIST_SCRATCH_CAPACITY 4096
 

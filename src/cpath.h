@@ -5,7 +5,7 @@
  * touching the filesystem. This is deliberate: no realpath(), no symlink
  * resolution, no checking that anything exists. That keeps it dependency
  * free, deterministic, and safe to run on paths that don't exist yet
- * (e.g. output directories from cgtest-config.json).
+ * (e.g. output directories from cgtest-project.json).
  *
  * Scope notes (deliberate simplifications, documented rather than silent):
  *  - "base" is assumed to already be an absolute path (resolved by the

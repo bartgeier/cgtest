@@ -3,13 +3,13 @@
  * Purely a dispatcher: cgtest_arq_parse() and every module it calls
  * report outcome via a returned struct rather than printing or
  * exiting themselves (see cgtest_arq.h, cgtest_create.h,
- * cgtest_config.h, cgtest_runner.h) - this file is the one place
+ * cgtest_project.h, cgtest_runner.h) - this file is the one place
  * allowed to write to stdout/stderr and call exit (via main()'s
  * return value).
  */
 #include "cgtest_arq.h"
 #include "cgtest_create.h"
-#include "cgtest_config.h"
+#include "cgtest_project.h"
 #include "cgtest_runner.h"
 
 #include <stdio.h>
@@ -21,7 +21,7 @@ static void print_help(void)
     printf("cgtest - a command-line C unit test DSL compiler\n");
     printf("\n");
     printf("  cgtest --config <path>   generate, compile and run cgtest-runner.c\n");
-    printf("  cgtest --create <dir>    create cgtest-config.json, cgtest.h, and an example test inside <dir>\n");
+    printf("  cgtest --create <dir>    create cgtest-project.json, cgtest.h, and an example test inside <dir>\n");
     printf("  cgtest --version         print the cgtest version\n");
     printf("  cgtest --help            print this message\n");
 }
@@ -61,12 +61,12 @@ int main(int argc, char **argv)
     }
 
     case CGTEST_ARG_RUN: {
-        CGTestConfig config = cgtest_config_load(args.config_path);
-        if (!config.ok) {
-            fprintf(stderr, "cgtest: %s\n", config.error);
+        CGTestProject project = cgtest_project_load(args.config_path);
+        if (!project.ok) {
+            fprintf(stderr, "cgtest: %s\n", project.error);
             exit_code = 1;
         } else {
-            CGTestRunResult result = cgtest_runner_run(&config);
+            CGTestRunResult result = cgtest_runner_run(&project);
             if (!result.ok) {
                 fprintf(stderr, "cgtest: %s\n", result.error);
                 exit_code = 1;
@@ -75,7 +75,7 @@ int main(int argc, char **argv)
             }
             cgtest_runner_free(&result);
         }
-        cgtest_config_free(&config);
+        cgtest_project_free(&project);
         break;
     }
 

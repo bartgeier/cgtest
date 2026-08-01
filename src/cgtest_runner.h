@@ -1,8 +1,8 @@
 /* cgtest_runner.h - implements CGTEST_ARG_RUN (see specification.md's
  * "-c --config" section): discovers test_*.c files across a
- * CGTestConfig's test_directories, scans each for test_ functions
+ * CGTestProject's test_directories, scans each for test_ functions
  * (ctestscanner.h), generates cgtest-runner.c, compiles it alongside
- * the config's own source_files, and executes the result.
+ * the project's own source_files, and executes the result.
  *
  * The generated runner #includes each discovered test_*.c file by its
  * bare filename directly rather than compiling it as its own
@@ -24,7 +24,7 @@
  *    rejects this case outright instead of risking a silently-wrong
  *    include.
  *
- * Like cgtest_config.h, the source-generation step is split out as a
+ * Like cgtest_project.h, the source-generation step is split out as a
  * pure function (cgtest_runner_generate_source()) so it's unit-
  * testable without touching the filesystem or a real compiler -
  * cgtest_runner_run() is the disk- and process-facing entry point
@@ -33,7 +33,7 @@
 #ifndef CGTEST_RUNNER_H
 #define CGTEST_RUNNER_H
 
-#include "cgtest_config.h"
+#include "cgtest_project.h"
 #include "ctestscanner.h"
 
 #include <stddef.h>
@@ -74,11 +74,11 @@ typedef struct {
  */
 char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_count, const char *compile_command);
 
-/* Builds the full compiler invocation for "config": config->compiler_command
+/* Builds the full compiler invocation for "project": project->compiler_command
  * verbatim, then an include flag for every include_paths and
  * test_directories entry, then every source_files entry, then
  * "runner_c_path" itself, then the flag(s) naming "runner_bin_path" as
- * the output. Two flag dialects, chosen by config->msvc: GCC/Clang's
+ * the output. Two flag dialects, chosen by project->msvc: GCC/Clang's
  * "-I\"path\"" and "-o \"path\"" (msvc == 0, the default), or MSVC
  * cl.exe's "/I\"path\"" and "/Fe:\"path\"" (msvc != 0) - cl.exe accepts
  * neither "-I" nor "-o", so a plain compiler_command change alone can't
@@ -88,7 +88,7 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
  * NUL-terminated string the caller owns (free() it); returns NULL only
  * on allocation failure.
  */
-char *cgtest_runner_build_compile_command(const CGTestConfig *config,
+char *cgtest_runner_build_compile_command(const CGTestProject *project,
                                            const char *runner_c_path, const char *runner_bin_path);
 
 typedef struct {
@@ -97,16 +97,16 @@ typedef struct {
     int   exit_code;  /* the compiled cgtest-runner binary's exit code; valid only if ok */
 } CGTestRunResult;
 
-/* Runs "config" end to end:
- *  1. ctestfiles_scan() every entry in config->test_directories, in order.
+/* Runs "project" end to end:
+ *  1. ctestfiles_scan() every entry in project->test_directories, in order.
  *  2. ctestscanner_find() every discovered test_*.c file's content.
  *  3. cgtest_runner_generate_source() the result (embedding the compile
  *     command from step 4 as a leading comment) into
- *     config->output_path/cgtest-runner.c (creating output_path if it
+ *     project->output_path/cgtest-runner.c (creating output_path if it
  *     doesn't exist yet, same as cgtest_create_run()'s directory
  *     handling).
- *  4. Compile it there via cgtest_runner_build_compile_command(): config->
- *     compiler_command, config->include_paths, and config->source_files,
+ *  4. Compile it there via cgtest_runner_build_compile_command(): project->
+ *     compiler_command, project->include_paths, and project->source_files,
  *     plus an include flag for every test_directories entry (so
  *     cgtest-runner.c's bare-filename #include lines resolve) - every
  *     discovered test file is pulled in that way, not compiled
@@ -122,7 +122,7 @@ typedef struct {
  * step 5's exit code (whatever the test run itself decided) is always
  * reported via exit_code, ok or not.
  */
-CGTestRunResult cgtest_runner_run(const CGTestConfig *config);
+CGTestRunResult cgtest_runner_run(const CGTestProject *project);
 
 /* Releases every owned field in "result". Safe to call regardless of ok. */
 void cgtest_runner_free(CGTestRunResult *result);

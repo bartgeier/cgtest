@@ -72,46 +72,46 @@ void test_long_version_flag(void)
 
 void test_short_config_flag_captures_path(void)
 {
-    char *argv[] = { "cgtest", "-c", "./unittest/cgtest/cgtest-config.json", NULL };
+    char *argv[] = { "cgtest", "-c", "./unittest/cgtest/cgtest-project.json", NULL };
     CGTestArgs args = parse(argv);
 
     CHECK(args.action == CGTEST_ARG_RUN);
     CHECK(args.config_path != NULL);
-    CHECK(strcmp(args.config_path, "./unittest/cgtest/cgtest-config.json") == 0);
+    CHECK(strcmp(args.config_path, "./unittest/cgtest/cgtest-project.json") == 0);
 
     cgtest_arq_free(&args);
 }
 
 void test_long_config_flag_with_equals_captures_path(void)
 {
-    char *argv[] = { "cgtest", "--config=./unittest/cgtest/cgtest-config.json", NULL };
+    char *argv[] = { "cgtest", "--config=./unittest/cgtest/cgtest-project.json", NULL };
     CGTestArgs args = parse(argv);
 
     CHECK(args.action == CGTEST_ARG_RUN);
-    CHECK(strcmp(args.config_path, "./unittest/cgtest/cgtest-config.json") == 0);
+    CHECK(strcmp(args.config_path, "./unittest/cgtest/cgtest-project.json") == 0);
 
     cgtest_arq_free(&args);
 }
 
 void test_short_create_flag_captures_path(void)
 {
-    char *argv[] = { "cgtest", "-C", "./unittest/cgtest/cgtest-config.json", NULL };
+    char *argv[] = { "cgtest", "-C", "./unittest/cgtest/cgtest-project.json", NULL };
     CGTestArgs args = parse(argv);
 
     CHECK(args.action == CGTEST_ARG_CREATE);
     CHECK(args.create_path != NULL);
-    CHECK(strcmp(args.create_path, "./unittest/cgtest/cgtest-config.json") == 0);
+    CHECK(strcmp(args.create_path, "./unittest/cgtest/cgtest-project.json") == 0);
 
     cgtest_arq_free(&args);
 }
 
 void test_long_create_flag_captures_path(void)
 {
-    char *argv[] = { "cgtest", "--create", "./unittest/cgtest/cgtest-config.json", NULL };
+    char *argv[] = { "cgtest", "--create", "./unittest/cgtest/cgtest-project.json", NULL };
     CGTestArgs args = parse(argv);
 
     CHECK(args.action == CGTEST_ARG_CREATE);
-    CHECK(strcmp(args.create_path, "./unittest/cgtest/cgtest-config.json") == 0);
+    CHECK(strcmp(args.create_path, "./unittest/cgtest/cgtest-project.json") == 0);
 
     cgtest_arq_free(&args);
 }
@@ -141,7 +141,7 @@ void test_no_arguments_is_an_error(void)
 
 void test_combining_config_and_version_is_an_error(void)
 {
-    char *argv[] = { "cgtest", "-c", "./cgtest-config.json", "-v", NULL };
+    char *argv[] = { "cgtest", "-c", "./cgtest-project.json", "-v", NULL };
     CGTestArgs args = parse(argv);
 
     CHECK(args.action == CGTEST_ARG_ERROR);

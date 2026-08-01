@@ -1,9 +1,9 @@
 /* cgtest_create.c - see cgtest_create.h.
  *
- * "dir" is always a directory, never a file path - cgtest-config.json
- * and cgtest.h are always written as "dir/cgtest-config.json" and
+ * "dir" is always a directory, never a file path - cgtest-project.json
+ * and cgtest.h are always written as "dir/cgtest-project.json" and
  * "dir/cgtest.h". "dir" is resolved to an absolute path the same way
- * cgtest_config_load() does (getcwd() + cpath_join()), created if it
+ * cgtest_project_load() does (getcwd() + cpath_join()), created if it
  * doesn't exist yet (mkdir() - "dir"'s own parent must already exist;
  * this does not create intermediate directories), then the two
  * templates are written inside it.
@@ -39,11 +39,11 @@
 
 /* Points at "." for test_directories rather than a fictional path -
  * test_cgtest_macros.c (see CGTEST_TEST_MACROS_TEMPLATE1 and friends
- * below) is written into the same directory as this config, so
+ * below) is written into the same directory as this project file, so
  * "cgtest --config ." finds and runs it immediately, no editing
  * required first. source_files/include_paths start empty since that
  * example needs neither - add your own project's files here. */
-static const char *const CGTEST_CONFIG_TEMPLATE =
+static const char *const CGTEST_PROJECT_TEMPLATE =
     "{\n"
     "    \"compiler_command\": \"gcc -std=c99 -O3\",\n"
     "    \"msvc\": false,\n"
@@ -781,7 +781,7 @@ static const char *const CGTEST_H_TEMPLATE_FOOTER =
 /* Third template, written as "test_cgtest_macros.c" alongside the
  * other two - one example test function per macro from cgtest.h
  * above, so a freshly created project has something that actually
- * runs and passes immediately (cgtest-config.json's default
+ * runs and passes immediately (cgtest-project.json's default
  * test_directories already includes "."), not just two files to
  * read. Kept in lockstep with examples/mathlib/tests/
  * test_cgtest_macros.c in the cgtest repo itself - same test
@@ -791,7 +791,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE1 =
     "/* test_cgtest_macros.c - one example per macro from cgtest.h. These\n"
     " * checks do not do anything useful; they exist purely to show each\n"
     " * macro's call shape. Discovered and run automatically by\n"
-    " * \"cgtest --config .\" - \".\" is already in cgtest-config.json's\n"
+    " * \"cgtest --config .\" - \".\" is already in cgtest-project.json's\n"
     " * test_directories by default. */\n"
     "#include \"cgtest.h\"\n"
     "\n"
@@ -1251,11 +1251,11 @@ CGTestCreateResult cgtest_create_run(const char *dir)
     CGTestCreateResult result;
     char cwd[CGTEST_CREATE_PATH_SCRATCH];
     char abs_dir_scratch[CGTEST_CREATE_PATH_SCRATCH];
-    char config_scratch[CGTEST_CREATE_PATH_SCRATCH];
+    char project_scratch[CGTEST_CREATE_PATH_SCRATCH];
     char header_scratch[CGTEST_CREATE_PATH_SCRATCH];
     char test_scratch[CGTEST_CREATE_PATH_SCRATCH];
     CPath abs_dir;
-    CPath config_path;
+    CPath project_path;
     CPath header_path;
     CPath test_path;
     struct stat st;
@@ -1277,19 +1277,19 @@ CGTestCreateResult cgtest_create_run(const char *dir)
         return cgtest_create_fail(error_buf);
     }
 
-    config_path = cpath_join(config_scratch, sizeof(config_scratch), abs_dir.data, "cgtest-config.json");
+    project_path = cpath_join(project_scratch, sizeof(project_scratch), abs_dir.data, "cgtest-project.json");
 
-    if (stat(config_path.data, &st) == 0) {
-        cmsg_build(error_buf, sizeof(error_buf), "cgtest-config.json already exists: ",
-                   config_path.data, config_path.length, "");
+    if (stat(project_path.data, &st) == 0) {
+        cmsg_build(error_buf, sizeof(error_buf), "cgtest-project.json already exists: ",
+                   project_path.data, project_path.length, "");
         return cgtest_create_fail(error_buf);
     }
 
     header_path = cpath_join(header_scratch, sizeof(header_scratch), abs_dir.data, "cgtest.h");
     test_path = cpath_join(test_scratch, sizeof(test_scratch), abs_dir.data, "test_cgtest_macros.c");
 
-    if (!cgtest_create_write_file(config_path.data, error_buf, sizeof(error_buf),
-                                   CGTEST_CONFIG_TEMPLATE, (const char *)NULL)) {
+    if (!cgtest_create_write_file(project_path.data, error_buf, sizeof(error_buf),
+                                   CGTEST_PROJECT_TEMPLATE, (const char *)NULL)) {
         return cgtest_create_fail(error_buf);
     }
     if (!cgtest_create_write_file(header_path.data, error_buf, sizeof(error_buf),

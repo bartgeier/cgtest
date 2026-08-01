@@ -4,19 +4,19 @@
 cgtest is a command-line C unit test DSL compiler application.
 It compiles and runs a test runner from test files.  
 **cgtest.exe:**  
-* generates cgtest-runner.c with the info from cgtest-config.json
+* generates cgtest-runner.c with the info from cgtest-project.json
 * compiles cgtest-runner.c and 
 * executes the compiled binary.  
 
 ### Examples
-```cgtest.exe --config ./unitest/cgtest/cgtest-config.json```  
+```cgtest.exe --config ./unitest/cgtest/cgtest-project.json```  
 Generates testrunner and excecute it.
 
 ```cgtest.exe --create ./unitest/cgtest```  
-Creates a default template cgtest-config.json inside ./unitest/cgtest (creating the directory if it doesn't exist yet)  
+Creates a default template cgtest-project.json inside ./unitest/cgtest (creating the directory if it doesn't exist yet)  
 Creates the cgtest.h file alongside it, it contains macros for unit tests.  
 Also creates test_cgtest_macros.c alongside both - one example test function per macro from
-cgtest.h. The template config's `test_directories` already includes `.`, so
+cgtest.h. The template project file's `test_directories` already includes `.`, so
 `cgtest.exe --config ./unitest/cgtest` discovers and runs that example immediately - a
 freshly created project has something that actually passes out of the box, not just files
 to edit.
@@ -46,19 +46,19 @@ What the project should NOT do.
 ### Pars command-line arguments
   * For parsing the command-line arguments cgtest uses the arq lib from
   https://github.com/bartgeier/arq
-  * -c --config path to the cgtest-config.json, or to the directory containing it
-    (if the path is a directory, "cgtest-config.json" is looked up inside it).
-    If cgtest-config.json doesn't exist than error and exit cgtest.exe with an appropriate message.  
-    ```cgtest.exe --config ./unitest/cgtest/cgtest-config.json```
+  * -c --config path to the cgtest-project.json, or to the directory containing it
+    (if the path is a directory, "cgtest-project.json" is looked up inside it).
+    If cgtest-project.json doesn't exist than error and exit cgtest.exe with an appropriate message.  
+    ```cgtest.exe --config ./unitest/cgtest/cgtest-project.json```
     ```cgtest.exe --config ./unitest/cgtest```
-  * -C --create path to the directory cgtest-config.json, cgtest.h, and test_cgtest_macros.c
-    should be created in (the argument is always a directory, never the config file's own
+  * -C --create path to the directory cgtest-project.json, cgtest.h, and test_cgtest_macros.c
+    should be created in (the argument is always a directory, never the project file's own
     path; the directory is created if it doesn't exist yet).
-    If cgtest-config.json already exist in that directory than error and exit cgtest.exe with an appropriate message.
+    If cgtest-project.json already exist in that directory than error and exit cgtest.exe with an appropriate message.
   * -v --version of cgtest
   * -h --help of cgtest
 
-### cgtest-config.json
+### cgtest-project.json
   * set compiler command "gcc -std=c99 -O3" 
   * Include path list
   * Source file list
@@ -146,9 +146,9 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 
 ### Source Modules file
 * cgtest_arq.c cgtest_arq.h command line parser use arq lib from httpe://github.com/bartgeier/arq
-* cgtest_config.c cgtest_config.h use for json parsing jsmn https://github.com/zserge/jsmn
-  parses cgtest-config.json
-* cgtest_create.c cgtest_create.h implements -C/--create: writes a template cgtest-config.json, cgtest.h, and test_cgtest_macros.c into a directory.
+* cgtest_project.c cgtest_project.h use for json parsing jsmn https://github.com/zserge/jsmn
+  parses cgtest-project.json
+* cgtest_create.c cgtest_create.h implements -C/--create: writes a template cgtest-project.json, cgtest.h, and test_cgtest_macros.c into a directory.
 * cgtest_runner.c cgtest_runner.h implements -c/--config: generates cgtest-runner.c, compiles it, and executes it.
 * clexer.c clexer.h a C23 lexer/tokenizer.
 * cpreprocessor.c cpreprocessor.h directive-aware layer on top of clexer.c/h (recognizes #include/#embed/__has_include/__has_embed enough to disambiguate header-name tokens).
@@ -166,7 +166,7 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 ## 5. CLI Interface
 
 ```bash
-cgtest.exe --config ./unitest/cgtest/cgtest-config.json
+cgtest.exe --config ./unitest/cgtest/cgtest-project.json
 cgtest.exe --config ./unitest/cgtest
 cgtest.exe --create ./unitest/cgtest
 cgtest.exe --version

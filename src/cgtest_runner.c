@@ -8,7 +8,7 @@
  * test files/functions, writing the generated source to disk, and
  * shelling out to the compiler and the resulting binary via system() -
  * acceptable here since compiler_command comes from the user's own
- * trusted cgtest-config.json, the same trust boundary cgtest already
+ * trusted cgtest-project.json, the same trust boundary cgtest already
  * crosses by running that compiler at all.
  */
 #include "cgtest_runner.h"
@@ -298,38 +298,38 @@ static char *cgtest_runner_read_file(const char *path, size_t *out_length)
  * flag so the compiler's quoted-include search finds each bare
  * filename - safe because cgtest_runner_run() has already rejected any
  * basename that appears in more than one test_directories entry. */
-char *cgtest_runner_build_compile_command(const CGTestConfig *config,
+char *cgtest_runner_build_compile_command(const CGTestProject *project,
                                            const char *runner_c_path, const char *runner_bin_path)
 {
     CGTestRunnerBuf buf;
     size_t i;
-    const char *include_flag = config->msvc ? " /I\"" : " -I\"";
+    const char *include_flag = project->msvc ? " /I\"" : " -I\"";
 
     if (!cgtest_runner_buf_init(&buf)) {
         return NULL;
     }
 
-    if (!cgtest_runner_buf_append_cstr(&buf, config->compiler_command)) {
+    if (!cgtest_runner_buf_append_cstr(&buf, project->compiler_command)) {
         goto fail;
     }
 
-    for (i = 0; i < config->include_paths.count; i++) {
+    for (i = 0; i < project->include_paths.count; i++) {
         if (!cgtest_runner_buf_append_cstr(&buf, include_flag) ||
-            !cgtest_runner_buf_append_cstr(&buf, config->include_paths.entries[i]) ||
+            !cgtest_runner_buf_append_cstr(&buf, project->include_paths.entries[i]) ||
             !cgtest_runner_buf_append_cstr(&buf, "\"")) {
             goto fail;
         }
     }
-    for (i = 0; i < config->test_directories.count; i++) {
+    for (i = 0; i < project->test_directories.count; i++) {
         if (!cgtest_runner_buf_append_cstr(&buf, include_flag) ||
-            !cgtest_runner_buf_append_cstr(&buf, config->test_directories.entries[i]) ||
+            !cgtest_runner_buf_append_cstr(&buf, project->test_directories.entries[i]) ||
             !cgtest_runner_buf_append_cstr(&buf, "\"")) {
             goto fail;
         }
     }
-    for (i = 0; i < config->source_files.count; i++) {
+    for (i = 0; i < project->source_files.count; i++) {
         if (!cgtest_runner_buf_append_cstr(&buf, " \"") ||
-            !cgtest_runner_buf_append_cstr(&buf, config->source_files.entries[i]) ||
+            !cgtest_runner_buf_append_cstr(&buf, project->source_files.entries[i]) ||
             !cgtest_runner_buf_append_cstr(&buf, "\"")) {
             goto fail;
         }
@@ -339,7 +339,7 @@ char *cgtest_runner_build_compile_command(const CGTestConfig *config,
         !cgtest_runner_buf_append_cstr(&buf, "\"")) {
         goto fail;
     }
-    if (config->msvc) {
+    if (project->msvc) {
         /* cl.exe has no "-o" - the output name is set via "/Fe:path",
          * directly adjacent to the flag, no space before the quote. */
         if (!cgtest_runner_buf_append_cstr(&buf, " /Fe:\"") ||
@@ -362,7 +362,7 @@ fail:
     return NULL;
 }
 
-CGTestRunResult cgtest_runner_run(const CGTestConfig *config)
+CGTestRunResult cgtest_runner_run(const CGTestProject *project)
 {
     CGTestRunResult result;
     CPathList test_files;
@@ -389,8 +389,8 @@ CGTestRunResult cgtest_runner_run(const CGTestConfig *config)
     source = NULL;
     compile_cmd = NULL;
 
-    for (i = 0; i < config->test_directories.count; i++) {
-        CTestFileScan scan = ctestfiles_scan(config->test_directories.entries[i]);
+    for (i = 0; i < project->test_directories.count; i++) {
+        CTestFileScan scan = ctestfiles_scan(project->test_directories.entries[i]);
         size_t j;
 
         if (!scan.ok) {
@@ -471,22 +471,22 @@ CGTestRunResult cgtest_runner_run(const CGTestConfig *config)
         }
     }
 
-    if (stat(config->output_path, &st) != 0) {
-        if (CGTEST_RUNNER_MKDIR(config->output_path) != 0) {
+    if (stat(project->output_path, &st) != 0) {
+        if (CGTEST_RUNNER_MKDIR(project->output_path) != 0) {
             char msg[CGTEST_RUNNER_ERROR_BUFSZ];
-            cmsg_build(msg, sizeof(msg), "could not create output directory ", config->output_path, strlen(config->output_path), "");
+            cmsg_build(msg, sizeof(msg), "could not create output directory ", project->output_path, strlen(project->output_path), "");
             cgtest_runner_set_error(&result, msg);
             goto cleanup;
         }
     } else if (!S_ISDIR(st.st_mode)) {
         char msg[CGTEST_RUNNER_ERROR_BUFSZ];
-        cmsg_build(msg, sizeof(msg), "not a directory: ", config->output_path, strlen(config->output_path), "");
+        cmsg_build(msg, sizeof(msg), "not a directory: ", project->output_path, strlen(project->output_path), "");
         cgtest_runner_set_error(&result, msg);
         goto cleanup;
     }
 
-    runner_c_path = cpath_join(runner_c_scratch, sizeof(runner_c_scratch), config->output_path, "cgtest-runner.c");
-    runner_bin_path = cpath_join(runner_bin_scratch, sizeof(runner_bin_scratch), config->output_path,
+    runner_c_path = cpath_join(runner_c_scratch, sizeof(runner_c_scratch), project->output_path, "cgtest-runner.c");
+    runner_bin_path = cpath_join(runner_bin_scratch, sizeof(runner_bin_scratch), project->output_path,
                                   "cgtest-runner" CGTEST_RUNNER_EXE_SUFFIX);
 
     /* Computed before generate_source() (rather than alongside the
@@ -494,7 +494,7 @@ CGTestRunResult cgtest_runner_run(const CGTestConfig *config)
      * comment in cgtest-runner.c itself - handy for anyone who wants
      * to see or re-run the exact compile invocation without digging
      * through cgtest.exe's own output. */
-    compile_cmd = cgtest_runner_build_compile_command(config, runner_c_path.data, runner_bin_path.data);
+    compile_cmd = cgtest_runner_build_compile_command(project, runner_c_path.data, runner_bin_path.data);
     if (compile_cmd == NULL) {
         cgtest_runner_set_error(&result, "out of memory");
         goto cleanup;

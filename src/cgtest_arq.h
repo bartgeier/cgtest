@@ -3,7 +3,7 @@
  * single CGTestArgs, using the arq.h library
  * (https://github.com/bartgeier/arq) to do the actual argv scanning.
  *
- * Like cgtest_config.h and ctestfiles.h, this module never terminates
+ * Like cgtest_project.h and ctestfiles.h, this module never terminates
  * the process or writes to stdout/stderr itself - it only reports the
  * outcome via the returned struct, leaving printing and exiting to
  * cgtest_main.c.

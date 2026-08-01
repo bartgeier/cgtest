@@ -16,7 +16,7 @@
  *    order is not guaranteed stable across filesystems or runs.
  *  - A directory that doesn't exist or can't be read is a hard error
  *    naming the directory, not a silent empty result - same
- *    "surface it, don't swallow it" stance as cgtest_config.h and
+ *    "surface it, don't swallow it" stance as cgtest_project.h and
  *    cpathlist.h's CPATHLIST_TRUNCATED.
  */
 #ifndef CTESTFILES_H

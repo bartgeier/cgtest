@@ -1,5 +1,5 @@
 /* test_cgtest_create.c - unit tests for cgtest_create_run(), which
- * writes a template cgtest-config.json, cgtest.h, and
+ * writes a template cgtest-project.json, cgtest.h, and
  * test_cgtest_macros.c inside a given directory (creating that
  * directory if it doesn't exist yet).
  * Written in cgtest's own test convention (void test_<name>(void));
@@ -11,7 +11,7 @@
  * directory under build/ and tears it down again.
  */
 #include "cgtest_create.h"
-#include "cgtest_config.h"
+#include "cgtest_project.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -29,7 +29,7 @@ static int test_failed = 0;
     } while (0)
 
 #define FIXTURE_DIR "build/cgtest_create_fixture"
-#define CONFIG_PATH FIXTURE_DIR "/cgtest-config.json"
+#define PROJECT_PATH FIXTURE_DIR "/cgtest-project.json"
 #define HEADER_PATH FIXTURE_DIR "/cgtest.h"
 #define TEST_MACROS_PATH FIXTURE_DIR "/test_cgtest_macros.c"
 
@@ -40,7 +40,7 @@ static void setup_fixture(void)
 
 static void teardown_fixture(void)
 {
-    remove(CONFIG_PATH);
+    remove(PROJECT_PATH);
     remove(HEADER_PATH);
     remove(TEST_MACROS_PATH);
     remove(FIXTURE_DIR);
@@ -60,7 +60,7 @@ static long read_whole_file(const char *path, char *buf, size_t bufsize)
     return (long)read_count;
 }
 
-void test_creates_config_and_header_in_existing_directory(void)
+void test_creates_project_and_header_in_existing_directory(void)
 {
     CGTestCreateResult result;
     char buf[4096];
@@ -70,7 +70,7 @@ void test_creates_config_and_header_in_existing_directory(void)
 
     CHECK(result.ok);
     CHECK(result.error == NULL);
-    CHECK(read_whole_file(CONFIG_PATH, buf, sizeof(buf)) > 0);
+    CHECK(read_whole_file(PROJECT_PATH, buf, sizeof(buf)) > 0);
     CHECK(read_whole_file(HEADER_PATH, buf, sizeof(buf)) > 0);
     CHECK(read_whole_file(TEST_MACROS_PATH, buf, sizeof(buf)) > 0);
 
@@ -91,7 +91,7 @@ void test_creates_directory_if_missing(void)
     CHECK(result.error == NULL);
     CHECK(stat(FIXTURE_DIR, &st) == 0);
     CHECK(S_ISDIR(st.st_mode));
-    CHECK(read_whole_file(CONFIG_PATH, buf, sizeof(buf)) > 0);
+    CHECK(read_whole_file(PROJECT_PATH, buf, sizeof(buf)) > 0);
     CHECK(read_whole_file(HEADER_PATH, buf, sizeof(buf)) > 0);
     CHECK(read_whole_file(TEST_MACROS_PATH, buf, sizeof(buf)) > 0);
 
@@ -123,10 +123,10 @@ void test_test_macros_file_covers_the_whole_header(void)
     teardown_fixture();
 }
 
-void test_created_config_round_trips_through_parser(void)
+void test_created_project_round_trips_through_parser(void)
 {
     CGTestCreateResult result;
-    CGTestConfig config;
+    CGTestProject project;
     char buf[4096];
     long length;
 
@@ -134,26 +134,26 @@ void test_created_config_round_trips_through_parser(void)
     result = cgtest_create_run(FIXTURE_DIR);
     CHECK(result.ok);
 
-    length = read_whole_file(CONFIG_PATH, buf, sizeof(buf));
+    length = read_whole_file(PROJECT_PATH, buf, sizeof(buf));
     CHECK(length > 0);
 
-    config = cgtest_config_parse(buf, (size_t)length, "/base");
-    CHECK(config.ok);
-    CHECK(config.error == NULL);
+    project = cgtest_project_parse(buf, (size_t)length, "/base");
+    CHECK(project.ok);
+    CHECK(project.error == NULL);
 
-    cgtest_config_free(&config);
+    cgtest_project_free(&project);
     cgtest_create_free(&result);
     teardown_fixture();
 }
 
-void test_refuses_to_overwrite_existing_config(void)
+void test_refuses_to_overwrite_existing_project(void)
 {
     CGTestCreateResult result;
     FILE *f;
     char buf[4096];
 
     setup_fixture();
-    f = fopen(CONFIG_PATH, "w");
+    f = fopen(PROJECT_PATH, "w");
     CHECK(f != NULL);
     fputs("PREEXISTING", f);
     fclose(f);
@@ -164,11 +164,11 @@ void test_refuses_to_overwrite_existing_config(void)
     CHECK(result.error != NULL);
     CHECK(strstr(result.error, "already exists") != NULL);
 
-    CHECK(read_whole_file(CONFIG_PATH, buf, sizeof(buf)) > 0);
+    CHECK(read_whole_file(PROJECT_PATH, buf, sizeof(buf)) > 0);
     CHECK(strcmp(buf, "PREEXISTING") == 0);
 
     cgtest_create_free(&result);
-    remove(CONFIG_PATH);
+    remove(PROJECT_PATH);
     teardown_fixture();
 }
 
@@ -194,7 +194,7 @@ void test_path_that_is_a_regular_file_is_an_error(void)
 
 #define NESTED_PARENT_DIR "build/cgtest_create_nested_fixture"
 #define NESTED_DIR NESTED_PARENT_DIR "/child"
-#define NESTED_CONFIG_PATH NESTED_DIR "/cgtest-config.json"
+#define NESTED_PROJECT_PATH NESTED_DIR "/cgtest-project.json"
 #define NESTED_HEADER_PATH NESTED_DIR "/cgtest.h"
 #define NESTED_TEST_MACROS_PATH NESTED_DIR "/test_cgtest_macros.c"
 
@@ -204,7 +204,7 @@ void test_creates_missing_parent_directories(void)
     struct stat st;
     char buf[4096];
 
-    remove(NESTED_CONFIG_PATH);
+    remove(NESTED_PROJECT_PATH);
     remove(NESTED_HEADER_PATH);
     remove(NESTED_TEST_MACROS_PATH);
     remove(NESTED_DIR);
@@ -216,12 +216,12 @@ void test_creates_missing_parent_directories(void)
     CHECK(result.error == NULL);
     CHECK(stat(NESTED_DIR, &st) == 0);
     CHECK(S_ISDIR(st.st_mode));
-    CHECK(read_whole_file(NESTED_CONFIG_PATH, buf, sizeof(buf)) > 0);
+    CHECK(read_whole_file(NESTED_PROJECT_PATH, buf, sizeof(buf)) > 0);
     CHECK(read_whole_file(NESTED_HEADER_PATH, buf, sizeof(buf)) > 0);
     CHECK(read_whole_file(NESTED_TEST_MACROS_PATH, buf, sizeof(buf)) > 0);
 
     cgtest_create_free(&result);
-    remove(NESTED_CONFIG_PATH);
+    remove(NESTED_PROJECT_PATH);
     remove(NESTED_HEADER_PATH);
     remove(NESTED_TEST_MACROS_PATH);
     remove(NESTED_DIR);
@@ -274,11 +274,11 @@ typedef struct {
 int main(void)
 {
     static const TestCase cases[] = {
-        { "test_creates_config_and_header_in_existing_directory", test_creates_config_and_header_in_existing_directory },
+        { "test_creates_project_and_header_in_existing_directory", test_creates_project_and_header_in_existing_directory },
         { "test_creates_directory_if_missing", test_creates_directory_if_missing },
         { "test_test_macros_file_covers_the_whole_header", test_test_macros_file_covers_the_whole_header },
-        { "test_created_config_round_trips_through_parser", test_created_config_round_trips_through_parser },
-        { "test_refuses_to_overwrite_existing_config", test_refuses_to_overwrite_existing_config },
+        { "test_created_project_round_trips_through_parser", test_created_project_round_trips_through_parser },
+        { "test_refuses_to_overwrite_existing_project", test_refuses_to_overwrite_existing_project },
         { "test_path_that_is_a_regular_file_is_an_error", test_path_that_is_a_regular_file_is_an_error },
         { "test_creates_missing_parent_directories", test_creates_missing_parent_directories },
         { "test_parent_segment_that_is_a_regular_file_is_an_error", test_parent_segment_that_is_a_regular_file_is_an_error },

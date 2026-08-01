@@ -13,7 +13,7 @@
  *    limits (see CPATHLIST_SCRATCH_CAPACITY in cpathlist.c), but a
  *    pathological base+rel combination could still exceed it -
  *    CPATHLIST_TRUNCATED signals that rather than truncating silently.
- *  - This module knows nothing about cgtest-config.json's schema: it's
+ *  - This module knows nothing about cgtest-project.json's schema: it's
  *    a generic list-of-paths container. Distinguishing include dirs
  *    from source files from test dirs is the caller's job (e.g. one
  *    CPathList per category), not this module's.

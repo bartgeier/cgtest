@@ -1,4 +1,4 @@
-/* cgtest_config.c - see cgtest_config.h.
+/* cgtest_project.c - see cgtest_project.h.
  *
  * Uses jsmn.h (vendored in third_party/, see specification.md) as a flat
  * JSON tokenizer - it does not build a tree, just an array of tokens the
@@ -11,7 +11,7 @@
 #define JSMN_STATIC
 #include "jsmn.h"
 
-#include "cgtest_config.h"
+#include "cgtest_project.h"
 #include "cpath.h"
 #include "cmsg.h"
 
@@ -34,14 +34,14 @@
 #define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
 #endif
 
-/* Generous relative to any real cgtest-config.json (see cpathlist.c's
+/* Generous relative to any real cgtest-project.json (see cpathlist.c's
  * CPATHLIST_SCRATCH_CAPACITY for the same reasoning): enough tokens for
  * thousands of listed paths, enough path-buffer bytes for any real
  * filesystem path. Exceeding either is reported as a load error, never
  * silently truncated/dropped. */
-#define CGTEST_CONFIG_MAX_TOKENS   4096
-#define CGTEST_CONFIG_PATH_SCRATCH 4096
-#define CGTEST_CONFIG_ERROR_BUFSZ  256
+#define CGTEST_PROJECT_MAX_TOKENS   4096
+#define CGTEST_PROJECT_PATH_SCRATCH 4096
+#define CGTEST_PROJECT_ERROR_BUFSZ  256
 
 enum {
     CGTEST_FIELD_COMPILER_COMMAND = 0,
@@ -53,7 +53,7 @@ enum {
     CGTEST_FIELD_COUNT
 };
 
-static const char *const CGTEST_CONFIG_FIELD_NAMES[CGTEST_FIELD_COUNT] = {
+static const char *const CGTEST_PROJECT_FIELD_NAMES[CGTEST_FIELD_COUNT] = {
     "compiler_command",
     "include_paths",
     "source_files",
@@ -62,21 +62,21 @@ static const char *const CGTEST_CONFIG_FIELD_NAMES[CGTEST_FIELD_COUNT] = {
     "msvc"
 };
 
-/* Cleans up whatever "config" already holds (safe on partially-filled
+/* Cleans up whatever "project" already holds (safe on partially-filled
  * or never-filled fields) and reports "message" as the failure. */
-static CGTestConfig cgtest_config_fail(CGTestConfig *config, const char *message)
+static CGTestProject cgtest_project_fail(CGTestProject *project, const char *message)
 {
-    cpathlist_free(&config->include_paths);
-    cpathlist_free(&config->source_files);
-    cpathlist_free(&config->test_directories);
-    free(config->compiler_command);
-    free(config->output_path);
+    cpathlist_free(&project->include_paths);
+    cpathlist_free(&project->source_files);
+    cpathlist_free(&project->test_directories);
+    free(project->compiler_command);
+    free(project->output_path);
 
-    config->ok = 0;
-    config->compiler_command = NULL;
-    config->output_path = NULL;
-    config->error = cmsg_dup(message, strlen(message));
-    return *config;
+    project->ok = 0;
+    project->compiler_command = NULL;
+    project->output_path = NULL;
+    project->error = cmsg_dup(message, strlen(message));
+    return *project;
 }
 
 /* Copies a JSMN_STRING token's text into a malloc'd, NUL-terminated,
@@ -117,7 +117,7 @@ static char *jsmn_token_unescape(const char *json, const jsmntok_t *token,
             default:
                 free(result);
                 cmsg_set(error_buf, error_buf_size,
-                    "cgtest-config.json: \\u escapes are not supported (use literal UTF-8 bytes instead)");
+                    "cgtest-project.json: \\u escapes are not supported (use literal UTF-8 bytes instead)");
                 return NULL;
             }
         } else {
@@ -128,34 +128,34 @@ static char *jsmn_token_unescape(const char *json, const jsmntok_t *token,
     return result;
 }
 
-static int cgtest_config_match_field(const char *json, const jsmntok_t *token)
+static int cgtest_project_match_field(const char *json, const jsmntok_t *token)
 {
     size_t token_len = (size_t)(token->end - token->start);
     int i;
 
     for (i = 0; i < CGTEST_FIELD_COUNT; i++) {
-        size_t name_len = strlen(CGTEST_CONFIG_FIELD_NAMES[i]);
-        if (token_len == name_len && memcmp(json + token->start, CGTEST_CONFIG_FIELD_NAMES[i], name_len) == 0) {
+        size_t name_len = strlen(CGTEST_PROJECT_FIELD_NAMES[i]);
+        if (token_len == name_len && memcmp(json + token->start, CGTEST_PROJECT_FIELD_NAMES[i], name_len) == 0) {
             return i;
         }
     }
     return -1;
 }
 
-static CPathList *cgtest_config_list_for_field(CGTestConfig *config, int field)
+static CPathList *cgtest_project_list_for_field(CGTestProject *project, int field)
 {
     switch (field) {
-    case CGTEST_FIELD_INCLUDE_PATHS:    return &config->include_paths;
-    case CGTEST_FIELD_SOURCE_FILES:     return &config->source_files;
-    case CGTEST_FIELD_TEST_DIRECTORIES: return &config->test_directories;
+    case CGTEST_FIELD_INCLUDE_PATHS:    return &project->include_paths;
+    case CGTEST_FIELD_SOURCE_FILES:     return &project->source_files;
+    case CGTEST_FIELD_TEST_DIRECTORIES: return &project->test_directories;
     default:                            return NULL;
     }
 }
 
 /* Consumes the value at tokens[value_idx] (already known to belong to
- * "field") into "config". Returns the token index just past everything
+ * "field") into "project". Returns the token index just past everything
  * consumed on success, or -1 with "error_buf" filled in on failure. */
-static int cgtest_config_apply_field(CGTestConfig *config, int field, const char *json,
+static int cgtest_project_apply_field(CGTestProject *project, int field, const char *json,
                                       const jsmntok_t *tokens, int token_count, int value_idx,
                                       const char *base_dir, char *error_buf, size_t error_buf_size)
 {
@@ -163,8 +163,8 @@ static int cgtest_config_apply_field(CGTestConfig *config, int field, const char
         char *raw;
 
         if (tokens[value_idx].type != JSMN_STRING) {
-            cmsg_build(error_buf, error_buf_size, "cgtest-config.json: field \"",
-                CGTEST_CONFIG_FIELD_NAMES[field], strlen(CGTEST_CONFIG_FIELD_NAMES[field]), "\" must be a string");
+            cmsg_build(error_buf, error_buf_size, "cgtest-project.json: field \"",
+                CGTEST_PROJECT_FIELD_NAMES[field], strlen(CGTEST_PROJECT_FIELD_NAMES[field]), "\" must be a string");
             return -1;
         }
 
@@ -174,13 +174,13 @@ static int cgtest_config_apply_field(CGTestConfig *config, int field, const char
         }
 
         if (field == CGTEST_FIELD_COMPILER_COMMAND) {
-            config->compiler_command = raw;
+            project->compiler_command = raw;
         } else {
-            char scratch[CGTEST_CONFIG_PATH_SCRATCH];
+            char scratch[CGTEST_PROJECT_PATH_SCRATCH];
             CPath joined = cpath_join(scratch, sizeof(scratch), base_dir, raw);
-            config->output_path = cmsg_dup(joined.data, joined.length);
+            project->output_path = cmsg_dup(joined.data, joined.length);
             free(raw);
-            if (config->output_path == NULL) {
+            if (project->output_path == NULL) {
                 cmsg_set(error_buf, error_buf_size, "out of memory");
                 return -1;
             }
@@ -193,26 +193,26 @@ static int cgtest_config_apply_field(CGTestConfig *config, int field, const char
         size_t token_len = (size_t)(token->end - token->start);
 
         if (token->type == JSMN_PRIMITIVE && token_len == 4 && memcmp(json + token->start, "true", 4) == 0) {
-            config->msvc = 1;
+            project->msvc = 1;
         } else if (token->type == JSMN_PRIMITIVE && token_len == 5 && memcmp(json + token->start, "false", 5) == 0) {
-            config->msvc = 0;
+            project->msvc = 0;
         } else {
-            cmsg_build(error_buf, error_buf_size, "cgtest-config.json: field \"",
-                CGTEST_CONFIG_FIELD_NAMES[field], strlen(CGTEST_CONFIG_FIELD_NAMES[field]), "\" must be a boolean");
+            cmsg_build(error_buf, error_buf_size, "cgtest-project.json: field \"",
+                CGTEST_PROJECT_FIELD_NAMES[field], strlen(CGTEST_PROJECT_FIELD_NAMES[field]), "\" must be a boolean");
             return -1;
         }
         return value_idx + 1;
     }
 
     {
-        CPathList *list = cgtest_config_list_for_field(config, field);
+        CPathList *list = cgtest_project_list_for_field(project, field);
         int count;
         int i;
         int idx = value_idx;
 
         if (tokens[idx].type != JSMN_ARRAY) {
-            cmsg_build(error_buf, error_buf_size, "cgtest-config.json: field \"",
-                CGTEST_CONFIG_FIELD_NAMES[field], strlen(CGTEST_CONFIG_FIELD_NAMES[field]), "\" must be an array of strings");
+            cmsg_build(error_buf, error_buf_size, "cgtest-project.json: field \"",
+                CGTEST_PROJECT_FIELD_NAMES[field], strlen(CGTEST_PROJECT_FIELD_NAMES[field]), "\" must be an array of strings");
             return -1;
         }
         count = tokens[idx].size;
@@ -223,8 +223,8 @@ static int cgtest_config_apply_field(CGTestConfig *config, int field, const char
             CPathListStatus status;
 
             if (idx >= token_count || tokens[idx].type != JSMN_STRING) {
-                cmsg_build(error_buf, error_buf_size, "cgtest-config.json: every element of \"",
-                    CGTEST_CONFIG_FIELD_NAMES[field], strlen(CGTEST_CONFIG_FIELD_NAMES[field]), "\" must be a string");
+                cmsg_build(error_buf, error_buf_size, "cgtest-project.json: every element of \"",
+                    CGTEST_PROJECT_FIELD_NAMES[field], strlen(CGTEST_PROJECT_FIELD_NAMES[field]), "\" must be a string");
                 return -1;
             }
 
@@ -245,40 +245,40 @@ static int cgtest_config_apply_field(CGTestConfig *config, int field, const char
     }
 }
 
-CGTestConfig cgtest_config_parse(const char *json, size_t length, const char *base_dir)
+CGTestProject cgtest_project_parse(const char *json, size_t length, const char *base_dir)
 {
-    CGTestConfig config;
+    CGTestProject project;
     jsmn_parser parser;
-    jsmntok_t tokens[CGTEST_CONFIG_MAX_TOKENS];
+    jsmntok_t tokens[CGTEST_PROJECT_MAX_TOKENS];
     int token_count;
     int seen[CGTEST_FIELD_COUNT];
     int idx;
     int pair;
     int i;
-    char error_buf[CGTEST_CONFIG_ERROR_BUFSZ];
+    char error_buf[CGTEST_PROJECT_ERROR_BUFSZ];
 
-    memset(&config, 0, sizeof(config));
-    cpathlist_init(&config.include_paths);
-    cpathlist_init(&config.source_files);
-    cpathlist_init(&config.test_directories);
+    memset(&project, 0, sizeof(project));
+    cpathlist_init(&project.include_paths);
+    cpathlist_init(&project.source_files);
+    cpathlist_init(&project.test_directories);
 
     jsmn_init(&parser);
-    token_count = jsmn_parse(&parser, json, length, tokens, CGTEST_CONFIG_MAX_TOKENS);
+    token_count = jsmn_parse(&parser, json, length, tokens, CGTEST_PROJECT_MAX_TOKENS);
 
     if (token_count == JSMN_ERROR_NOMEM) {
-        return cgtest_config_fail(&config, "cgtest-config.json has too many entries (exceeds the internal parser limit)");
+        return cgtest_project_fail(&project, "cgtest-project.json has too many entries (exceeds the internal parser limit)");
     }
     if (token_count == JSMN_ERROR_INVAL) {
-        return cgtest_config_fail(&config, "cgtest-config.json contains invalid JSON syntax");
+        return cgtest_project_fail(&project, "cgtest-project.json contains invalid JSON syntax");
     }
     if (token_count == JSMN_ERROR_PART) {
-        return cgtest_config_fail(&config, "cgtest-config.json is incomplete (truncated JSON)");
+        return cgtest_project_fail(&project, "cgtest-project.json is incomplete (truncated JSON)");
     }
     if (token_count <= 0) {
-        return cgtest_config_fail(&config, "cgtest-config.json is empty");
+        return cgtest_project_fail(&project, "cgtest-project.json is empty");
     }
     if (tokens[0].type != JSMN_OBJECT) {
-        return cgtest_config_fail(&config, "cgtest-config.json must be a JSON object at the top level");
+        return cgtest_project_fail(&project, "cgtest-project.json must be a JSON object at the top level");
     }
 
     for (i = 0; i < CGTEST_FIELD_COUNT; i++) {
@@ -290,31 +290,31 @@ CGTestConfig cgtest_config_parse(const char *json, size_t length, const char *ba
         int field;
 
         if (idx >= token_count || tokens[idx].type != JSMN_STRING) {
-            return cgtest_config_fail(&config, "cgtest-config.json: expected a string key");
+            return cgtest_project_fail(&project, "cgtest-project.json: expected a string key");
         }
 
-        field = cgtest_config_match_field(json, &tokens[idx]);
+        field = cgtest_project_match_field(json, &tokens[idx]);
         if (field < 0) {
-            cmsg_build(error_buf, sizeof(error_buf), "cgtest-config.json: unknown key \"",
+            cmsg_build(error_buf, sizeof(error_buf), "cgtest-project.json: unknown key \"",
                 json + tokens[idx].start, (size_t)(tokens[idx].end - tokens[idx].start), "\"");
-            return cgtest_config_fail(&config, error_buf);
+            return cgtest_project_fail(&project, error_buf);
         }
         if (seen[field]) {
-            cmsg_build(error_buf, sizeof(error_buf), "cgtest-config.json: duplicate key \"",
-                CGTEST_CONFIG_FIELD_NAMES[field], strlen(CGTEST_CONFIG_FIELD_NAMES[field]), "\"");
-            return cgtest_config_fail(&config, error_buf);
+            cmsg_build(error_buf, sizeof(error_buf), "cgtest-project.json: duplicate key \"",
+                CGTEST_PROJECT_FIELD_NAMES[field], strlen(CGTEST_PROJECT_FIELD_NAMES[field]), "\"");
+            return cgtest_project_fail(&project, error_buf);
         }
         seen[field] = 1;
         idx++;
 
         if (idx >= token_count) {
-            return cgtest_config_fail(&config, "cgtest-config.json: key is missing its value");
+            return cgtest_project_fail(&project, "cgtest-project.json: key is missing its value");
         }
 
-        idx = cgtest_config_apply_field(&config, field, json, tokens, token_count, idx, base_dir,
+        idx = cgtest_project_apply_field(&project, field, json, tokens, token_count, idx, base_dir,
                                          error_buf, sizeof(error_buf));
         if (idx < 0) {
-            return cgtest_config_fail(&config, error_buf);
+            return cgtest_project_fail(&project, error_buf);
         }
     }
 
@@ -323,25 +323,25 @@ CGTestConfig cgtest_config_parse(const char *json, size_t length, const char *ba
             continue;
         }
         if (!seen[i]) {
-            cmsg_build(error_buf, sizeof(error_buf), "cgtest-config.json: missing required field \"",
-                CGTEST_CONFIG_FIELD_NAMES[i], strlen(CGTEST_CONFIG_FIELD_NAMES[i]), "\"");
-            return cgtest_config_fail(&config, error_buf);
+            cmsg_build(error_buf, sizeof(error_buf), "cgtest-project.json: missing required field \"",
+                CGTEST_PROJECT_FIELD_NAMES[i], strlen(CGTEST_PROJECT_FIELD_NAMES[i]), "\"");
+            return cgtest_project_fail(&project, error_buf);
         }
     }
 
-    config.ok = 1;
-    config.error = NULL;
-    return config;
+    project.ok = 1;
+    project.error = NULL;
+    return project;
 }
 
-CGTestConfig cgtest_config_load(const char *config_path)
+CGTestProject cgtest_project_load(const char *project_path)
 {
-    CGTestConfig config;
-    char cwd[CGTEST_CONFIG_PATH_SCRATCH];
-    char abs_config_scratch[CGTEST_CONFIG_PATH_SCRATCH];
-    char file_path_scratch[CGTEST_CONFIG_PATH_SCRATCH];
-    char base_dir_scratch[CGTEST_CONFIG_PATH_SCRATCH];
-    CPath abs_config;
+    CGTestProject project;
+    char cwd[CGTEST_PROJECT_PATH_SCRATCH];
+    char abs_project_scratch[CGTEST_PROJECT_PATH_SCRATCH];
+    char file_path_scratch[CGTEST_PROJECT_PATH_SCRATCH];
+    char base_dir_scratch[CGTEST_PROJECT_PATH_SCRATCH];
+    CPath abs_project;
     CPath file_path;
     CPath base_dir;
     struct stat st;
@@ -350,71 +350,71 @@ CGTestConfig cgtest_config_load(const char *config_path)
     char *buffer;
     size_t read_count;
 
-    memset(&config, 0, sizeof(config));
-    cpathlist_init(&config.include_paths);
-    cpathlist_init(&config.source_files);
-    cpathlist_init(&config.test_directories);
+    memset(&project, 0, sizeof(project));
+    cpathlist_init(&project.include_paths);
+    cpathlist_init(&project.source_files);
+    cpathlist_init(&project.test_directories);
 
     if (CGTEST_GETCWD(cwd, sizeof(cwd)) == NULL) {
-        return cgtest_config_fail(&config, "could not determine the current working directory");
+        return cgtest_project_fail(&project, "could not determine the current working directory");
     }
 
-    abs_config = cpath_join(abs_config_scratch, sizeof(abs_config_scratch), cwd, config_path);
+    abs_project = cpath_join(abs_project_scratch, sizeof(abs_project_scratch), cwd, project_path);
 
-    /* "config_path" may name cgtest-config.json directly, or the
+    /* "project_path" may name cgtest-project.json directly, or the
      * directory it lives in (matching -C/--create's directory
-     * argument) - if it's a directory, look for cgtest-config.json
+     * argument) - if it's a directory, look for cgtest-project.json
      * inside it. */
-    if (stat(abs_config.data, &st) == 0 && S_ISDIR(st.st_mode)) {
-        file_path = cpath_join(file_path_scratch, sizeof(file_path_scratch), abs_config.data, "cgtest-config.json");
+    if (stat(abs_project.data, &st) == 0 && S_ISDIR(st.st_mode)) {
+        file_path = cpath_join(file_path_scratch, sizeof(file_path_scratch), abs_project.data, "cgtest-project.json");
     } else {
-        file_path = abs_config;
+        file_path = abs_project;
     }
 
     base_dir = cpath_dirname(base_dir_scratch, sizeof(base_dir_scratch), file_path.data);
 
     f = fopen(file_path.data, "rb");
     if (f == NULL) {
-        char msg[CGTEST_CONFIG_ERROR_BUFSZ];
-        cmsg_build(msg, sizeof(msg), "cgtest-config.json not found: ",
+        char msg[CGTEST_PROJECT_ERROR_BUFSZ];
+        cmsg_build(msg, sizeof(msg), "cgtest-project.json not found: ",
                                      file_path.data, file_path.length, "");
-        return cgtest_config_fail(&config, msg);
+        return cgtest_project_fail(&project, msg);
     }
 
     if (fseek(f, 0, SEEK_END) != 0 || (size = ftell(f)) < 0 || fseek(f, 0, SEEK_SET) != 0) {
         fclose(f);
-        return cgtest_config_fail(&config, "could not determine cgtest-config.json's file size");
+        return cgtest_project_fail(&project, "could not determine cgtest-project.json's file size");
     }
 
     buffer = (char *)malloc((size_t)size + 1);
     if (buffer == NULL) {
         fclose(f);
-        return cgtest_config_fail(&config, "out of memory reading cgtest-config.json");
+        return cgtest_project_fail(&project, "out of memory reading cgtest-project.json");
     }
 
     read_count = fread(buffer, 1, (size_t)size, f);
     fclose(f);
     if (read_count != (size_t)size) {
         free(buffer);
-        return cgtest_config_fail(&config, "could not read cgtest-config.json");
+        return cgtest_project_fail(&project, "could not read cgtest-project.json");
     }
     buffer[size] = '\0';
 
-    config = cgtest_config_parse(buffer, (size_t)size, base_dir.data);
+    project = cgtest_project_parse(buffer, (size_t)size, base_dir.data);
     free(buffer);
-    return config;
+    return project;
 }
 
-void cgtest_config_free(CGTestConfig *config)
+void cgtest_project_free(CGTestProject *project)
 {
-    free(config->error);
-    free(config->compiler_command);
-    free(config->output_path);
-    cpathlist_free(&config->include_paths);
-    cpathlist_free(&config->source_files);
-    cpathlist_free(&config->test_directories);
+    free(project->error);
+    free(project->compiler_command);
+    free(project->output_path);
+    cpathlist_free(&project->include_paths);
+    cpathlist_free(&project->source_files);
+    cpathlist_free(&project->test_directories);
 
-    config->error = NULL;
-    config->compiler_command = NULL;
-    config->output_path = NULL;
+    project->error = NULL;
+    project->compiler_command = NULL;
+    project->output_path = NULL;
 }

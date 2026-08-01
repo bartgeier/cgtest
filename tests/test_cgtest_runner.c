@@ -3,8 +3,8 @@
  * functions into cgtest-runner.c's source text. Compiling and running
  * the generated result is exercised end to end via examples/mathlib
  * instead (see README/specification.md), not here - matching
- * cgtest_config.h's split between the pure parser and its disk-facing
- * cgtest_config_load(). The one exception is
+ * cgtest_project.h's split between the pure parser and its disk-facing
+ * cgtest_project_load(). The one exception is
  * test_run_rejects_duplicate_basenames_across_directories below: it
  * calls cgtest_runner_run() directly, but only far enough to hit the
  * duplicate-basename check, which fails before any compiler is
@@ -207,19 +207,19 @@ static void write_file(const char *path, const char *content)
 
 void test_build_compile_command_uses_gcc_flags_by_default(void)
 {
-    CGTestConfig config;
+    CGTestProject project;
     char *cmd;
 
-    memset(&config, 0, sizeof(config));
-    config.compiler_command = "gcc -std=c99";
-    cpathlist_init(&config.include_paths);
-    cpathlist_init(&config.source_files);
-    cpathlist_init(&config.test_directories);
-    cpathlist_register(&config.include_paths, "", "src");
-    cpathlist_register(&config.source_files, "", "src/mathlib.c");
-    cpathlist_register(&config.test_directories, "", "tests");
+    memset(&project, 0, sizeof(project));
+    project.compiler_command = "gcc -std=c99";
+    cpathlist_init(&project.include_paths);
+    cpathlist_init(&project.source_files);
+    cpathlist_init(&project.test_directories);
+    cpathlist_register(&project.include_paths, "", "src");
+    cpathlist_register(&project.source_files, "", "src/mathlib.c");
+    cpathlist_register(&project.test_directories, "", "tests");
 
-    cmd = cgtest_runner_build_compile_command(&config, "build/cgtest-runner.c", "build/cgtest-runner");
+    cmd = cgtest_runner_build_compile_command(&project, "build/cgtest-runner.c", "build/cgtest-runner");
 
     CHECK(cmd != NULL);
     CHECK(strstr(cmd, "-I\"src\"") != NULL);
@@ -230,27 +230,27 @@ void test_build_compile_command_uses_gcc_flags_by_default(void)
     CHECK(strstr(cmd, "/Fe") == NULL);
 
     free(cmd);
-    cpathlist_free(&config.include_paths);
-    cpathlist_free(&config.source_files);
-    cpathlist_free(&config.test_directories);
+    cpathlist_free(&project.include_paths);
+    cpathlist_free(&project.source_files);
+    cpathlist_free(&project.test_directories);
 }
 
 void test_build_compile_command_uses_msvc_flags_when_configured(void)
 {
-    CGTestConfig config;
+    CGTestProject project;
     char *cmd;
 
-    memset(&config, 0, sizeof(config));
-    config.compiler_command = "cl /TC /W4";
-    config.msvc = 1;
-    cpathlist_init(&config.include_paths);
-    cpathlist_init(&config.source_files);
-    cpathlist_init(&config.test_directories);
-    cpathlist_register(&config.include_paths, "", "src");
-    cpathlist_register(&config.source_files, "", "src/mathlib.c");
-    cpathlist_register(&config.test_directories, "", "tests");
+    memset(&project, 0, sizeof(project));
+    project.compiler_command = "cl /TC /W4";
+    project.msvc = 1;
+    cpathlist_init(&project.include_paths);
+    cpathlist_init(&project.source_files);
+    cpathlist_init(&project.test_directories);
+    cpathlist_register(&project.include_paths, "", "src");
+    cpathlist_register(&project.source_files, "", "src/mathlib.c");
+    cpathlist_register(&project.test_directories, "", "tests");
 
-    cmd = cgtest_runner_build_compile_command(&config, "build/cgtest-runner.c", "build/cgtest-runner.exe");
+    cmd = cgtest_runner_build_compile_command(&project, "build/cgtest-runner.c", "build/cgtest-runner.exe");
 
     CHECK(cmd != NULL);
     CHECK(strstr(cmd, "/I\"src\"") != NULL);
@@ -261,14 +261,14 @@ void test_build_compile_command_uses_msvc_flags_when_configured(void)
     CHECK(strstr(cmd, " -o ") == NULL);
 
     free(cmd);
-    cpathlist_free(&config.include_paths);
-    cpathlist_free(&config.source_files);
-    cpathlist_free(&config.test_directories);
+    cpathlist_free(&project.include_paths);
+    cpathlist_free(&project.source_files);
+    cpathlist_free(&project.test_directories);
 }
 
 void test_run_rejects_duplicate_basenames_across_directories(void)
 {
-    CGTestConfig config;
+    CGTestProject project;
     CGTestRunResult result;
 
     mkdir(FIXTURE_DIR, 0755);
@@ -277,16 +277,16 @@ void test_run_rejects_duplicate_basenames_across_directories(void)
     write_file(FIXTURE_DIR "/dir_a/test_dup.c", "void test_from_a(void) { }\n");
     write_file(FIXTURE_DIR "/dir_b/test_dup.c", "void test_from_b(void) { }\n");
 
-    memset(&config, 0, sizeof(config));
-    config.compiler_command = "gcc -std=c99"; /* never actually invoked - see below */
-    config.output_path = FIXTURE_DIR "/build";
-    cpathlist_init(&config.include_paths);
-    cpathlist_init(&config.source_files);
-    cpathlist_init(&config.test_directories);
-    cpathlist_register(&config.test_directories, "", FIXTURE_DIR "/dir_a");
-    cpathlist_register(&config.test_directories, "", FIXTURE_DIR "/dir_b");
+    memset(&project, 0, sizeof(project));
+    project.compiler_command = "gcc -std=c99"; /* never actually invoked - see below */
+    project.output_path = FIXTURE_DIR "/build";
+    cpathlist_init(&project.include_paths);
+    cpathlist_init(&project.source_files);
+    cpathlist_init(&project.test_directories);
+    cpathlist_register(&project.test_directories, "", FIXTURE_DIR "/dir_a");
+    cpathlist_register(&project.test_directories, "", FIXTURE_DIR "/dir_b");
 
-    result = cgtest_runner_run(&config);
+    result = cgtest_runner_run(&project);
 
     CHECK(!result.ok);
     CHECK(result.error != NULL);
@@ -294,12 +294,12 @@ void test_run_rejects_duplicate_basenames_across_directories(void)
     CHECK(strstr(result.error, "test_dup.c") != NULL);
 
     cgtest_runner_free(&result);
-    /* Not cgtest_config_free(): compiler_command/output_path above are
-     * string literals, not malloc'd, so freeing "config" the normal
+    /* Not cgtest_project_free(): compiler_command/output_path above are
+     * string literals, not malloc'd, so freeing "project" the normal
      * way would be undefined behavior. */
-    cpathlist_free(&config.include_paths);
-    cpathlist_free(&config.source_files);
-    cpathlist_free(&config.test_directories);
+    cpathlist_free(&project.include_paths);
+    cpathlist_free(&project.source_files);
+    cpathlist_free(&project.test_directories);
     remove(FIXTURE_DIR "/dir_a/test_dup.c");
     remove(FIXTURE_DIR "/dir_b/test_dup.c");
     remove(FIXTURE_DIR "/dir_a");

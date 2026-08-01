@@ -171,7 +171,7 @@ void test_exact_fit_is_not_truncated(void)
 void test_dirname_strips_last_component(void)
 {
     char buf[256];
-    CPath p = cpath_dirname(buf, sizeof(buf), "/home/user/project/cgtest-config.json");
+    CPath p = cpath_dirname(buf, sizeof(buf), "/home/user/project/cgtest-project.json");
 
     CHECK(strcmp(p.data, "/home/user/project") == 0);
     CHECK(!p.truncated);
@@ -196,7 +196,7 @@ void test_dirname_of_root_is_root(void)
 void test_dirname_windows_drive(void)
 {
     char buf[256];
-    CPath p = cpath_dirname(buf, sizeof(buf), "C:/Users/me/cgtest-config.json");
+    CPath p = cpath_dirname(buf, sizeof(buf), "C:/Users/me/cgtest-project.json");
 
     CHECK(strcmp(p.data, "C:/Users/me") == 0);
 }
@@ -212,7 +212,7 @@ void test_dirname_relative_with_separator(void)
 void test_dirname_bare_filename_yields_dot(void)
 {
     char buf[256];
-    CPath p = cpath_dirname(buf, sizeof(buf), "cgtest-config.json");
+    CPath p = cpath_dirname(buf, sizeof(buf), "cgtest-project.json");
 
     CHECK(strcmp(p.data, ".") == 0);
 }

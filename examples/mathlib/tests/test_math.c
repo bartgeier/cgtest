@@ -1,6 +1,6 @@
 /* test_math.c - example test file for the examples/mathlib project.
  *
- * Discovered and run by cgtest.exe itself (via cgtest-config.json in
+ * Discovered and run by cgtest.exe itself (via cgtest-project.json in
  * this directory's parent) once cgtest-runner.c generation exists -
  * unlike tests/test_*.c in the cgtest repo root, this file has no
  * main() of its own; the generated runner supplies it.
