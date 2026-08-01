@@ -120,6 +120,166 @@ void test_assert_near_double(void)
     ASSERT_NEAR_DOUBLE(4.2, 4.2000001, 0.001);
 }
 
+void test_expect_lt_int(void)
+{
+    EXPECT_LT_INT(1, 2);
+}
+
+void test_assert_lt_int(void)
+{
+    ASSERT_LT_INT(1, 2);
+}
+
+void test_expect_le_int(void)
+{
+    EXPECT_LE_INT(2, 2);
+}
+
+void test_assert_le_int(void)
+{
+    ASSERT_LE_INT(2, 2);
+}
+
+void test_expect_gt_int(void)
+{
+    EXPECT_GT_INT(2, 1);
+}
+
+void test_assert_gt_int(void)
+{
+    ASSERT_GT_INT(2, 1);
+}
+
+void test_expect_ge_int(void)
+{
+    EXPECT_GE_INT(2, 2);
+}
+
+void test_assert_ge_int(void)
+{
+    ASSERT_GE_INT(2, 2);
+}
+
+void test_expect_lt_uint(void)
+{
+    EXPECT_LT_UINT(1u, 2u);
+}
+
+void test_assert_lt_uint(void)
+{
+    ASSERT_LT_UINT(1u, 2u);
+}
+
+void test_expect_le_uint(void)
+{
+    EXPECT_LE_UINT(2u, 2u);
+}
+
+void test_assert_le_uint(void)
+{
+    ASSERT_LE_UINT(2u, 2u);
+}
+
+void test_expect_gt_uint(void)
+{
+    EXPECT_GT_UINT(2u, 1u);
+}
+
+void test_assert_gt_uint(void)
+{
+    ASSERT_GT_UINT(2u, 1u);
+}
+
+void test_expect_ge_uint(void)
+{
+    EXPECT_GE_UINT(2u, 2u);
+}
+
+void test_assert_ge_uint(void)
+{
+    ASSERT_GE_UINT(2u, 2u);
+}
+
+void test_expect_lt_float(void)
+{
+    EXPECT_LT_FLOAT(1.0f, 2.0f);
+}
+
+void test_assert_lt_float(void)
+{
+    ASSERT_LT_FLOAT(1.0f, 2.0f);
+}
+
+void test_expect_le_float(void)
+{
+    EXPECT_LE_FLOAT(2.0f, 2.0f);
+}
+
+void test_assert_le_float(void)
+{
+    ASSERT_LE_FLOAT(2.0f, 2.0f);
+}
+
+void test_expect_gt_float(void)
+{
+    EXPECT_GT_FLOAT(2.0f, 1.0f);
+}
+
+void test_assert_gt_float(void)
+{
+    ASSERT_GT_FLOAT(2.0f, 1.0f);
+}
+
+void test_expect_ge_float(void)
+{
+    EXPECT_GE_FLOAT(2.0f, 2.0f);
+}
+
+void test_assert_ge_float(void)
+{
+    ASSERT_GE_FLOAT(2.0f, 2.0f);
+}
+
+void test_expect_lt_double(void)
+{
+    EXPECT_LT_DOUBLE(1.0, 2.0);
+}
+
+void test_assert_lt_double(void)
+{
+    ASSERT_LT_DOUBLE(1.0, 2.0);
+}
+
+void test_expect_le_double(void)
+{
+    EXPECT_LE_DOUBLE(2.0, 2.0);
+}
+
+void test_assert_le_double(void)
+{
+    ASSERT_LE_DOUBLE(2.0, 2.0);
+}
+
+void test_expect_gt_double(void)
+{
+    EXPECT_GT_DOUBLE(2.0, 1.0);
+}
+
+void test_assert_gt_double(void)
+{
+    ASSERT_GT_DOUBLE(2.0, 1.0);
+}
+
+void test_expect_ge_double(void)
+{
+    EXPECT_GE_DOUBLE(2.0, 2.0);
+}
+
+void test_assert_ge_double(void)
+{
+    ASSERT_GE_DOUBLE(2.0, 2.0);
+}
+
 void test_expect_eq_ptr(void)
 {
     int x = 0;

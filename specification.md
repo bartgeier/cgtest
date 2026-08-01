@@ -122,6 +122,19 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
     operands. No `<math.h>`/`fabs()` dependency - the absolute difference is computed with a
     plain sign flip. There's no `NE_` form of this one - "must differ by more than a
     caller-supplied X" isn't a common enough need to justify it.
+  - `EXPECT_LT_INT`/`EXPECT_LE_INT`/`EXPECT_GT_INT`/`EXPECT_GE_INT` (and the same four for
+    `UINT`/`FLOAT`/`DOUBLE`, plus all of their `ASSERT_` equivalents - GoogleTest's
+    `EXPECT_LT`/`EXPECT_LE`/`EXPECT_GT`/`EXPECT_GE`) are ordering comparisons: `<`/`<=`/`>`/
+    `>=`. Unlike `EQ_`/`NE_` on `FLOAT`/`DOUBLE`, these don't need an epsilon tolerance -
+    ordering is exact and well-defined with no "rounding noise" to absorb the way equality has
+    - so `INT`/`UINT` reuse the plain-operator `CGTEST_CMP_INT_`/`CGTEST_CMP_UINT_` cores
+    already used by their `EQ_`/`NE_` macros, and `FLOAT`/`DOUBLE` get their own
+    plain-operator `CGTEST_CMP_FLOAT_`/`CGTEST_CMP_DOUBLE_` cores (distinct from
+    `CGTEST_APPROX_FLOAT_`/`CGTEST_APPROX_DOUBLE_`, which only `EQ_`/`NE_` use). No `PTR_` or
+    `STR_` ordering family - ordering two arbitrary pointers with `<`/`>` is only
+    well-defined in C if they point into the same array, and GoogleTest itself has no
+    `EXPECT_STRLT` either. Arguments are named `val1`/`val2` rather than `expected`/`actual`,
+    since there's no "expected" value for e.g. "must be less than".
 * the cgtest-runner executes those function in the same order they appear in the test_file.
   - That allowes to use the first function in a file as init test setup.
   - That allowes to use the last function in a file as tear down setup.

@@ -15,7 +15,9 @@
  * appropriate for results of floating-point arithmetic.
  * EXPECT_NEAR_DOUBLE/ASSERT_NEAR_DOUBLE(expected, actual,
  * abs_error) instead take a caller-supplied tolerance, for when
- * the built-in one isn't the right fit. */
+ * the built-in one isn't the right fit. EXPECT_LT_/LE_/GT_/GE_
+ * (INT/UINT/FLOAT/DOUBLE, and their ASSERT_ counterparts) are
+ * ordering comparisons - </<=/>/>=. */
 
 #include <ctype.h>
 #include <float.h>
@@ -284,6 +286,128 @@ static void cgtest_print_str_field(const char *prefix, const char *s)
 
 #define ASSERT_NEAR_DOUBLE(expected, actual, abs_error) \
     CGTEST_NEAR_DOUBLE_("ASSERT_NEAR_DOUBLE", return, expected, actual, abs_error)
+
+#define CGTEST_CMP_FLOAT_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \
+    do { \
+        float cgtest_lhs_ = (float)(lhs); \
+        float cgtest_rhs_ = (float)(rhs); \
+        if (cgtest_lhs_ fail_op cgtest_rhs_) { \
+            fprintf(stderr, "%s:%d: FAIL: " macro_name "(%s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \
+            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_); \
+            cgtest_failed = 1; \
+            on_fail; \
+        } \
+    } while (0)
+
+#define CGTEST_CMP_DOUBLE_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \
+    do { \
+        double cgtest_lhs_ = (double)(lhs); \
+        double cgtest_rhs_ = (double)(rhs); \
+        if (cgtest_lhs_ fail_op cgtest_rhs_) { \
+            fprintf(stderr, "%s:%d: FAIL: " macro_name "(%s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \
+            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_); \
+            cgtest_failed = 1; \
+            on_fail; \
+        } \
+    } while (0)
+
+#define EXPECT_LT_INT(val1, val2) \
+    CGTEST_CMP_INT_("EXPECT_LT_INT", >=, "  val1: %ld\n  val2: %ld\n", ((void)0), val1, val2)
+
+#define ASSERT_LT_INT(val1, val2) \
+    CGTEST_CMP_INT_("ASSERT_LT_INT", >=, "  val1: %ld\n  val2: %ld\n", return, val1, val2)
+
+#define EXPECT_LE_INT(val1, val2) \
+    CGTEST_CMP_INT_("EXPECT_LE_INT", >, "  val1: %ld\n  val2: %ld\n", ((void)0), val1, val2)
+
+#define ASSERT_LE_INT(val1, val2) \
+    CGTEST_CMP_INT_("ASSERT_LE_INT", >, "  val1: %ld\n  val2: %ld\n", return, val1, val2)
+
+#define EXPECT_GT_INT(val1, val2) \
+    CGTEST_CMP_INT_("EXPECT_GT_INT", <=, "  val1: %ld\n  val2: %ld\n", ((void)0), val1, val2)
+
+#define ASSERT_GT_INT(val1, val2) \
+    CGTEST_CMP_INT_("ASSERT_GT_INT", <=, "  val1: %ld\n  val2: %ld\n", return, val1, val2)
+
+#define EXPECT_GE_INT(val1, val2) \
+    CGTEST_CMP_INT_("EXPECT_GE_INT", <, "  val1: %ld\n  val2: %ld\n", ((void)0), val1, val2)
+
+#define ASSERT_GE_INT(val1, val2) \
+    CGTEST_CMP_INT_("ASSERT_GE_INT", <, "  val1: %ld\n  val2: %ld\n", return, val1, val2)
+
+#define EXPECT_LT_UINT(val1, val2) \
+    CGTEST_CMP_UINT_("EXPECT_LT_UINT", >=, "  val1: %lu\n  val2: %lu\n", ((void)0), val1, val2)
+
+#define ASSERT_LT_UINT(val1, val2) \
+    CGTEST_CMP_UINT_("ASSERT_LT_UINT", >=, "  val1: %lu\n  val2: %lu\n", return, val1, val2)
+
+#define EXPECT_LE_UINT(val1, val2) \
+    CGTEST_CMP_UINT_("EXPECT_LE_UINT", >, "  val1: %lu\n  val2: %lu\n", ((void)0), val1, val2)
+
+#define ASSERT_LE_UINT(val1, val2) \
+    CGTEST_CMP_UINT_("ASSERT_LE_UINT", >, "  val1: %lu\n  val2: %lu\n", return, val1, val2)
+
+#define EXPECT_GT_UINT(val1, val2) \
+    CGTEST_CMP_UINT_("EXPECT_GT_UINT", <=, "  val1: %lu\n  val2: %lu\n", ((void)0), val1, val2)
+
+#define ASSERT_GT_UINT(val1, val2) \
+    CGTEST_CMP_UINT_("ASSERT_GT_UINT", <=, "  val1: %lu\n  val2: %lu\n", return, val1, val2)
+
+#define EXPECT_GE_UINT(val1, val2) \
+    CGTEST_CMP_UINT_("EXPECT_GE_UINT", <, "  val1: %lu\n  val2: %lu\n", ((void)0), val1, val2)
+
+#define ASSERT_GE_UINT(val1, val2) \
+    CGTEST_CMP_UINT_("ASSERT_GE_UINT", <, "  val1: %lu\n  val2: %lu\n", return, val1, val2)
+
+#define EXPECT_LT_FLOAT(val1, val2) \
+    CGTEST_CMP_FLOAT_("EXPECT_LT_FLOAT", >=, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
+
+#define ASSERT_LT_FLOAT(val1, val2) \
+    CGTEST_CMP_FLOAT_("ASSERT_LT_FLOAT", >=, "  val1: %g\n  val2: %g\n", return, val1, val2)
+
+#define EXPECT_LE_FLOAT(val1, val2) \
+    CGTEST_CMP_FLOAT_("EXPECT_LE_FLOAT", >, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
+
+#define ASSERT_LE_FLOAT(val1, val2) \
+    CGTEST_CMP_FLOAT_("ASSERT_LE_FLOAT", >, "  val1: %g\n  val2: %g\n", return, val1, val2)
+
+#define EXPECT_GT_FLOAT(val1, val2) \
+    CGTEST_CMP_FLOAT_("EXPECT_GT_FLOAT", <=, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
+
+#define ASSERT_GT_FLOAT(val1, val2) \
+    CGTEST_CMP_FLOAT_("ASSERT_GT_FLOAT", <=, "  val1: %g\n  val2: %g\n", return, val1, val2)
+
+#define EXPECT_GE_FLOAT(val1, val2) \
+    CGTEST_CMP_FLOAT_("EXPECT_GE_FLOAT", <, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
+
+#define ASSERT_GE_FLOAT(val1, val2) \
+    CGTEST_CMP_FLOAT_("ASSERT_GE_FLOAT", <, "  val1: %g\n  val2: %g\n", return, val1, val2)
+
+#define EXPECT_LT_DOUBLE(val1, val2) \
+    CGTEST_CMP_DOUBLE_("EXPECT_LT_DOUBLE", >=, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
+
+#define ASSERT_LT_DOUBLE(val1, val2) \
+    CGTEST_CMP_DOUBLE_("ASSERT_LT_DOUBLE", >=, "  val1: %g\n  val2: %g\n", return, val1, val2)
+
+#define EXPECT_LE_DOUBLE(val1, val2) \
+    CGTEST_CMP_DOUBLE_("EXPECT_LE_DOUBLE", >, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
+
+#define ASSERT_LE_DOUBLE(val1, val2) \
+    CGTEST_CMP_DOUBLE_("ASSERT_LE_DOUBLE", >, "  val1: %g\n  val2: %g\n", return, val1, val2)
+
+#define EXPECT_GT_DOUBLE(val1, val2) \
+    CGTEST_CMP_DOUBLE_("EXPECT_GT_DOUBLE", <=, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
+
+#define ASSERT_GT_DOUBLE(val1, val2) \
+    CGTEST_CMP_DOUBLE_("ASSERT_GT_DOUBLE", <=, "  val1: %g\n  val2: %g\n", return, val1, val2)
+
+#define EXPECT_GE_DOUBLE(val1, val2) \
+    CGTEST_CMP_DOUBLE_("EXPECT_GE_DOUBLE", <, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
+
+#define ASSERT_GE_DOUBLE(val1, val2) \
+    CGTEST_CMP_DOUBLE_("ASSERT_GE_DOUBLE", <, "  val1: %g\n  val2: %g\n", return, val1, val2)
 
 #define CGTEST_CMP_PTR_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \
     do { \

@@ -79,10 +79,14 @@ static const char *const CGTEST_H_TEMPLATE_HEAD1B =
     " * STR/STR_NOCASE, and their ASSERT_ counterparts) additionally\n"
     " * print both operands' values on failure. FLOAT/DOUBLE compare\n"
     " * via a small relative tolerance rather than exact equality,\n"
-    " * appropriate for results of floating-point arithmetic.\n"
+    " * appropriate for results of floating-point arithmetic.\n";
+
+static const char *const CGTEST_H_TEMPLATE_HEAD1C =
     " * EXPECT_NEAR_DOUBLE/ASSERT_NEAR_DOUBLE(expected, actual,\n"
     " * abs_error) instead take a caller-supplied tolerance, for when\n"
-    " * the built-in one isn't the right fit. */\n"
+    " * the built-in one isn't the right fit. EXPECT_LT_/LE_/GT_/GE_\n"
+    " * (INT/UINT/FLOAT/DOUBLE, and their ASSERT_ counterparts) are\n"
+    " * ordering comparisons - </<=/>/>=. */\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_HEAD2 =
@@ -465,6 +469,182 @@ static const char *const CGTEST_H_TEMPLATE_NEAR_DOUBLE3 =
     "    CGTEST_NEAR_DOUBLE_(\"ASSERT_NEAR_DOUBLE\", return, expected, actual, abs_error)\n"
     "\n";
 
+/* LT_/LE_/GT_/GE_ (GoogleTest's EXPECT_LT/LE/GT/GE) - ordering
+ * comparisons, one macro per relation per type family. Unlike EQ_/
+ * NE_ on FLOAT/DOUBLE, these don't need an epsilon tolerance: </<=/
+ * >/>= are exact, well-defined operations with no "rounding noise"
+ * to absorb the way equality has. So INT_/UINT_ reuse the existing
+ * CGTEST_CMP_INT_/CGTEST_CMP_UINT_ cores from the EQ_/NE_ macros
+ * above, and FLOAT_/DOUBLE_ get their own plain-operator
+ * CGTEST_CMP_FLOAT_/CGTEST_CMP_DOUBLE_ cores (distinct from
+ * CGTEST_APPROX_FLOAT_/CGTEST_APPROX_DOUBLE_, which only EQ_/NE_
+ * use). No PTR_ or STR_ family - ordering two arbitrary pointers
+ * with </> is only well-defined in C if they point into the same
+ * array, and GoogleTest itself has no EXPECT_STRLT either. "val1"/
+ * "val2" instead of "expected"/"actual", since there's no "expected"
+ * value for e.g. "must be less than". */
+static const char *const CGTEST_H_TEMPLATE_CMP_FLOAT_ORD1 =
+    "#define CGTEST_CMP_FLOAT_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \\\n"
+    "    do { \\\n"
+    "        float cgtest_lhs_ = (float)(lhs); \\\n"
+    "        float cgtest_rhs_ = (float)(rhs); \\\n"
+    "        if (cgtest_lhs_ fail_op cgtest_rhs_) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_CMP_FLOAT_ORD2 =
+    "            fprintf(stderr, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \\\n"
+    "            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_); \\\n"
+    "            cgtest_failed = 1; \\\n"
+    "            on_fail; \\\n"
+    "        } \\\n"
+    "    } while (0)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_CMP_DOUBLE_ORD1 =
+    "#define CGTEST_CMP_DOUBLE_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \\\n"
+    "    do { \\\n"
+    "        double cgtest_lhs_ = (double)(lhs); \\\n"
+    "        double cgtest_rhs_ = (double)(rhs); \\\n"
+    "        if (cgtest_lhs_ fail_op cgtest_rhs_) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_CMP_DOUBLE_ORD2 =
+    "            fprintf(stderr, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \\\n"
+    "            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_); \\\n"
+    "            cgtest_failed = 1; \\\n"
+    "            on_fail; \\\n"
+    "        } \\\n"
+    "    } while (0)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_LT_INT =
+    "#define EXPECT_LT_INT(val1, val2) \\\n"
+    "    CGTEST_CMP_INT_(\"EXPECT_LT_INT\", >=, \"  val1: %ld\\n  val2: %ld\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_LT_INT(val1, val2) \\\n"
+    "    CGTEST_CMP_INT_(\"ASSERT_LT_INT\", >=, \"  val1: %ld\\n  val2: %ld\\n\", return, val1, val2)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_LE_INT =
+    "#define EXPECT_LE_INT(val1, val2) \\\n"
+    "    CGTEST_CMP_INT_(\"EXPECT_LE_INT\", >, \"  val1: %ld\\n  val2: %ld\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_LE_INT(val1, val2) \\\n"
+    "    CGTEST_CMP_INT_(\"ASSERT_LE_INT\", >, \"  val1: %ld\\n  val2: %ld\\n\", return, val1, val2)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_GT_INT =
+    "#define EXPECT_GT_INT(val1, val2) \\\n"
+    "    CGTEST_CMP_INT_(\"EXPECT_GT_INT\", <=, \"  val1: %ld\\n  val2: %ld\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_GT_INT(val1, val2) \\\n"
+    "    CGTEST_CMP_INT_(\"ASSERT_GT_INT\", <=, \"  val1: %ld\\n  val2: %ld\\n\", return, val1, val2)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_GE_INT =
+    "#define EXPECT_GE_INT(val1, val2) \\\n"
+    "    CGTEST_CMP_INT_(\"EXPECT_GE_INT\", <, \"  val1: %ld\\n  val2: %ld\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_GE_INT(val1, val2) \\\n"
+    "    CGTEST_CMP_INT_(\"ASSERT_GE_INT\", <, \"  val1: %ld\\n  val2: %ld\\n\", return, val1, val2)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_LT_UINT =
+    "#define EXPECT_LT_UINT(val1, val2) \\\n"
+    "    CGTEST_CMP_UINT_(\"EXPECT_LT_UINT\", >=, \"  val1: %lu\\n  val2: %lu\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_LT_UINT(val1, val2) \\\n"
+    "    CGTEST_CMP_UINT_(\"ASSERT_LT_UINT\", >=, \"  val1: %lu\\n  val2: %lu\\n\", return, val1, val2)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_LE_UINT =
+    "#define EXPECT_LE_UINT(val1, val2) \\\n"
+    "    CGTEST_CMP_UINT_(\"EXPECT_LE_UINT\", >, \"  val1: %lu\\n  val2: %lu\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_LE_UINT(val1, val2) \\\n"
+    "    CGTEST_CMP_UINT_(\"ASSERT_LE_UINT\", >, \"  val1: %lu\\n  val2: %lu\\n\", return, val1, val2)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_GT_UINT =
+    "#define EXPECT_GT_UINT(val1, val2) \\\n"
+    "    CGTEST_CMP_UINT_(\"EXPECT_GT_UINT\", <=, \"  val1: %lu\\n  val2: %lu\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_GT_UINT(val1, val2) \\\n"
+    "    CGTEST_CMP_UINT_(\"ASSERT_GT_UINT\", <=, \"  val1: %lu\\n  val2: %lu\\n\", return, val1, val2)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_GE_UINT =
+    "#define EXPECT_GE_UINT(val1, val2) \\\n"
+    "    CGTEST_CMP_UINT_(\"EXPECT_GE_UINT\", <, \"  val1: %lu\\n  val2: %lu\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_GE_UINT(val1, val2) \\\n"
+    "    CGTEST_CMP_UINT_(\"ASSERT_GE_UINT\", <, \"  val1: %lu\\n  val2: %lu\\n\", return, val1, val2)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_LT_FLOAT =
+    "#define EXPECT_LT_FLOAT(val1, val2) \\\n"
+    "    CGTEST_CMP_FLOAT_(\"EXPECT_LT_FLOAT\", >=, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_LT_FLOAT(val1, val2) \\\n"
+    "    CGTEST_CMP_FLOAT_(\"ASSERT_LT_FLOAT\", >=, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_LE_FLOAT =
+    "#define EXPECT_LE_FLOAT(val1, val2) \\\n"
+    "    CGTEST_CMP_FLOAT_(\"EXPECT_LE_FLOAT\", >, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_LE_FLOAT(val1, val2) \\\n"
+    "    CGTEST_CMP_FLOAT_(\"ASSERT_LE_FLOAT\", >, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_GT_FLOAT =
+    "#define EXPECT_GT_FLOAT(val1, val2) \\\n"
+    "    CGTEST_CMP_FLOAT_(\"EXPECT_GT_FLOAT\", <=, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_GT_FLOAT(val1, val2) \\\n"
+    "    CGTEST_CMP_FLOAT_(\"ASSERT_GT_FLOAT\", <=, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_GE_FLOAT =
+    "#define EXPECT_GE_FLOAT(val1, val2) \\\n"
+    "    CGTEST_CMP_FLOAT_(\"EXPECT_GE_FLOAT\", <, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_GE_FLOAT(val1, val2) \\\n"
+    "    CGTEST_CMP_FLOAT_(\"ASSERT_GE_FLOAT\", <, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_LT_DOUBLE =
+    "#define EXPECT_LT_DOUBLE(val1, val2) \\\n"
+    "    CGTEST_CMP_DOUBLE_(\"EXPECT_LT_DOUBLE\", >=, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_LT_DOUBLE(val1, val2) \\\n"
+    "    CGTEST_CMP_DOUBLE_(\"ASSERT_LT_DOUBLE\", >=, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_LE_DOUBLE =
+    "#define EXPECT_LE_DOUBLE(val1, val2) \\\n"
+    "    CGTEST_CMP_DOUBLE_(\"EXPECT_LE_DOUBLE\", >, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_LE_DOUBLE(val1, val2) \\\n"
+    "    CGTEST_CMP_DOUBLE_(\"ASSERT_LE_DOUBLE\", >, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_GT_DOUBLE =
+    "#define EXPECT_GT_DOUBLE(val1, val2) \\\n"
+    "    CGTEST_CMP_DOUBLE_(\"EXPECT_GT_DOUBLE\", <=, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_GT_DOUBLE(val1, val2) \\\n"
+    "    CGTEST_CMP_DOUBLE_(\"ASSERT_GT_DOUBLE\", <=, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_GE_DOUBLE =
+    "#define EXPECT_GE_DOUBLE(val1, val2) \\\n"
+    "    CGTEST_CMP_DOUBLE_(\"EXPECT_GE_DOUBLE\", <, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
+    "\n"
+    "#define ASSERT_GE_DOUBLE(val1, val2) \\\n"
+    "    CGTEST_CMP_DOUBLE_(\"ASSERT_GE_DOUBLE\", <, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "\n";
+
 static const char *const CGTEST_H_TEMPLATE_CMP_PTR1 =
     "#define CGTEST_CMP_PTR_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \\\n"
     "    do { \\\n"
@@ -688,7 +868,8 @@ CGTestCreateResult cgtest_create_run(const char *dir)
         return cgtest_create_fail(error_buf);
     }
     if (!cgtest_create_write_file(header_path.data, error_buf, sizeof(error_buf),
-                                   CGTEST_H_TEMPLATE_HEAD1, CGTEST_H_TEMPLATE_HEAD1B, CGTEST_H_TEMPLATE_HEAD2,
+                                   CGTEST_H_TEMPLATE_HEAD1, CGTEST_H_TEMPLATE_HEAD1B, CGTEST_H_TEMPLATE_HEAD1C,
+                                   CGTEST_H_TEMPLATE_HEAD2,
                                    CGTEST_H_TEMPLATE_RELPATH1, CGTEST_H_TEMPLATE_RELPATH2,
                                    CGTEST_H_TEMPLATE_STRFIELD1, CGTEST_H_TEMPLATE_STRFIELD2,
                                    CGTEST_H_TEMPLATE_STRFIELD3, CGTEST_H_TEMPLATE_STRFIELD4,
@@ -706,6 +887,16 @@ CGTestCreateResult cgtest_create_run(const char *dir)
                                    CGTEST_H_TEMPLATE_EQ_NE_DOUBLE, CGTEST_H_TEMPLATE_EQ_NE_DOUBLE2,
                                    CGTEST_H_TEMPLATE_NEAR_DOUBLE1, CGTEST_H_TEMPLATE_NEAR_DOUBLE2,
                                    CGTEST_H_TEMPLATE_NEAR_DOUBLE3,
+                                   CGTEST_H_TEMPLATE_CMP_FLOAT_ORD1, CGTEST_H_TEMPLATE_CMP_FLOAT_ORD2,
+                                   CGTEST_H_TEMPLATE_CMP_DOUBLE_ORD1, CGTEST_H_TEMPLATE_CMP_DOUBLE_ORD2,
+                                   CGTEST_H_TEMPLATE_LT_INT, CGTEST_H_TEMPLATE_LE_INT,
+                                   CGTEST_H_TEMPLATE_GT_INT, CGTEST_H_TEMPLATE_GE_INT,
+                                   CGTEST_H_TEMPLATE_LT_UINT, CGTEST_H_TEMPLATE_LE_UINT,
+                                   CGTEST_H_TEMPLATE_GT_UINT, CGTEST_H_TEMPLATE_GE_UINT,
+                                   CGTEST_H_TEMPLATE_LT_FLOAT, CGTEST_H_TEMPLATE_LE_FLOAT,
+                                   CGTEST_H_TEMPLATE_GT_FLOAT, CGTEST_H_TEMPLATE_GE_FLOAT,
+                                   CGTEST_H_TEMPLATE_LT_DOUBLE, CGTEST_H_TEMPLATE_LE_DOUBLE,
+                                   CGTEST_H_TEMPLATE_GT_DOUBLE, CGTEST_H_TEMPLATE_GE_DOUBLE,
                                    CGTEST_H_TEMPLATE_CMP_PTR1, CGTEST_H_TEMPLATE_CMP_PTR2,
                                    CGTEST_H_TEMPLATE_EQ_NE_PTR, CGTEST_H_TEMPLATE_EQ_NE_PTR2,
                                    CGTEST_H_TEMPLATE_STRCASECMP1, CGTEST_H_TEMPLATE_STRCASECMP2,
