@@ -77,3 +77,13 @@ void test_assert_eq_str(void)
 {
     ASSERT_EQ_STR("cgtest", "cgtest");
 }
+
+void test_expect_eq_str_nocase(void)
+{
+    EXPECT_EQ_STR_NOCASE("CGTest", "cgtest");
+}
+
+void test_assert_eq_str_nocase(void)
+{
+    ASSERT_EQ_STR_NOCASE("CGTest", "cgtest");
+}

@@ -80,13 +80,16 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
     function immediately (for a precondition the rest of the function depends on). All four
     set the `cgtest_failed` flag; the runner resets that flag before calling each test and
     reads it back afterwards to decide pass/fail.
-  - `EXPECT_EQ_INT`/`EXPECT_EQ_UINT`/`EXPECT_EQ_DOUBLE`/`EXPECT_EQ_PTR`/`EXPECT_EQ_STR` (and
-    their `ASSERT_EQ_` counterparts, same EXPECT-vs-ASSERT split as above) compare two values
-    and print both on failure - unlike `EXPECT_TRUE`, which only shows the source text of
-    the whole condition. Each casts both operands to one canonical type per family
-    (`long`/`unsigned long`/`double`/`const void *`) rather than needing one macro per exact
-    C type. `EXPECT_EQ_STR`/`ASSERT_EQ_STR` compare via `strcmp()`, not pointer equality -
-    same reason GoogleTest has `EXPECT_STREQ` separate from `EXPECT_EQ`.
+  - `EXPECT_EQ_INT`/`EXPECT_EQ_UINT`/`EXPECT_EQ_DOUBLE`/`EXPECT_EQ_PTR`/`EXPECT_EQ_STR`/
+    `EXPECT_EQ_STR_NOCASE` (and their `ASSERT_EQ_` counterparts, same EXPECT-vs-ASSERT split
+    as above) compare two values and print both on failure - unlike `EXPECT_TRUE`, which only
+    shows the source text of the whole condition. Each casts both operands to one canonical
+    type per family (`long`/`unsigned long`/`double`/`const void *`) rather than needing one
+    macro per exact C type. `EXPECT_EQ_STR`/`ASSERT_EQ_STR` compare via `strcmp()`, not
+    pointer equality - same reason GoogleTest has `EXPECT_STREQ` separate from `EXPECT_EQ`.
+    `EXPECT_EQ_STR_NOCASE`/`ASSERT_EQ_STR_NOCASE` are the case-insensitive counterparts
+    (GoogleTest's `EXPECT_STRCASEEQ`), compared via a small portable `cgtest_strcasecmp()`
+    helper rather than the non-standard `strcasecmp()`/`_stricmp()`.
 * the cgtest-runner executes those function in the same order they appear in the test_file.
   - That allowes to use the first function in a file as init test setup.
   - That allowes to use the last function in a file as tear down setup.

@@ -8,10 +8,11 @@
  * it and return immediately - use ASSERT for a precondition the
  * rest of the function depends on (e.g. a NULL check before a
  * dereference), EXPECT otherwise.
- * The EXPECT_EQ_INT/UINT/DOUBLE/PTR/STR macros (and their
+ * The EXPECT_EQ_INT/UINT/DOUBLE/PTR/STR/STR_NOCASE macros (and their
  * ASSERT_EQ_ counterparts) additionally print both operands'
  * values on failure. */
 
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -241,6 +242,29 @@ static void cgtest_print_str_field(const char *prefix, const char *s)
         } \
     } while (0)
 
+/* Byte-wise case-insensitive comparison, like strcasecmp() - not
+ * used directly since strcasecmp() isn't standard C (POSIX only,
+ * and named _stricmp on MSVC); this stays portable to plain
+ * C89/C99. Returns 0 on a case-insensitive match, same
+ * convention as strcmp(). */
+static int cgtest_strcasecmp(const char *a, const char *b)
+{
+    unsigned char ca, cb;
+
+    for (;;) {
+        ca = (unsigned char)*a;
+        cb = (unsigned char)*b;
+        if (tolower(ca) != tolower(cb)) {
+            return 1;
+        }
+        if (ca == '\0') {
+            return 0;
+        }
+        a++;
+        b++;
+    }
+}
+
 #define EXPECT_EQ_STR(expected, actual) \
     do { \
         const char *cgtest_exp_ = (expected); \
@@ -260,6 +284,33 @@ static void cgtest_print_str_field(const char *prefix, const char *s)
         const char *cgtest_act_ = (actual); \
         if (strcmp(cgtest_exp_, cgtest_act_) != 0) { \
             fprintf(stderr, "%s:%d: FAIL: ASSERT_EQ_STR(%s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \
+            cgtest_print_str_field("  expected: ", cgtest_exp_); \
+            cgtest_print_str_field("  actual:   ", cgtest_act_); \
+            cgtest_failed = 1; \
+            return; \
+        } \
+    } while (0)
+
+#define EXPECT_EQ_STR_NOCASE(expected, actual) \
+    do { \
+        const char *cgtest_exp_ = (expected); \
+        const char *cgtest_act_ = (actual); \
+        if (cgtest_strcasecmp(cgtest_exp_, cgtest_act_) != 0) { \
+            fprintf(stderr, "%s:%d: FAIL: EXPECT_EQ_STR_NOCASE(%s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \
+            cgtest_print_str_field("  expected: ", cgtest_exp_); \
+            cgtest_print_str_field("  actual:   ", cgtest_act_); \
+            cgtest_failed = 1; \
+        } \
+    } while (0)
+
+#define ASSERT_EQ_STR_NOCASE(expected, actual) \
+    do { \
+        const char *cgtest_exp_ = (expected); \
+        const char *cgtest_act_ = (actual); \
+        if (cgtest_strcasecmp(cgtest_exp_, cgtest_act_) != 0) { \
+            fprintf(stderr, "%s:%d: FAIL: ASSERT_EQ_STR_NOCASE(%s, %s)\n", \
                     cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \
             cgtest_print_str_field("  expected: ", cgtest_exp_); \
             cgtest_print_str_field("  actual:   ", cgtest_act_); \

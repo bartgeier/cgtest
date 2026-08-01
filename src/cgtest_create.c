@@ -75,12 +75,13 @@ static const char *const CGTEST_H_TEMPLATE_HEAD1 =
     " * dereference), EXPECT otherwise.\n";
 
 static const char *const CGTEST_H_TEMPLATE_HEAD1B =
-    " * The EXPECT_EQ_INT/UINT/DOUBLE/PTR/STR macros (and their\n"
+    " * The EXPECT_EQ_INT/UINT/DOUBLE/PTR/STR/STR_NOCASE macros (and their\n"
     " * ASSERT_EQ_ counterparts) additionally print both operands'\n"
     " * values on failure. */\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_HEAD2 =
+    "#include <ctype.h>\n"
     "#include <stdio.h>\n"
     "#include <string.h>\n"
     "\n"
@@ -423,6 +424,68 @@ static const char *const CGTEST_H_TEMPLATE_ASSERT_EQ_STR2 =
     "    } while (0)\n"
     "\n";
 
+static const char *const CGTEST_H_TEMPLATE_STRCASECMP1 =
+    "/* Byte-wise case-insensitive comparison, like strcasecmp() - not\n"
+    " * used directly since strcasecmp() isn't standard C (POSIX only,\n"
+    " * and named _stricmp on MSVC); this stays portable to plain\n"
+    " * C89/C99. Returns 0 on a case-insensitive match, same\n"
+    " * convention as strcmp(). */\n"
+    "static int cgtest_strcasecmp(const char *a, const char *b)\n"
+    "{\n"
+    "    unsigned char ca, cb;\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_STRCASECMP2 =
+    "    for (;;) {\n"
+    "        ca = (unsigned char)*a;\n"
+    "        cb = (unsigned char)*b;\n"
+    "        if (tolower(ca) != tolower(cb)) {\n"
+    "            return 1;\n"
+    "        }\n"
+    "        if (ca == '\\0') {\n"
+    "            return 0;\n"
+    "        }\n"
+    "        a++;\n"
+    "        b++;\n"
+    "    }\n"
+    "}\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_EXPECT_EQ_STR_NOCASE =
+    "#define EXPECT_EQ_STR_NOCASE(expected, actual) \\\n"
+    "    do { \\\n"
+    "        const char *cgtest_exp_ = (expected); \\\n"
+    "        const char *cgtest_act_ = (actual); \\\n"
+    "        if (cgtest_strcasecmp(cgtest_exp_, cgtest_act_) != 0) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_EXPECT_EQ_STR_NOCASE2 =
+    "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_EQ_STR_NOCASE(%s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \\\n"
+    "            cgtest_print_str_field(\"  expected: \", cgtest_exp_); \\\n"
+    "            cgtest_print_str_field(\"  actual:   \", cgtest_act_); \\\n"
+    "            cgtest_failed = 1; \\\n"
+    "        } \\\n"
+    "    } while (0)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_ASSERT_EQ_STR_NOCASE =
+    "#define ASSERT_EQ_STR_NOCASE(expected, actual) \\\n"
+    "    do { \\\n"
+    "        const char *cgtest_exp_ = (expected); \\\n"
+    "        const char *cgtest_act_ = (actual); \\\n"
+    "        if (cgtest_strcasecmp(cgtest_exp_, cgtest_act_) != 0) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_ASSERT_EQ_STR_NOCASE2 =
+    "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_EQ_STR_NOCASE(%s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual); \\\n"
+    "            cgtest_print_str_field(\"  expected: \", cgtest_exp_); \\\n"
+    "            cgtest_print_str_field(\"  actual:   \", cgtest_act_); \\\n"
+    "            cgtest_failed = 1; \\\n"
+    "            return; \\\n"
+    "        } \\\n"
+    "    } while (0)\n"
+    "\n";
+
 static const char *const CGTEST_H_TEMPLATE_FOOTER =
     "#endif /* CGTEST_H */\n";
 
@@ -526,8 +589,11 @@ CGTestCreateResult cgtest_create_run(const char *dir)
                                    CGTEST_H_TEMPLATE_ASSERT_EQ_DOUBLE, CGTEST_H_TEMPLATE_ASSERT_EQ_DOUBLE2,
                                    CGTEST_H_TEMPLATE_EXPECT_EQ_PTR, CGTEST_H_TEMPLATE_EXPECT_EQ_PTR2,
                                    CGTEST_H_TEMPLATE_ASSERT_EQ_PTR, CGTEST_H_TEMPLATE_ASSERT_EQ_PTR2,
+                                   CGTEST_H_TEMPLATE_STRCASECMP1, CGTEST_H_TEMPLATE_STRCASECMP2,
                                    CGTEST_H_TEMPLATE_EXPECT_EQ_STR, CGTEST_H_TEMPLATE_EXPECT_EQ_STR2,
                                    CGTEST_H_TEMPLATE_ASSERT_EQ_STR, CGTEST_H_TEMPLATE_ASSERT_EQ_STR2,
+                                   CGTEST_H_TEMPLATE_EXPECT_EQ_STR_NOCASE, CGTEST_H_TEMPLATE_EXPECT_EQ_STR_NOCASE2,
+                                   CGTEST_H_TEMPLATE_ASSERT_EQ_STR_NOCASE, CGTEST_H_TEMPLATE_ASSERT_EQ_STR_NOCASE2,
                                    CGTEST_H_TEMPLATE_FOOTER,
                                    (const char *)NULL)) {
         return cgtest_create_fail(error_buf);
