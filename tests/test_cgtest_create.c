@@ -1,6 +1,7 @@
 /* test_cgtest_create.c - unit tests for cgtest_create_run(), which
- * writes a template cgtest-config.json and cgtest.h inside a given
- * directory (creating that directory if it doesn't exist yet).
+ * writes a template cgtest-config.json, cgtest.h, and
+ * test_cgtest_macros.c inside a given directory (creating that
+ * directory if it doesn't exist yet).
  * Written in cgtest's own test convention (void test_<name>(void));
  * see test_ctestscanner.c's header comment for why main() below
  * dispatches them manually instead of via a generated cgtest-runner.
@@ -30,6 +31,7 @@ static int test_failed = 0;
 #define FIXTURE_DIR "build/cgtest_create_fixture"
 #define CONFIG_PATH FIXTURE_DIR "/cgtest-config.json"
 #define HEADER_PATH FIXTURE_DIR "/cgtest.h"
+#define TEST_MACROS_PATH FIXTURE_DIR "/test_cgtest_macros.c"
 
 static void setup_fixture(void)
 {
@@ -40,6 +42,7 @@ static void teardown_fixture(void)
 {
     remove(CONFIG_PATH);
     remove(HEADER_PATH);
+    remove(TEST_MACROS_PATH);
     remove(FIXTURE_DIR);
 }
 
@@ -69,6 +72,7 @@ void test_creates_config_and_header_in_existing_directory(void)
     CHECK(result.error == NULL);
     CHECK(read_whole_file(CONFIG_PATH, buf, sizeof(buf)) > 0);
     CHECK(read_whole_file(HEADER_PATH, buf, sizeof(buf)) > 0);
+    CHECK(read_whole_file(TEST_MACROS_PATH, buf, sizeof(buf)) > 0);
 
     cgtest_create_free(&result);
     teardown_fixture();
@@ -89,6 +93,31 @@ void test_creates_directory_if_missing(void)
     CHECK(S_ISDIR(st.st_mode));
     CHECK(read_whole_file(CONFIG_PATH, buf, sizeof(buf)) > 0);
     CHECK(read_whole_file(HEADER_PATH, buf, sizeof(buf)) > 0);
+    CHECK(read_whole_file(TEST_MACROS_PATH, buf, sizeof(buf)) > 0);
+
+    cgtest_create_free(&result);
+    teardown_fixture();
+}
+
+void test_test_macros_file_covers_the_whole_header(void)
+{
+    CGTestCreateResult result;
+    char buf[16384];
+    long length;
+
+    setup_fixture();
+    result = cgtest_create_run(FIXTURE_DIR);
+    CHECK(result.ok);
+
+    length = read_whole_file(TEST_MACROS_PATH, buf, sizeof(buf));
+    CHECK(length > 0);
+
+    /* Spot-check the first and last macro families rather than every
+     * single one - if both ends of the template chain made it into
+     * the file, the ones in between did too. */
+    CHECK(strstr(buf, "#include \"cgtest.h\"") != NULL);
+    CHECK(strstr(buf, "EXPECT_TRUE(1 == 1)") != NULL);
+    CHECK(strstr(buf, "ASSERT_NE_STR_NOCASE(\"CGTest\", \"gtest\")") != NULL);
 
     cgtest_create_free(&result);
     teardown_fixture();
@@ -191,6 +220,7 @@ int main(void)
     static const TestCase cases[] = {
         { "test_creates_config_and_header_in_existing_directory", test_creates_config_and_header_in_existing_directory },
         { "test_creates_directory_if_missing", test_creates_directory_if_missing },
+        { "test_test_macros_file_covers_the_whole_header", test_test_macros_file_covers_the_whole_header },
         { "test_created_config_round_trips_through_parser", test_created_config_round_trips_through_parser },
         { "test_refuses_to_overwrite_existing_config", test_refuses_to_overwrite_existing_config },
         { "test_path_that_is_a_regular_file_is_an_error", test_path_that_is_a_regular_file_is_an_error },

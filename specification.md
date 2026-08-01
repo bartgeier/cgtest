@@ -14,7 +14,12 @@ Generates testrunner and excecute it.
 
 ```cgtest.exe --create ./unitest/cgtest```  
 Creates a default template cgtest-config.json inside ./unitest/cgtest (creating the directory if it doesn't exist yet)  
-Creates the cgtest.h file alongside it, it contains macros for unit tests.
+Creates the cgtest.h file alongside it, it contains macros for unit tests.  
+Also creates test_cgtest_macros.c alongside both - one example test function per macro from
+cgtest.h. The template config's `test_directories` already includes `.`, so
+`cgtest.exe --config ./unitest/cgtest` discovers and runs that example immediately - a
+freshly created project has something that actually passes out of the box, not just files
+to edit.
 
 ---
 
@@ -46,9 +51,9 @@ What the project should NOT do.
     If cgtest-config.json doesn't exist than error and exit cgtest.exe with an appropriate message.  
     ```cgtest.exe --config ./unitest/cgtest/cgtest-config.json```
     ```cgtest.exe --config ./unitest/cgtest```
-  * -C --create path to the directory cgtest-config.json and cgtest.h should be created in
-    (the argument is always a directory, never the config file's own path; the directory is
-    created if it doesn't exist yet).
+  * -C --create path to the directory cgtest-config.json, cgtest.h, and test_cgtest_macros.c
+    should be created in (the argument is always a directory, never the config file's own
+    path; the directory is created if it doesn't exist yet).
     If cgtest-config.json already exist in that directory than error and exit cgtest.exe with an appropriate message.
   * -v --version of cgtest
   * -h --help of cgtest
@@ -143,7 +148,7 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 * cgtest_arq.c cgtest_arq.h command line parser use arq lib from httpe://github.com/bartgeier/arq
 * cgtest_config.c cgtest_config.h use for json parsing jsmn https://github.com/zserge/jsmn
   parses cgtest-config.json
-* cgtest_create.c cgtest_create.h implements -C/--create: writes a template cgtest-config.json and cgtest.h into a directory.
+* cgtest_create.c cgtest_create.h implements -C/--create: writes a template cgtest-config.json, cgtest.h, and test_cgtest_macros.c into a directory.
 * cgtest_runner.c cgtest_runner.h implements -c/--config: generates cgtest-runner.c, compiles it, and executes it.
 * clexer.c clexer.h a C23 lexer/tokenizer.
 * cpreprocessor.c cpreprocessor.h directive-aware layer on top of clexer.c/h (recognizes #include/#embed/__has_include/__has_embed enough to disambiguate header-name tokens).

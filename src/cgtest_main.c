@@ -21,7 +21,7 @@ static void print_help(void)
     printf("cgtest - a command-line C unit test DSL compiler\n");
     printf("\n");
     printf("  cgtest --config <path>   generate, compile and run cgtest-runner.c\n");
-    printf("  cgtest --create <dir>    create a template cgtest-config.json and cgtest.h inside <dir>\n");
+    printf("  cgtest --create <dir>    create cgtest-config.json, cgtest.h, and an example test inside <dir>\n");
     printf("  cgtest --version         print the cgtest version\n");
     printf("  cgtest --help            print this message\n");
 }

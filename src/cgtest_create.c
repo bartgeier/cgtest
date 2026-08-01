@@ -37,25 +37,21 @@
 #define CGTEST_CREATE_PATH_SCRATCH 4096
 #define CGTEST_CREATE_ERROR_BUFSZ  256
 
+/* Points at "." for test_directories rather than a fictional path -
+ * test_cgtest_macros.c (see CGTEST_TEST_MACROS_TEMPLATE1 and friends
+ * below) is written into the same directory as this config, so
+ * "cgtest --config ." finds and runs it immediately, no editing
+ * required first. source_files/include_paths start empty since that
+ * example needs neither - add your own project's files here. */
 static const char *const CGTEST_CONFIG_TEMPLATE =
     "{\n"
     "    \"compiler_command\": \"gcc -std=c99 -O3\",\n"
     "    \"msvc\": false,\n"
-    "    \"include_paths\": [\n"
-    "        \"./include\",\n"
-    "        \"./third_party\",\n"
-    "        \"/usr/local/include\"\n"
-    "    ],\n"
-    "    \"source_files\": [\n"
-    "        \"./src/foo.c\",\n"
-    "        \"./src/bar.c\",\n"
-    "        \"./src/baz.c\"\n"
-    "    ],\n"
+    "    \"include_paths\": [],\n"
+    "    \"source_files\": [],\n"
     "    \"output_path\": \"./build\",\n"
     "    \"test_directories\": [\n"
-    "        \"./tests\",\n"
-    "        \"./unittests\",\n"
-    "        \"/home/user/project/tests\"\n"
+    "        \".\"\n"
     "    ]\n"
     "}\n";
 
@@ -782,6 +778,394 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_STR_NOCASE2 =
 static const char *const CGTEST_H_TEMPLATE_FOOTER =
     "#endif /* CGTEST_H */\n";
 
+/* Third template, written as "test_cgtest_macros.c" alongside the
+ * other two - one example test function per macro from cgtest.h
+ * above, so a freshly created project has something that actually
+ * runs and passes immediately (cgtest-config.json's default
+ * test_directories already includes "."), not just two files to
+ * read. Kept in lockstep with examples/mathlib/tests/
+ * test_cgtest_macros.c in the cgtest repo itself - same test
+ * function bodies, only the header comment differs (this one
+ * doesn't reference the mathlib example's other files). */
+static const char *const CGTEST_TEST_MACROS_TEMPLATE1 =
+    "/* test_cgtest_macros.c - one example per macro from cgtest.h. These\n"
+    " * checks do not do anything useful; they exist purely to show each\n"
+    " * macro's call shape. Discovered and run automatically by\n"
+    " * \"cgtest --config .\" - \".\" is already in cgtest-config.json's\n"
+    " * test_directories by default. */\n"
+    "#include \"cgtest.h\"\n"
+    "\n"
+    "void test_expect_true(void)\n"
+    "{\n"
+    "    EXPECT_TRUE(1 == 1);\n"
+    "}\n"
+    "\n"
+    "void test_expect_false(void)\n"
+    "{\n";
+
+static const char *const CGTEST_TEST_MACROS_TEMPLATE2 =
+    "    EXPECT_FALSE(1 == 2);\n"
+    "}\n"
+    "\n"
+    "void test_assert_true(void)\n"
+    "{\n"
+    "    ASSERT_TRUE(1 == 1);\n"
+    "}\n"
+    "\n"
+    "void test_assert_false(void)\n"
+    "{\n"
+    "    ASSERT_FALSE(1 == 2);\n"
+    "}\n"
+    "\n"
+    "void test_expect_eq_int(void)\n"
+    "{\n"
+    "    EXPECT_EQ_INT(42, 42);\n"
+    "}\n"
+    "\n"
+    "void test_assert_eq_int(void)\n"
+    "{\n"
+    "    ASSERT_EQ_INT(42, 42);\n"
+    "}\n"
+    "\n"
+    "void test_expect_ne_int(void)\n"
+    "{\n"
+    "    EXPECT_NE_INT(42, 43);\n"
+    "}\n"
+    "\n"
+    "void test_assert_ne_int(void)\n"
+    "{\n"
+    "    ASSERT_NE_INT(42, 43);\n"
+    "}\n"
+    "\n";
+
+static const char *const CGTEST_TEST_MACROS_TEMPLATE3 =
+    "void test_expect_eq_uint(void)\n"
+    "{\n"
+    "    EXPECT_EQ_UINT(42u, 42u);\n"
+    "}\n"
+    "\n"
+    "void test_assert_eq_uint(void)\n"
+    "{\n"
+    "    ASSERT_EQ_UINT(42u, 42u);\n"
+    "}\n"
+    "\n"
+    "void test_expect_ne_uint(void)\n"
+    "{\n"
+    "    EXPECT_NE_UINT(42u, 43u);\n"
+    "}\n"
+    "\n"
+    "void test_assert_ne_uint(void)\n"
+    "{\n"
+    "    ASSERT_NE_UINT(42u, 43u);\n"
+    "}\n"
+    "\n"
+    "void test_expect_eq_float(void)\n"
+    "{\n"
+    "    /* 1.1f - 1.0f isn't bit-identical to 0.1f - this passes only\n";
+
+static const char *const CGTEST_TEST_MACROS_TEMPLATE4 =
+    "     * because of EXPECT_EQ_FLOAT's epsilon tolerance; exact equality\n"
+    "     * would fail here. */\n"
+    "    EXPECT_EQ_FLOAT(0.1f, 1.1f - 1.0f);\n"
+    "}\n"
+    "\n"
+    "void test_assert_eq_float(void)\n"
+    "{\n"
+    "    ASSERT_EQ_FLOAT(0.1f, 1.1f - 1.0f);\n"
+    "}\n"
+    "\n"
+    "void test_expect_ne_float(void)\n"
+    "{\n"
+    "    /* Unlike the rounding noise above, this is a real difference,\n"
+    "     * far outside the epsilon tolerance. */\n"
+    "    EXPECT_NE_FLOAT(4.2f, 4.3f);\n"
+    "}\n"
+    "\n";
+
+static const char *const CGTEST_TEST_MACROS_TEMPLATE5 =
+    "void test_assert_ne_float(void)\n"
+    "{\n"
+    "    ASSERT_NE_FLOAT(4.2f, 4.3f);\n"
+    "}\n"
+    "\n"
+    "void test_expect_eq_double(void)\n"
+    "{\n"
+    "    /* Same idea as EQ_FLOAT above, in double precision. */\n"
+    "    EXPECT_EQ_DOUBLE(0.1 + 0.2, 0.3);\n"
+    "}\n"
+    "\n"
+    "void test_assert_eq_double(void)\n"
+    "{\n"
+    "    ASSERT_EQ_DOUBLE(0.1 + 0.2, 0.3);\n"
+    "}\n"
+    "\n"
+    "void test_expect_ne_double(void)\n"
+    "{\n"
+    "    EXPECT_NE_DOUBLE(4.2, 4.3);\n"
+    "}\n"
+    "\n"
+    "void test_assert_ne_double(void)\n"
+    "{\n"
+    "    ASSERT_NE_DOUBLE(4.2, 4.3);\n";
+
+static const char *const CGTEST_TEST_MACROS_TEMPLATE6 =
+    "}\n"
+    "\n"
+    "void test_expect_near_double(void)\n"
+    "{\n"
+    "    EXPECT_NEAR_DOUBLE(4.2, 4.2000001, 0.001);\n"
+    "}\n"
+    "\n"
+    "void test_assert_near_double(void)\n"
+    "{\n"
+    "    ASSERT_NEAR_DOUBLE(4.2, 4.2000001, 0.001);\n"
+    "}\n"
+    "\n"
+    "void test_expect_lt_int(void)\n"
+    "{\n"
+    "    EXPECT_LT_INT(1, 2);\n"
+    "}\n"
+    "\n"
+    "void test_assert_lt_int(void)\n"
+    "{\n"
+    "    ASSERT_LT_INT(1, 2);\n"
+    "}\n"
+    "\n"
+    "void test_expect_le_int(void)\n"
+    "{\n"
+    "    EXPECT_LE_INT(2, 2);\n"
+    "}\n"
+    "\n"
+    "void test_assert_le_int(void)\n"
+    "{\n"
+    "    ASSERT_LE_INT(2, 2);\n"
+    "}\n"
+    "\n";
+
+static const char *const CGTEST_TEST_MACROS_TEMPLATE7 =
+    "void test_expect_gt_int(void)\n"
+    "{\n"
+    "    EXPECT_GT_INT(2, 1);\n"
+    "}\n"
+    "\n"
+    "void test_assert_gt_int(void)\n"
+    "{\n"
+    "    ASSERT_GT_INT(2, 1);\n"
+    "}\n"
+    "\n"
+    "void test_expect_ge_int(void)\n"
+    "{\n"
+    "    EXPECT_GE_INT(2, 2);\n"
+    "}\n"
+    "\n"
+    "void test_assert_ge_int(void)\n"
+    "{\n"
+    "    ASSERT_GE_INT(2, 2);\n"
+    "}\n"
+    "\n"
+    "void test_expect_lt_uint(void)\n"
+    "{\n"
+    "    EXPECT_LT_UINT(1u, 2u);\n"
+    "}\n"
+    "\n"
+    "void test_assert_lt_uint(void)\n"
+    "{\n"
+    "    ASSERT_LT_UINT(1u, 2u);\n"
+    "}\n"
+    "\n"
+    "void test_expect_le_uint(void)\n"
+    "{\n";
+
+static const char *const CGTEST_TEST_MACROS_TEMPLATE8 =
+    "    EXPECT_LE_UINT(2u, 2u);\n"
+    "}\n"
+    "\n"
+    "void test_assert_le_uint(void)\n"
+    "{\n"
+    "    ASSERT_LE_UINT(2u, 2u);\n"
+    "}\n"
+    "\n"
+    "void test_expect_gt_uint(void)\n"
+    "{\n"
+    "    EXPECT_GT_UINT(2u, 1u);\n"
+    "}\n"
+    "\n"
+    "void test_assert_gt_uint(void)\n"
+    "{\n"
+    "    ASSERT_GT_UINT(2u, 1u);\n"
+    "}\n"
+    "\n"
+    "void test_expect_ge_uint(void)\n"
+    "{\n"
+    "    EXPECT_GE_UINT(2u, 2u);\n"
+    "}\n"
+    "\n"
+    "void test_assert_ge_uint(void)\n"
+    "{\n"
+    "    ASSERT_GE_UINT(2u, 2u);\n"
+    "}\n"
+    "\n"
+    "void test_expect_lt_float(void)\n"
+    "{\n"
+    "    EXPECT_LT_FLOAT(1.0f, 2.0f);\n"
+    "}\n";
+
+static const char *const CGTEST_TEST_MACROS_TEMPLATE9 =
+    "\n"
+    "void test_assert_lt_float(void)\n"
+    "{\n"
+    "    ASSERT_LT_FLOAT(1.0f, 2.0f);\n"
+    "}\n"
+    "\n"
+    "void test_expect_le_float(void)\n"
+    "{\n"
+    "    EXPECT_LE_FLOAT(2.0f, 2.0f);\n"
+    "}\n"
+    "\n"
+    "void test_assert_le_float(void)\n"
+    "{\n"
+    "    ASSERT_LE_FLOAT(2.0f, 2.0f);\n"
+    "}\n"
+    "\n"
+    "void test_expect_gt_float(void)\n"
+    "{\n"
+    "    EXPECT_GT_FLOAT(2.0f, 1.0f);\n"
+    "}\n"
+    "\n"
+    "void test_assert_gt_float(void)\n"
+    "{\n"
+    "    ASSERT_GT_FLOAT(2.0f, 1.0f);\n"
+    "}\n"
+    "\n"
+    "void test_expect_ge_float(void)\n"
+    "{\n"
+    "    EXPECT_GE_FLOAT(2.0f, 2.0f);\n"
+    "}\n";
+
+static const char *const CGTEST_TEST_MACROS_TEMPLATE10 =
+    "\n"
+    "void test_assert_ge_float(void)\n"
+    "{\n"
+    "    ASSERT_GE_FLOAT(2.0f, 2.0f);\n"
+    "}\n"
+    "\n"
+    "void test_expect_lt_double(void)\n"
+    "{\n"
+    "    EXPECT_LT_DOUBLE(1.0, 2.0);\n"
+    "}\n"
+    "\n"
+    "void test_assert_lt_double(void)\n"
+    "{\n"
+    "    ASSERT_LT_DOUBLE(1.0, 2.0);\n"
+    "}\n"
+    "\n"
+    "void test_expect_le_double(void)\n"
+    "{\n"
+    "    EXPECT_LE_DOUBLE(2.0, 2.0);\n"
+    "}\n"
+    "\n"
+    "void test_assert_le_double(void)\n"
+    "{\n"
+    "    ASSERT_LE_DOUBLE(2.0, 2.0);\n"
+    "}\n"
+    "\n"
+    "void test_expect_gt_double(void)\n"
+    "{\n"
+    "    EXPECT_GT_DOUBLE(2.0, 1.0);\n"
+    "}\n";
+
+static const char *const CGTEST_TEST_MACROS_TEMPLATE11 =
+    "\n"
+    "void test_assert_gt_double(void)\n"
+    "{\n"
+    "    ASSERT_GT_DOUBLE(2.0, 1.0);\n"
+    "}\n"
+    "\n"
+    "void test_expect_ge_double(void)\n"
+    "{\n"
+    "    EXPECT_GE_DOUBLE(2.0, 2.0);\n"
+    "}\n"
+    "\n"
+    "void test_assert_ge_double(void)\n"
+    "{\n"
+    "    ASSERT_GE_DOUBLE(2.0, 2.0);\n"
+    "}\n"
+    "\n"
+    "void test_expect_eq_ptr(void)\n"
+    "{\n"
+    "    int x = 0;\n"
+    "\n"
+    "    EXPECT_EQ_PTR(&x, &x);\n"
+    "}\n"
+    "\n"
+    "void test_assert_eq_ptr(void)\n"
+    "{\n"
+    "    int x = 0;\n"
+    "\n"
+    "    ASSERT_EQ_PTR(&x, &x);\n"
+    "}\n"
+    "\n"
+    "void test_expect_ne_ptr(void)\n"
+    "{\n"
+    "    int x = 0;\n";
+
+static const char *const CGTEST_TEST_MACROS_TEMPLATE12 =
+    "    int y = 0;\n"
+    "\n"
+    "    EXPECT_NE_PTR(&x, &y);\n"
+    "}\n"
+    "\n"
+    "void test_assert_ne_ptr(void)\n"
+    "{\n"
+    "    int x = 0;\n"
+    "    int y = 0;\n"
+    "\n"
+    "    ASSERT_NE_PTR(&x, &y);\n"
+    "}\n"
+    "\n"
+    "void test_expect_eq_str(void)\n"
+    "{\n"
+    "    EXPECT_EQ_STR(\"cgtest\", \"cgtest\");\n"
+    "}\n"
+    "\n"
+    "void test_assert_eq_str(void)\n"
+    "{\n"
+    "    ASSERT_EQ_STR(\"cgtest\", \"cgtest\");\n"
+    "}\n"
+    "\n"
+    "void test_expect_ne_str(void)\n"
+    "{\n"
+    "    EXPECT_NE_STR(\"cgtest\", \"gtest\");\n"
+    "}\n"
+    "\n"
+    "void test_assert_ne_str(void)\n"
+    "{\n";
+
+static const char *const CGTEST_TEST_MACROS_TEMPLATE13 =
+    "    ASSERT_NE_STR(\"cgtest\", \"gtest\");\n"
+    "}\n"
+    "\n"
+    "void test_expect_eq_str_nocase(void)\n"
+    "{\n"
+    "    EXPECT_EQ_STR_NOCASE(\"CGTest\", \"cgtest\");\n"
+    "}\n"
+    "\n"
+    "void test_assert_eq_str_nocase(void)\n"
+    "{\n"
+    "    ASSERT_EQ_STR_NOCASE(\"CGTest\", \"cgtest\");\n"
+    "}\n"
+    "\n"
+    "void test_expect_ne_str_nocase(void)\n"
+    "{\n"
+    "    EXPECT_NE_STR_NOCASE(\"CGTest\", \"gtest\");\n"
+    "}\n"
+    "\n"
+    "void test_assert_ne_str_nocase(void)\n"
+    "{\n"
+    "    ASSERT_NE_STR_NOCASE(\"CGTest\", \"gtest\");\n"
+    "}\n";
+
+
 static CGTestCreateResult cgtest_create_fail(const char *message)
 {
     CGTestCreateResult result;
@@ -831,9 +1215,11 @@ CGTestCreateResult cgtest_create_run(const char *dir)
     char abs_dir_scratch[CGTEST_CREATE_PATH_SCRATCH];
     char config_scratch[CGTEST_CREATE_PATH_SCRATCH];
     char header_scratch[CGTEST_CREATE_PATH_SCRATCH];
+    char test_scratch[CGTEST_CREATE_PATH_SCRATCH];
     CPath abs_dir;
     CPath config_path;
     CPath header_path;
+    CPath test_path;
     struct stat st;
     char error_buf[CGTEST_CREATE_ERROR_BUFSZ];
 
@@ -862,6 +1248,7 @@ CGTestCreateResult cgtest_create_run(const char *dir)
     }
 
     header_path = cpath_join(header_scratch, sizeof(header_scratch), abs_dir.data, "cgtest.h");
+    test_path = cpath_join(test_scratch, sizeof(test_scratch), abs_dir.data, "test_cgtest_macros.c");
 
     if (!cgtest_create_write_file(config_path.data, error_buf, sizeof(error_buf),
                                    CGTEST_CONFIG_TEMPLATE, (const char *)NULL)) {
@@ -905,6 +1292,17 @@ CGTestCreateResult cgtest_create_run(const char *dir)
                                    CGTEST_H_TEMPLATE_CMP_STR_NOCASE1, CGTEST_H_TEMPLATE_CMP_STR_NOCASE2,
                                    CGTEST_H_TEMPLATE_EQ_NE_STR_NOCASE, CGTEST_H_TEMPLATE_EQ_NE_STR_NOCASE2,
                                    CGTEST_H_TEMPLATE_FOOTER,
+                                   (const char *)NULL)) {
+        return cgtest_create_fail(error_buf);
+    }
+    if (!cgtest_create_write_file(test_path.data, error_buf, sizeof(error_buf),
+                                   CGTEST_TEST_MACROS_TEMPLATE1, CGTEST_TEST_MACROS_TEMPLATE2,
+                                   CGTEST_TEST_MACROS_TEMPLATE3, CGTEST_TEST_MACROS_TEMPLATE4,
+                                   CGTEST_TEST_MACROS_TEMPLATE5, CGTEST_TEST_MACROS_TEMPLATE6,
+                                   CGTEST_TEST_MACROS_TEMPLATE7, CGTEST_TEST_MACROS_TEMPLATE8,
+                                   CGTEST_TEST_MACROS_TEMPLATE9, CGTEST_TEST_MACROS_TEMPLATE10,
+                                   CGTEST_TEST_MACROS_TEMPLATE11, CGTEST_TEST_MACROS_TEMPLATE12,
+                                   CGTEST_TEST_MACROS_TEMPLATE13,
                                    (const char *)NULL)) {
         return cgtest_create_fail(error_buf);
     }
