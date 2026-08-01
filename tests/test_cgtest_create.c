@@ -192,22 +192,78 @@ void test_path_that_is_a_regular_file_is_an_error(void)
     remove(FIXTURE_DIR);
 }
 
-void test_missing_parent_directory_is_an_error(void)
+#define NESTED_PARENT_DIR "build/cgtest_create_nested_fixture"
+#define NESTED_DIR NESTED_PARENT_DIR "/child"
+#define NESTED_CONFIG_PATH NESTED_DIR "/cgtest-config.json"
+#define NESTED_HEADER_PATH NESTED_DIR "/cgtest.h"
+#define NESTED_TEST_MACROS_PATH NESTED_DIR "/test_cgtest_macros.c"
+
+void test_creates_missing_parent_directories(void)
 {
-    CGTestCreateResult result = cgtest_create_run("build/cgtest_create_fixture_missing/nested");
+    CGTestCreateResult result;
+    struct stat st;
+    char buf[4096];
+
+    remove(NESTED_CONFIG_PATH);
+    remove(NESTED_HEADER_PATH);
+    remove(NESTED_TEST_MACROS_PATH);
+    remove(NESTED_DIR);
+    remove(NESTED_PARENT_DIR); /* make sure neither exists yet */
+
+    result = cgtest_create_run(NESTED_DIR);
+
+    CHECK(result.ok);
+    CHECK(result.error == NULL);
+    CHECK(stat(NESTED_DIR, &st) == 0);
+    CHECK(S_ISDIR(st.st_mode));
+    CHECK(read_whole_file(NESTED_CONFIG_PATH, buf, sizeof(buf)) > 0);
+    CHECK(read_whole_file(NESTED_HEADER_PATH, buf, sizeof(buf)) > 0);
+    CHECK(read_whole_file(NESTED_TEST_MACROS_PATH, buf, sizeof(buf)) > 0);
+
+    cgtest_create_free(&result);
+    remove(NESTED_CONFIG_PATH);
+    remove(NESTED_HEADER_PATH);
+    remove(NESTED_TEST_MACROS_PATH);
+    remove(NESTED_DIR);
+    remove(NESTED_PARENT_DIR);
+}
+
+#define OBSTRUCTION_FILE "build/cgtest_create_obstruction_file"
+
+void test_parent_segment_that_is_a_regular_file_is_an_error(void)
+{
+    CGTestCreateResult result;
+    FILE *f;
+
+    remove(OBSTRUCTION_FILE);
+    f = fopen(OBSTRUCTION_FILE, "w"); /* a plain file standing in for a parent directory */
+    CHECK(f != NULL);
+    fclose(f);
+
+    result = cgtest_create_run(OBSTRUCTION_FILE "/nested");
 
     CHECK(!result.ok);
     CHECK(result.error != NULL);
 
     cgtest_create_free(&result);
+    remove(OBSTRUCTION_FILE);
 }
 
 void test_free_on_error_is_safe(void)
 {
-    CGTestCreateResult result = cgtest_create_run("build/cgtest_create_fixture_missing/nested");
+    CGTestCreateResult result;
+    FILE *f;
+
+    remove(OBSTRUCTION_FILE);
+    f = fopen(OBSTRUCTION_FILE, "w");
+    CHECK(f != NULL);
+    fclose(f);
+
+    result = cgtest_create_run(OBSTRUCTION_FILE "/nested");
     CHECK(!result.ok);
     cgtest_create_free(&result);
     cgtest_create_free(&result);
+    remove(OBSTRUCTION_FILE);
 }
 
 typedef struct {
@@ -224,7 +280,8 @@ int main(void)
         { "test_created_config_round_trips_through_parser", test_created_config_round_trips_through_parser },
         { "test_refuses_to_overwrite_existing_config", test_refuses_to_overwrite_existing_config },
         { "test_path_that_is_a_regular_file_is_an_error", test_path_that_is_a_regular_file_is_an_error },
-        { "test_missing_parent_directory_is_an_error", test_missing_parent_directory_is_an_error },
+        { "test_creates_missing_parent_directories", test_creates_missing_parent_directories },
+        { "test_parent_segment_that_is_a_regular_file_is_an_error", test_parent_segment_that_is_a_regular_file_is_an_error },
         { "test_free_on_error_is_safe", test_free_on_error_is_safe }
     };
     size_t count = sizeof(cases) / sizeof(cases[0]);

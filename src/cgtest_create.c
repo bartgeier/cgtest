@@ -1208,6 +1208,44 @@ static int cgtest_create_write_file(const char *path, char *error_buf, size_t er
     return 1;
 }
 
+/* Creates "path" and every missing parent directory along the way,
+ * like "mkdir -p" - "path" must already be an absolute path using
+ * only '/' separators, which is what cpath_join() always produces
+ * regardless of platform (see cpath.h). Mutates "path" temporarily
+ * (never leaves it modified once this returns) to test/create each
+ * prefix in turn, always including the trailing '/' in the prefix
+ * tested/created - "C:" alone means "current directory on C:" on
+ * Windows, not the drive root, so a Windows drive root must be
+ * tested/created as "C:/", never as "C:". Returns 0 on success,
+ * matching CGTEST_MKDIR()'s own convention. */
+static int cgtest_create_mkdir_p(char *path)
+{
+    char *p;
+    struct stat st;
+
+    for (p = path + 1; *p != '\0'; p++) {
+        if (*p == '/') {
+            char saved = *(p + 1);
+            *(p + 1) = '\0';
+            if (stat(path, &st) == 0) {
+                if (!S_ISDIR(st.st_mode)) {
+                    *(p + 1) = saved;
+                    return -1;
+                }
+            } else if (CGTEST_MKDIR(path) != 0) {
+                *(p + 1) = saved;
+                return -1;
+            }
+            *(p + 1) = saved;
+        }
+    }
+
+    if (stat(path, &st) == 0) {
+        return S_ISDIR(st.st_mode) ? 0 : -1;
+    }
+    return CGTEST_MKDIR(path);
+}
+
 CGTestCreateResult cgtest_create_run(const char *dir)
 {
     CGTestCreateResult result;
@@ -1230,7 +1268,7 @@ CGTestCreateResult cgtest_create_run(const char *dir)
     abs_dir = cpath_join(abs_dir_scratch, sizeof(abs_dir_scratch), cwd, dir);
 
     if (stat(abs_dir.data, &st) != 0) {
-        if (CGTEST_MKDIR(abs_dir.data) != 0) {
+        if (cgtest_create_mkdir_p(abs_dir.data) != 0) {
             cmsg_build(error_buf, sizeof(error_buf), "could not create directory ", abs_dir.data, abs_dir.length, "");
             return cgtest_create_fail(error_buf);
         }

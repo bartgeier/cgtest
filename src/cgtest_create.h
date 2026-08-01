@@ -34,11 +34,12 @@ typedef struct {
  * test_cgtest_macros.c inside "dir" - "dir" is always a directory,
  * never a file path (e.g. "." creates "./cgtest-config.json",
  * "./cgtest.h", and "./test_cgtest_macros.c", never a literal file
- * named "."). "dir" is created (via a single mkdir(), not a recursive
- * one - its own parent must already exist) if it doesn't exist yet.
- * Fails - without writing anything - if a cgtest-config.json already
- * exists in "dir" ("If cgtest-config.json already exist than error
- * and exit cgtest.exe", per specification.md).
+ * named "."). "dir" is created if it doesn't exist yet, along with
+ * any missing parent directories (like "mkdir -p" - e.g.
+ * "cgtest --create foo/bar" works even if "foo" doesn't exist yet
+ * either). Fails - without writing anything - if a cgtest-config.json
+ * already exists in "dir" ("If cgtest-config.json already exist than
+ * error and exit cgtest.exe", per specification.md).
  */
 CGTestCreateResult cgtest_create_run(const char *dir);
 
