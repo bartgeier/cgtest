@@ -10,7 +10,7 @@
 
 void test_math_add(void)
 {
-    EXPECT_EQ_INT(-5, mathlib_add(2, 3));
+    EXPECT_EQ_INT(5, mathlib_add(2, 3));
     EXPECT_EQ_INT(0, mathlib_add(-2, 2));
 }
 
