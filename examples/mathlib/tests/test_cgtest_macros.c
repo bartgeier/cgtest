@@ -64,6 +64,26 @@ void test_assert_ne_uint(void)
     ASSERT_NE_UINT(42u, 43u);
 }
 
+void test_expect_eq_float(void)
+{
+    EXPECT_EQ_FLOAT(4.2f, 4.2f);
+}
+
+void test_assert_eq_float(void)
+{
+    ASSERT_EQ_FLOAT(4.2f, 4.2f);
+}
+
+void test_expect_ne_float(void)
+{
+    EXPECT_NE_FLOAT(4.2f, 4.3f);
+}
+
+void test_assert_ne_float(void)
+{
+    ASSERT_NE_FLOAT(4.2f, 4.3f);
+}
+
 void test_expect_eq_double(void)
 {
     EXPECT_EQ_DOUBLE(4.2, 4.2);

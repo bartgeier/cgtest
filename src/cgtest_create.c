@@ -75,16 +75,19 @@ static const char *const CGTEST_H_TEMPLATE_HEAD1 =
     " * dereference), EXPECT otherwise.\n";
 
 static const char *const CGTEST_H_TEMPLATE_HEAD1B =
-    " * The EXPECT_EQ_/EXPECT_NE_ macros (INT/UINT/DOUBLE/PTR/STR/\n"
-    " * STR_NOCASE, and their ASSERT_ counterparts) additionally print\n"
-    " * both operands' values on failure. EXPECT_NEAR_DOUBLE/\n"
-    " * ASSERT_NEAR_DOUBLE(expected, actual, abs_error) check the two\n"
-    " * are within abs_error of each other instead of exactly equal -\n"
-    " * the right choice for results of floating-point arithmetic. */\n"
+    " * The EXPECT_EQ_/EXPECT_NE_ macros (INT/UINT/FLOAT/DOUBLE/PTR/\n"
+    " * STR/STR_NOCASE, and their ASSERT_ counterparts) additionally\n"
+    " * print both operands' values on failure. FLOAT/DOUBLE compare\n"
+    " * via a small relative tolerance rather than exact equality,\n"
+    " * appropriate for results of floating-point arithmetic.\n"
+    " * EXPECT_NEAR_DOUBLE/ASSERT_NEAR_DOUBLE(expected, actual,\n"
+    " * abs_error) instead take a caller-supplied tolerance, for when\n"
+    " * the built-in one isn't the right fit. */\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_HEAD2 =
     "#include <ctype.h>\n"
+    "#include <float.h>\n"
     "#include <stdio.h>\n"
     "#include <string.h>\n"
     "\n"
@@ -322,22 +325,87 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_UINT2 =
     "    CGTEST_CMP_UINT_(\"ASSERT_NE_UINT\", ==, \"  unexpected: %lu\\n  actual:     %lu\\n\", return, unexpected, actual)\n"
     "\n";
 
-/* Exact equality, like EXPECT_EQ_INT - no ULP-based tolerance the
- * way GoogleTest's EXPECT_DOUBLE_EQ has, so this is only reliable
- * for values that were never computed (e.g. a literal echoed back
- * unchanged), not results of arithmetic that could differ by a
- * rounding error. */
+/* Approximate equality via a small relative tolerance, replacing
+ * exact bitwise equality (which would fail for nearly every real
+ * floating-point computation, even ones that are correct for all
+ * practical purposes) with something closer in spirit to GoogleTest's
+ * ULP-based EXPECT_FLOAT_EQ/EXPECT_DOUBLE_EQ, but using an
+ * epsilon-relative diff instead of literal bit-distance - no 64-bit
+ * integer type needed for the double case that way, so this stays
+ * portable to plain C89. diff = |expected - actual|, scale = max(1.0,
+ * |expected|, |actual|) - the 1.0 floor keeps the tolerance from
+ * collapsing to near-zero once both values are close to 0 - and
+ * tolerance = 4 * EPSILON * scale. No <math.h>/fabs() dependency,
+ * same reason cgtest_strcasecmp() avoids strcasecmp(). NE_ is the
+ * logical negation (fails when the values ARE within tolerance) -
+ * GoogleTest has no "confidently different floats" macro of its own,
+ * but every other type family here has a matching NE_, so these do
+ * too. CGTEST_APPROX_FLOAT_/CGTEST_APPROX_DOUBLE_ only differ in
+ * which C type and <float.h> epsilon constant they use. */
+static const char *const CGTEST_H_TEMPLATE_CMP_FLOAT1 =
+    "#define CGTEST_APPROX_FLOAT_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \\\n"
+    "    do { \\\n"
+    "        float cgtest_lhs_ = (float)(lhs); \\\n"
+    "        float cgtest_rhs_ = (float)(rhs); \\\n"
+    "        float cgtest_diff_raw_ = cgtest_lhs_ - cgtest_rhs_; \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_CMP_FLOAT2 =
+    "        float cgtest_diff_ = (cgtest_diff_raw_ < 0 ? -cgtest_diff_raw_ : cgtest_diff_raw_); \\\n"
+    "        float cgtest_lhs_abs_ = (cgtest_lhs_ < 0 ? -cgtest_lhs_ : cgtest_lhs_); \\\n"
+    "        float cgtest_rhs_abs_ = (cgtest_rhs_ < 0 ? -cgtest_rhs_ : cgtest_rhs_); \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_CMP_FLOAT3 =
+    "        float cgtest_scale_ = (cgtest_lhs_abs_ > cgtest_rhs_abs_ ? cgtest_lhs_abs_ : cgtest_rhs_abs_); \\\n"
+    "        float cgtest_tol_ = 4 * FLT_EPSILON * (cgtest_scale_ < 1.0f ? 1.0f : cgtest_scale_); \\\n"
+    "        if (cgtest_diff_ fail_op cgtest_tol_) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_CMP_FLOAT4 =
+    "            fprintf(stderr, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
+    "                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \\\n"
+    "            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_, cgtest_diff_, cgtest_tol_); \\\n"
+    "            cgtest_failed = 1; \\\n"
+    "            on_fail; \\\n"
+    "        } \\\n"
+    "    } while (0)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_EQ_NE_FLOAT =
+    "#define EXPECT_EQ_FLOAT(expected, actual) \\\n"
+    "    CGTEST_APPROX_FLOAT_(\"EXPECT_EQ_FLOAT\", >, \"  expected: %g\\n  actual:   %g\\n  diff:     %g (max allowed: %g)\\n\", ((void)0), expected, actual)\n"
+    "\n"
+    "#define ASSERT_EQ_FLOAT(expected, actual) \\\n"
+    "    CGTEST_APPROX_FLOAT_(\"ASSERT_EQ_FLOAT\", >, \"  expected: %g\\n  actual:   %g\\n  diff:     %g (max allowed: %g)\\n\", return, expected, actual)\n"
+    "\n";
+
+static const char *const CGTEST_H_TEMPLATE_EQ_NE_FLOAT2 =
+    "#define EXPECT_NE_FLOAT(unexpected, actual) \\\n"
+    "    CGTEST_APPROX_FLOAT_(\"EXPECT_NE_FLOAT\", <=, \"  unexpected: %g\\n  actual:     %g\\n  diff:     %g (must exceed: %g)\\n\", ((void)0), unexpected, actual)\n"
+    "\n"
+    "#define ASSERT_NE_FLOAT(unexpected, actual) \\\n"
+    "    CGTEST_APPROX_FLOAT_(\"ASSERT_NE_FLOAT\", <=, \"  unexpected: %g\\n  actual:     %g\\n  diff:     %g (must exceed: %g)\\n\", return, unexpected, actual)\n"
+    "\n";
+
 static const char *const CGTEST_H_TEMPLATE_CMP_DOUBLE1 =
-    "#define CGTEST_CMP_DOUBLE_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \\\n"
+    "#define CGTEST_APPROX_DOUBLE_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \\\n"
     "    do { \\\n"
     "        double cgtest_lhs_ = (double)(lhs); \\\n"
     "        double cgtest_rhs_ = (double)(rhs); \\\n"
-    "        if (cgtest_lhs_ fail_op cgtest_rhs_) { \\\n";
+    "        double cgtest_diff_raw_ = cgtest_lhs_ - cgtest_rhs_; \\\n";
 
 static const char *const CGTEST_H_TEMPLATE_CMP_DOUBLE2 =
+    "        double cgtest_diff_ = (cgtest_diff_raw_ < 0 ? -cgtest_diff_raw_ : cgtest_diff_raw_); \\\n"
+    "        double cgtest_lhs_abs_ = (cgtest_lhs_ < 0 ? -cgtest_lhs_ : cgtest_lhs_); \\\n"
+    "        double cgtest_rhs_abs_ = (cgtest_rhs_ < 0 ? -cgtest_rhs_ : cgtest_rhs_); \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_CMP_DOUBLE3 =
+    "        double cgtest_scale_ = (cgtest_lhs_abs_ > cgtest_rhs_abs_ ? cgtest_lhs_abs_ : cgtest_rhs_abs_); \\\n"
+    "        double cgtest_tol_ = 4 * DBL_EPSILON * (cgtest_scale_ < 1.0 ? 1.0 : cgtest_scale_); \\\n"
+    "        if (cgtest_diff_ fail_op cgtest_tol_) { \\\n";
+
+static const char *const CGTEST_H_TEMPLATE_CMP_DOUBLE4 =
     "            fprintf(stderr, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
     "                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \\\n"
-    "            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_); \\\n"
+    "            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_, cgtest_diff_, cgtest_tol_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            on_fail; \\\n"
     "        } \\\n"
@@ -346,25 +414,26 @@ static const char *const CGTEST_H_TEMPLATE_CMP_DOUBLE2 =
 
 static const char *const CGTEST_H_TEMPLATE_EQ_NE_DOUBLE =
     "#define EXPECT_EQ_DOUBLE(expected, actual) \\\n"
-    "    CGTEST_CMP_DOUBLE_(\"EXPECT_EQ_DOUBLE\", !=, \"  expected: %g\\n  actual:   %g\\n\", ((void)0), expected, actual)\n"
+    "    CGTEST_APPROX_DOUBLE_(\"EXPECT_EQ_DOUBLE\", >, \"  expected: %g\\n  actual:   %g\\n  diff:     %g (max allowed: %g)\\n\", ((void)0), expected, actual)\n"
     "\n"
     "#define ASSERT_EQ_DOUBLE(expected, actual) \\\n"
-    "    CGTEST_CMP_DOUBLE_(\"ASSERT_EQ_DOUBLE\", !=, \"  expected: %g\\n  actual:   %g\\n\", return, expected, actual)\n"
+    "    CGTEST_APPROX_DOUBLE_(\"ASSERT_EQ_DOUBLE\", >, \"  expected: %g\\n  actual:   %g\\n  diff:     %g (max allowed: %g)\\n\", return, expected, actual)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_EQ_NE_DOUBLE2 =
     "#define EXPECT_NE_DOUBLE(unexpected, actual) \\\n"
-    "    CGTEST_CMP_DOUBLE_(\"EXPECT_NE_DOUBLE\", ==, \"  unexpected: %g\\n  actual:     %g\\n\", ((void)0), unexpected, actual)\n"
+    "    CGTEST_APPROX_DOUBLE_(\"EXPECT_NE_DOUBLE\", <=, \"  unexpected: %g\\n  actual:     %g\\n  diff:     %g (must exceed: %g)\\n\", ((void)0), unexpected, actual)\n"
     "\n"
     "#define ASSERT_NE_DOUBLE(unexpected, actual) \\\n"
-    "    CGTEST_CMP_DOUBLE_(\"ASSERT_NE_DOUBLE\", ==, \"  unexpected: %g\\n  actual:     %g\\n\", return, unexpected, actual)\n"
+    "    CGTEST_APPROX_DOUBLE_(\"ASSERT_NE_DOUBLE\", <=, \"  unexpected: %g\\n  actual:     %g\\n  diff:     %g (must exceed: %g)\\n\", return, unexpected, actual)\n"
     "\n";
 
-/* Unlike EXPECT_EQ_DOUBLE, this takes a caller-supplied tolerance
- * instead of comparing exactly - the right choice once "expected"/
- * "actual" are results of floating-point arithmetic that may differ
- * by a harmless rounding error. No <math.h>/fabs() dependency -
- * the sign flip below is all that's needed for an absolute value. */
+/* Unlike EXPECT_EQ_DOUBLE's own built-in tolerance, this one takes a
+ * caller-supplied abs_error instead - useful when the fixed 4*EPSILON
+ * relative tolerance above isn't the right fit (e.g. a much looser or
+ * tighter bound than "4 epsilons" is actually appropriate for the
+ * computation in question). No <math.h>/fabs() dependency - the sign
+ * flip below is all that's needed for an absolute value. */
 static const char *const CGTEST_H_TEMPLATE_NEAR_DOUBLE1 =
     "#define CGTEST_NEAR_DOUBLE_(macro_name, on_fail, expected, actual, abs_error) \\\n"
     "    do { \\\n"
@@ -629,7 +698,11 @@ CGTestCreateResult cgtest_create_run(const char *dir)
                                    CGTEST_H_TEMPLATE_EQ_NE_INT, CGTEST_H_TEMPLATE_EQ_NE_INT2,
                                    CGTEST_H_TEMPLATE_CMP_UINT1, CGTEST_H_TEMPLATE_CMP_UINT2,
                                    CGTEST_H_TEMPLATE_EQ_NE_UINT, CGTEST_H_TEMPLATE_EQ_NE_UINT2,
+                                   CGTEST_H_TEMPLATE_CMP_FLOAT1, CGTEST_H_TEMPLATE_CMP_FLOAT2,
+                                   CGTEST_H_TEMPLATE_CMP_FLOAT3, CGTEST_H_TEMPLATE_CMP_FLOAT4,
+                                   CGTEST_H_TEMPLATE_EQ_NE_FLOAT, CGTEST_H_TEMPLATE_EQ_NE_FLOAT2,
                                    CGTEST_H_TEMPLATE_CMP_DOUBLE1, CGTEST_H_TEMPLATE_CMP_DOUBLE2,
+                                   CGTEST_H_TEMPLATE_CMP_DOUBLE3, CGTEST_H_TEMPLATE_CMP_DOUBLE4,
                                    CGTEST_H_TEMPLATE_EQ_NE_DOUBLE, CGTEST_H_TEMPLATE_EQ_NE_DOUBLE2,
                                    CGTEST_H_TEMPLATE_NEAR_DOUBLE1, CGTEST_H_TEMPLATE_NEAR_DOUBLE2,
                                    CGTEST_H_TEMPLATE_NEAR_DOUBLE3,

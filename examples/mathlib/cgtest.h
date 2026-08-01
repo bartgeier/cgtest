@@ -8,14 +8,17 @@
  * it and return immediately - use ASSERT for a precondition the
  * rest of the function depends on (e.g. a NULL check before a
  * dereference), EXPECT otherwise.
- * The EXPECT_EQ_/EXPECT_NE_ macros (INT/UINT/DOUBLE/PTR/STR/
- * STR_NOCASE, and their ASSERT_ counterparts) additionally print
- * both operands' values on failure. EXPECT_NEAR_DOUBLE/
- * ASSERT_NEAR_DOUBLE(expected, actual, abs_error) check the two
- * are within abs_error of each other instead of exactly equal -
- * the right choice for results of floating-point arithmetic. */
+ * The EXPECT_EQ_/EXPECT_NE_ macros (INT/UINT/FLOAT/DOUBLE/PTR/
+ * STR/STR_NOCASE, and their ASSERT_ counterparts) additionally
+ * print both operands' values on failure. FLOAT/DOUBLE compare
+ * via a small relative tolerance rather than exact equality,
+ * appropriate for results of floating-point arithmetic.
+ * EXPECT_NEAR_DOUBLE/ASSERT_NEAR_DOUBLE(expected, actual,
+ * abs_error) instead take a caller-supplied tolerance, for when
+ * the built-in one isn't the right fit. */
 
 #include <ctype.h>
+#include <float.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -195,30 +198,67 @@ static void cgtest_print_str_field(const char *prefix, const char *s)
 #define ASSERT_NE_UINT(unexpected, actual) \
     CGTEST_CMP_UINT_("ASSERT_NE_UINT", ==, "  unexpected: %lu\n  actual:     %lu\n", return, unexpected, actual)
 
-#define CGTEST_CMP_DOUBLE_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \
+#define CGTEST_APPROX_FLOAT_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \
+    do { \
+        float cgtest_lhs_ = (float)(lhs); \
+        float cgtest_rhs_ = (float)(rhs); \
+        float cgtest_diff_raw_ = cgtest_lhs_ - cgtest_rhs_; \
+        float cgtest_diff_ = (cgtest_diff_raw_ < 0 ? -cgtest_diff_raw_ : cgtest_diff_raw_); \
+        float cgtest_lhs_abs_ = (cgtest_lhs_ < 0 ? -cgtest_lhs_ : cgtest_lhs_); \
+        float cgtest_rhs_abs_ = (cgtest_rhs_ < 0 ? -cgtest_rhs_ : cgtest_rhs_); \
+        float cgtest_scale_ = (cgtest_lhs_abs_ > cgtest_rhs_abs_ ? cgtest_lhs_abs_ : cgtest_rhs_abs_); \
+        float cgtest_tol_ = 4 * FLT_EPSILON * (cgtest_scale_ < 1.0f ? 1.0f : cgtest_scale_); \
+        if (cgtest_diff_ fail_op cgtest_tol_) { \
+            fprintf(stderr, "%s:%d: FAIL: " macro_name "(%s, %s)\n", \
+                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \
+            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_, cgtest_diff_, cgtest_tol_); \
+            cgtest_failed = 1; \
+            on_fail; \
+        } \
+    } while (0)
+
+#define EXPECT_EQ_FLOAT(expected, actual) \
+    CGTEST_APPROX_FLOAT_("EXPECT_EQ_FLOAT", >, "  expected: %g\n  actual:   %g\n  diff:     %g (max allowed: %g)\n", ((void)0), expected, actual)
+
+#define ASSERT_EQ_FLOAT(expected, actual) \
+    CGTEST_APPROX_FLOAT_("ASSERT_EQ_FLOAT", >, "  expected: %g\n  actual:   %g\n  diff:     %g (max allowed: %g)\n", return, expected, actual)
+
+#define EXPECT_NE_FLOAT(unexpected, actual) \
+    CGTEST_APPROX_FLOAT_("EXPECT_NE_FLOAT", <=, "  unexpected: %g\n  actual:     %g\n  diff:     %g (must exceed: %g)\n", ((void)0), unexpected, actual)
+
+#define ASSERT_NE_FLOAT(unexpected, actual) \
+    CGTEST_APPROX_FLOAT_("ASSERT_NE_FLOAT", <=, "  unexpected: %g\n  actual:     %g\n  diff:     %g (must exceed: %g)\n", return, unexpected, actual)
+
+#define CGTEST_APPROX_DOUBLE_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \
     do { \
         double cgtest_lhs_ = (double)(lhs); \
         double cgtest_rhs_ = (double)(rhs); \
-        if (cgtest_lhs_ fail_op cgtest_rhs_) { \
+        double cgtest_diff_raw_ = cgtest_lhs_ - cgtest_rhs_; \
+        double cgtest_diff_ = (cgtest_diff_raw_ < 0 ? -cgtest_diff_raw_ : cgtest_diff_raw_); \
+        double cgtest_lhs_abs_ = (cgtest_lhs_ < 0 ? -cgtest_lhs_ : cgtest_lhs_); \
+        double cgtest_rhs_abs_ = (cgtest_rhs_ < 0 ? -cgtest_rhs_ : cgtest_rhs_); \
+        double cgtest_scale_ = (cgtest_lhs_abs_ > cgtest_rhs_abs_ ? cgtest_lhs_abs_ : cgtest_rhs_abs_); \
+        double cgtest_tol_ = 4 * DBL_EPSILON * (cgtest_scale_ < 1.0 ? 1.0 : cgtest_scale_); \
+        if (cgtest_diff_ fail_op cgtest_tol_) { \
             fprintf(stderr, "%s:%d: FAIL: " macro_name "(%s, %s)\n", \
                     cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \
-            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_); \
+            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_, cgtest_diff_, cgtest_tol_); \
             cgtest_failed = 1; \
             on_fail; \
         } \
     } while (0)
 
 #define EXPECT_EQ_DOUBLE(expected, actual) \
-    CGTEST_CMP_DOUBLE_("EXPECT_EQ_DOUBLE", !=, "  expected: %g\n  actual:   %g\n", ((void)0), expected, actual)
+    CGTEST_APPROX_DOUBLE_("EXPECT_EQ_DOUBLE", >, "  expected: %g\n  actual:   %g\n  diff:     %g (max allowed: %g)\n", ((void)0), expected, actual)
 
 #define ASSERT_EQ_DOUBLE(expected, actual) \
-    CGTEST_CMP_DOUBLE_("ASSERT_EQ_DOUBLE", !=, "  expected: %g\n  actual:   %g\n", return, expected, actual)
+    CGTEST_APPROX_DOUBLE_("ASSERT_EQ_DOUBLE", >, "  expected: %g\n  actual:   %g\n  diff:     %g (max allowed: %g)\n", return, expected, actual)
 
 #define EXPECT_NE_DOUBLE(unexpected, actual) \
-    CGTEST_CMP_DOUBLE_("EXPECT_NE_DOUBLE", ==, "  unexpected: %g\n  actual:     %g\n", ((void)0), unexpected, actual)
+    CGTEST_APPROX_DOUBLE_("EXPECT_NE_DOUBLE", <=, "  unexpected: %g\n  actual:     %g\n  diff:     %g (must exceed: %g)\n", ((void)0), unexpected, actual)
 
 #define ASSERT_NE_DOUBLE(unexpected, actual) \
-    CGTEST_CMP_DOUBLE_("ASSERT_NE_DOUBLE", ==, "  unexpected: %g\n  actual:     %g\n", return, unexpected, actual)
+    CGTEST_APPROX_DOUBLE_("ASSERT_NE_DOUBLE", <=, "  unexpected: %g\n  actual:     %g\n  diff:     %g (must exceed: %g)\n", return, unexpected, actual)
 
 #define CGTEST_NEAR_DOUBLE_(macro_name, on_fail, expected, actual, abs_error) \
     do { \
