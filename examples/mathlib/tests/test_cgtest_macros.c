@@ -66,16 +66,21 @@ void test_assert_ne_uint(void)
 
 void test_expect_eq_float(void)
 {
-    EXPECT_EQ_FLOAT(4.2f, 4.2f);
+    /* 1.1f - 1.0f isn't bit-identical to 0.1f - this passes only
+     * because of EXPECT_EQ_FLOAT's epsilon tolerance; exact equality
+     * would fail here. */
+    EXPECT_EQ_FLOAT(0.1f, 1.1f - 1.0f);
 }
 
 void test_assert_eq_float(void)
 {
-    ASSERT_EQ_FLOAT(4.2f, 4.2f);
+    ASSERT_EQ_FLOAT(0.1f, 1.1f - 1.0f);
 }
 
 void test_expect_ne_float(void)
 {
+    /* Unlike the rounding noise above, this is a real difference,
+     * far outside the epsilon tolerance. */
     EXPECT_NE_FLOAT(4.2f, 4.3f);
 }
 
@@ -86,12 +91,13 @@ void test_assert_ne_float(void)
 
 void test_expect_eq_double(void)
 {
-    EXPECT_EQ_DOUBLE(4.2, 4.2);
+    /* Same idea as EQ_FLOAT above, in double precision. */
+    EXPECT_EQ_DOUBLE(0.1 + 0.2, 0.3);
 }
 
 void test_assert_eq_double(void)
 {
-    ASSERT_EQ_DOUBLE(4.2, 4.2);
+    ASSERT_EQ_DOUBLE(0.1 + 0.2, 0.3);
 }
 
 void test_expect_ne_double(void)
