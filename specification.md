@@ -81,15 +81,23 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
     set the `cgtest_failed` flag; the runner resets that flag before calling each test and
     reads it back afterwards to decide pass/fail.
   - `EXPECT_EQ_INT`/`EXPECT_EQ_UINT`/`EXPECT_EQ_DOUBLE`/`EXPECT_EQ_PTR`/`EXPECT_EQ_STR`/
-    `EXPECT_EQ_STR_NOCASE` (and their `ASSERT_EQ_` counterparts, same EXPECT-vs-ASSERT split
-    as above) compare two values and print both on failure - unlike `EXPECT_TRUE`, which only
-    shows the source text of the whole condition. Each casts both operands to one canonical
-    type per family (`long`/`unsigned long`/`double`/`const void *`) rather than needing one
-    macro per exact C type. `EXPECT_EQ_STR`/`ASSERT_EQ_STR` compare via `strcmp()`, not
-    pointer equality - same reason GoogleTest has `EXPECT_STREQ` separate from `EXPECT_EQ`.
-    `EXPECT_EQ_STR_NOCASE`/`ASSERT_EQ_STR_NOCASE` are the case-insensitive counterparts
-    (GoogleTest's `EXPECT_STRCASEEQ`), compared via a small portable `cgtest_strcasecmp()`
-    helper rather than the non-standard `strcasecmp()`/`_stricmp()`.
+    `EXPECT_EQ_STR_NOCASE` and their `EXPECT_NE_` counterparts (and all of their `ASSERT_`
+    equivalents, same EXPECT-vs-ASSERT split as above) compare two values and print both on
+    failure - unlike `EXPECT_TRUE`, which only shows the source text of the whole condition.
+    Each casts both operands to one canonical type per family (`long`/`unsigned long`/
+    `double`/`const void *`) rather than needing one macro per exact C type.
+    `EXPECT_EQ_STR`/`ASSERT_EQ_STR` compare via `strcmp()`, not pointer equality - same reason
+    GoogleTest has `EXPECT_STREQ` separate from `EXPECT_EQ`. `EXPECT_EQ_STR_NOCASE`/
+    `ASSERT_EQ_STR_NOCASE` are the case-insensitive counterparts (GoogleTest's
+    `EXPECT_STRCASEEQ`), compared via a small portable `cgtest_strcasecmp()` helper rather
+    than the non-standard `strcasecmp()`/`_stricmp()`. The `NE_` family (GoogleTest's
+    `EXPECT_NE`/`EXPECT_STRNE`/`EXPECT_STRCASENE`) asserts the two values differ instead, and
+    takes its first argument name as `unexpected` rather than `expected`, since there's no
+    "expected" value when the check is "must not equal". Per type family, `EQ_`/`NE_` and
+    `EXPECT_`/`ASSERT_` all share one internal `CGTEST_CMP_<TYPE>_` comparison macro,
+    parameterized on the operator that decides failure (`!=` for `EQ_`, `==` for `NE_`), the
+    printed label/format, and whether to `return` afterwards - only the label text and
+    operator differ between the four generated macros of a family.
 * the cgtest-runner executes those function in the same order they appear in the test_file.
   - That allowes to use the first function in a file as init test setup.
   - That allowes to use the last function in a file as tear down setup.
