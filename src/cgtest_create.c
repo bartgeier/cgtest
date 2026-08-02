@@ -785,8 +785,10 @@ static const char *const CGTEST_H_TEMPLATE_FOOTER =
  * test_directories already includes "."), not just two files to
  * read. Kept in lockstep with examples/mathlib/tests/
  * test_cgtest_macros.c in the cgtest repo itself - same test
- * function bodies, only the header comment differs (this one
- * doesn't reference the mathlib example's other files). */
+ * function bodies, only the header comment and #include line differ
+ * (that copy lives alongside test_math.c rather than cgtest.h itself,
+ * so it includes via "cgtest/cgtest.h" and doesn't reference the
+ * mathlib example's other files in its header comment). */
 static const char *const CGTEST_TEST_MACROS_TEMPLATE1 =
     "/* test_cgtest_macros.c - one example per macro from cgtest.h. These\n"
     " * checks do not do anything useful; they exist purely to show each\n"

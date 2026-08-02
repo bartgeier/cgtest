@@ -4,7 +4,7 @@
  * directory, not just one.
  */
 #include "mathlib.h"
-#include "cgtest.h"
+#include "cgtest/cgtest.h"
 
 void test_div_truncates_toward_zero(void)
 {

@@ -2,14 +2,14 @@
     "compiler_command": "gcc -std=c89 -pedantic-errors -O3",
     "msvc": false,
     "include_paths": [
-        "./src",
-        "."
+        "../src",
+        ".."
     ],
     "source_files": [
-        "./src/mathlib.c"
+        "../src/mathlib.c"
     ],
-    "output_path": "./build",
+    "output_path": "../build",
     "test_directories": [
-        "./tests"
+        "../tests"
     ]
 }

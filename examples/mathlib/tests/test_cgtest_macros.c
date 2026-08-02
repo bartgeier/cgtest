@@ -2,7 +2,7 @@
  * test_math.c and test_math_edge_cases.c. These checks don't exercise
  * mathlib at all; they exist purely to show each macro's call shape.
  */
-#include "cgtest.h"
+#include "cgtest/cgtest.h"
 
 void test_expect_true(void)
 {
