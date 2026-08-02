@@ -24,6 +24,8 @@ static void print_help(void)
     printf("  cgtest --create <dir>    create cgtest-project.json, cgtest.h, and an example test inside <dir>\n");
     printf("  cgtest --version         print the cgtest version\n");
     printf("  cgtest --help            print this message\n");
+    printf("\n");
+    printf("https://github.com/bartgeier/cgtest\n");
 }
 
 int main(int argc, char **argv)
