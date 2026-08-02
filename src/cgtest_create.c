@@ -42,14 +42,17 @@
  * below) is written into the same directory as this project file, so
  * "cgtest --run ." finds and runs it immediately, no editing
  * required first. source_files/include_paths start empty since that
- * example needs neither - add your own project's files here. */
+ * example needs neither - add your own project's files here.
+ * output_path points at "../build" rather than "./build" so generated
+ * build artifacts land as a sibling of the "cgtest" directory, not
+ * inside it alongside the scaffold files themselves. */
 static const char *const CGTEST_PROJECT_TEMPLATE =
     "{\n"
     "    \"compiler_command\": \"gcc -std=c99 -O3\",\n"
     "    \"msvc\": false,\n"
     "    \"include_paths\": [],\n"
     "    \"source_files\": [],\n"
-    "    \"output_path\": \"./build\",\n"
+    "    \"output_path\": \"../build\",\n"
     "    \"test_directories\": [\n"
     "        \".\"\n"
     "    ]\n"
