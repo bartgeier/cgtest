@@ -145,7 +145,7 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
   - That allowes to use the last function in a file as tear down setup.
 
 ### Source Modules file
-* cgtest_arq.c cgtest_arq.h command line parser use arq lib from httpe://github.com/bartgeier/arq
+* cgtest_arq.c cgtest_arq.h command line parser use arq lib from https://github.com/bartgeier/arq
 * cgtest_project.c cgtest_project.h use for json parsing jsmn https://github.com/zserge/jsmn
   parses cgtest-project.json
 * cgtest_create.c cgtest_create.h implements -i/--init: writes a template cgtest-project.json, cgtest.h, and test_cgtest_macros.c into a directory.
