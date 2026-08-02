@@ -1,4 +1,4 @@
-/* cgtest_create.h - see specification.md's "--create" example: writes a
+/* cgtest_create.h - see specification.md's "--init" example: writes a
  * template cgtest-project.json, a cgtest.h (EXPECT_TRUE/EXPECT_FALSE/
  * ASSERT_TRUE/ASSERT_FALSE; the EXPECT_EQ_/EXPECT_NE_ family for INT/
  * UINT/FLOAT/DOUBLE/PTR/STR/STR_NOCASE; EXPECT_NEAR_DOUBLE; the
@@ -36,7 +36,7 @@ typedef struct {
  * "./cgtest.h", and "./test_cgtest_macros.c", never a literal file
  * named "."). "dir" is created if it doesn't exist yet, along with
  * any missing parent directories (like "mkdir -p" - e.g.
- * "cgtest --create foo/bar" works even if "foo" doesn't exist yet
+ * "cgtest --init foo/bar" works even if "foo" doesn't exist yet
  * either). Fails - without writing anything - if a cgtest-project.json
  * already exists in "dir" ("If cgtest-project.json already exist than
  * error and exit cgtest.exe", per specification.md).

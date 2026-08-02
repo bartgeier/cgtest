@@ -22,7 +22,7 @@ typedef struct {
     int help;
     int version;
     char const *config_path;
-    char const *create_path;
+    char const *init_path;
 } CGTestArqRaw;
 
 static CGTestArqRaw *raw_m;
@@ -44,11 +44,11 @@ static void fn_config(Arq_Queue *queue)
     raw_m->config_path = arq_cstr_t(queue);
 }
 
-static void fn_create(Arq_Queue *queue)
+static void fn_init(Arq_Queue *queue)
 {
-    raw_m->create_path = arq_cstr_t(queue);
-    if (raw_m->create_path == NULL) {
-        raw_m->create_path = ".";
+    raw_m->init_path = arq_cstr_t(queue);
+    if (raw_m->init_path == NULL) {
+        raw_m->init_path = ".";
     }
 }
 
@@ -57,7 +57,7 @@ static CGTestArgs cgtest_arq_fail(const char *message)
     CGTestArgs args;
     args.action = CGTEST_ARG_ERROR;
     args.config_path = NULL;
-    args.create_path = NULL;
+    args.init_path = NULL;
     args.error = cmsg_dup(message, strlen(message));
     return args;
 }
@@ -72,13 +72,13 @@ CGTestArgs cgtest_arq_parse(int argc, char **argv)
         { 'h', "help",    fn_help,    "()" },
         { 'v', "version", fn_version, "()" },
         { 'c', "config",  fn_config,  "(cstr_t path)" },
-        { 'C', "create",  fn_create,  "(cstr_t path = NULL)" }
+        { 'i', "init",    fn_init,    "(cstr_t path = NULL)" }
     };
 
     raw.help = 0;
     raw.version = 0;
     raw.config_path = NULL;
-    raw.create_path = NULL;
+    raw.init_path = NULL;
     raw_m = &raw;
 
     if (0 < arq_verify(arena, sizeof(arena), options, sizeof(options) / sizeof(options[0]))) {
@@ -88,17 +88,17 @@ CGTestArgs cgtest_arq_parse(int argc, char **argv)
         return cgtest_arq_fail(arena);
     }
 
-    given = raw.help + raw.version + (raw.config_path != NULL) + (raw.create_path != NULL);
+    given = raw.help + raw.version + (raw.config_path != NULL) + (raw.init_path != NULL);
     if (given == 0) {
-        return cgtest_arq_fail("no action given; use one of -c, -C, -v or -h");
+        return cgtest_arq_fail("no action given; use one of -c, -i, -v or -h");
     }
     if (given > 1) {
-        return cgtest_arq_fail("-c, -C, -v and -h cannot be combined");
+        return cgtest_arq_fail("-c, -i, -v and -h cannot be combined");
     }
 
     args.error = NULL;
     args.config_path = raw.config_path;
-    args.create_path = raw.create_path;
+    args.init_path = raw.init_path;
     if (raw.help) {
         args.action = CGTEST_ARG_HELP;
     } else if (raw.version) {
@@ -106,7 +106,7 @@ CGTestArgs cgtest_arq_parse(int argc, char **argv)
     } else if (raw.config_path != NULL) {
         args.action = CGTEST_ARG_RUN;
     } else {
-        args.action = CGTEST_ARG_CREATE;
+        args.action = CGTEST_ARG_INIT;
     }
     return args;
 }

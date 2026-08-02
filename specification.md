@@ -12,7 +12,7 @@ It compiles and runs a test runner from test files.
 ```cgtest.exe --config ./unitest/cgtest/cgtest-project.json```  
 Generates testrunner and excecute it.
 
-```cgtest.exe --create ./unitest/cgtest```  
+```cgtest.exe --init ./unitest/cgtest```  
 Creates a default template cgtest-project.json inside ./unitest/cgtest (creating the directory if it doesn't exist yet)  
 Creates the cgtest.h file alongside it, it contains macros for unit tests.  
 Also creates test_cgtest_macros.c alongside both - one example test function per macro from
@@ -51,7 +51,7 @@ What the project should NOT do.
     If cgtest-project.json doesn't exist than error and exit cgtest.exe with an appropriate message.  
     ```cgtest.exe --config ./unitest/cgtest/cgtest-project.json```
     ```cgtest.exe --config ./unitest/cgtest```
-  * -C --create path to the directory cgtest-project.json, cgtest.h, and test_cgtest_macros.c
+  * -i --init path to the directory cgtest-project.json, cgtest.h, and test_cgtest_macros.c
     should be created in (the argument is always a directory, never the project file's own
     path; the directory is created if it doesn't exist yet).
     If cgtest-project.json already exist in that directory than error and exit cgtest.exe with an appropriate message.
@@ -148,7 +148,7 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 * cgtest_arq.c cgtest_arq.h command line parser use arq lib from httpe://github.com/bartgeier/arq
 * cgtest_project.c cgtest_project.h use for json parsing jsmn https://github.com/zserge/jsmn
   parses cgtest-project.json
-* cgtest_create.c cgtest_create.h implements -C/--create: writes a template cgtest-project.json, cgtest.h, and test_cgtest_macros.c into a directory.
+* cgtest_create.c cgtest_create.h implements -i/--init: writes a template cgtest-project.json, cgtest.h, and test_cgtest_macros.c into a directory.
 * cgtest_runner.c cgtest_runner.h implements -c/--config: generates cgtest-runner.c, compiles it, and executes it.
 * clexer.c clexer.h a C23 lexer/tokenizer.
 * cpreprocessor.c cpreprocessor.h directive-aware layer on top of clexer.c/h (recognizes #include/#embed/__has_include/__has_embed enough to disambiguate header-name tokens).
@@ -168,7 +168,7 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 ```bash
 cgtest.exe --config ./unitest/cgtest/cgtest-project.json
 cgtest.exe --config ./unitest/cgtest
-cgtest.exe --create ./unitest/cgtest
+cgtest.exe --init ./unitest/cgtest
 cgtest.exe --version
 cgtest.exe --help
 ```

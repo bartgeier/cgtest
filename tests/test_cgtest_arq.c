@@ -93,37 +93,37 @@ void test_long_config_flag_with_equals_captures_path(void)
     cgtest_arq_free(&args);
 }
 
-void test_short_create_flag_captures_path(void)
+void test_short_init_flag_captures_path(void)
 {
-    char *argv[] = { "cgtest", "-C", "./unittest/cgtest/cgtest-project.json", NULL };
+    char *argv[] = { "cgtest", "-i", "./unittest/cgtest/cgtest-project.json", NULL };
     CGTestArgs args = parse(argv);
 
-    CHECK(args.action == CGTEST_ARG_CREATE);
-    CHECK(args.create_path != NULL);
-    CHECK(strcmp(args.create_path, "./unittest/cgtest/cgtest-project.json") == 0);
+    CHECK(args.action == CGTEST_ARG_INIT);
+    CHECK(args.init_path != NULL);
+    CHECK(strcmp(args.init_path, "./unittest/cgtest/cgtest-project.json") == 0);
 
     cgtest_arq_free(&args);
 }
 
-void test_long_create_flag_captures_path(void)
+void test_long_init_flag_captures_path(void)
 {
-    char *argv[] = { "cgtest", "--create", "./unittest/cgtest/cgtest-project.json", NULL };
+    char *argv[] = { "cgtest", "--init", "./unittest/cgtest/cgtest-project.json", NULL };
     CGTestArgs args = parse(argv);
 
-    CHECK(args.action == CGTEST_ARG_CREATE);
-    CHECK(strcmp(args.create_path, "./unittest/cgtest/cgtest-project.json") == 0);
+    CHECK(args.action == CGTEST_ARG_INIT);
+    CHECK(strcmp(args.init_path, "./unittest/cgtest/cgtest-project.json") == 0);
 
     cgtest_arq_free(&args);
 }
 
-void test_create_flag_without_path_defaults_to_cwd(void)
+void test_init_flag_without_path_defaults_to_cwd(void)
 {
-    char *argv[] = { "cgtest", "-C", NULL };
+    char *argv[] = { "cgtest", "-i", NULL };
     CGTestArgs args = parse(argv);
 
-    CHECK(args.action == CGTEST_ARG_CREATE);
-    CHECK(args.create_path != NULL);
-    CHECK(strcmp(args.create_path, ".") == 0);
+    CHECK(args.action == CGTEST_ARG_INIT);
+    CHECK(args.init_path != NULL);
+    CHECK(strcmp(args.init_path, ".") == 0);
 
     cgtest_arq_free(&args);
 }
@@ -150,9 +150,9 @@ void test_combining_config_and_version_is_an_error(void)
     cgtest_arq_free(&args);
 }
 
-void test_combining_config_and_create_is_an_error(void)
+void test_combining_config_and_init_is_an_error(void)
 {
-    char *argv[] = { "cgtest", "-c", "./a.json", "-C", "./b.json", NULL };
+    char *argv[] = { "cgtest", "-c", "./a.json", "-i", "./b.json", NULL };
     CGTestArgs args = parse(argv);
 
     CHECK(args.action == CGTEST_ARG_ERROR);
@@ -207,12 +207,12 @@ int main(void)
         { "test_long_version_flag", test_long_version_flag },
         { "test_short_config_flag_captures_path", test_short_config_flag_captures_path },
         { "test_long_config_flag_with_equals_captures_path", test_long_config_flag_with_equals_captures_path },
-        { "test_short_create_flag_captures_path", test_short_create_flag_captures_path },
-        { "test_long_create_flag_captures_path", test_long_create_flag_captures_path },
-        { "test_create_flag_without_path_defaults_to_cwd", test_create_flag_without_path_defaults_to_cwd },
+        { "test_short_init_flag_captures_path", test_short_init_flag_captures_path },
+        { "test_long_init_flag_captures_path", test_long_init_flag_captures_path },
+        { "test_init_flag_without_path_defaults_to_cwd", test_init_flag_without_path_defaults_to_cwd },
         { "test_no_arguments_is_an_error", test_no_arguments_is_an_error },
         { "test_combining_config_and_version_is_an_error", test_combining_config_and_version_is_an_error },
-        { "test_combining_config_and_create_is_an_error", test_combining_config_and_create_is_an_error },
+        { "test_combining_config_and_init_is_an_error", test_combining_config_and_init_is_an_error },
         { "test_unknown_flag_is_an_error", test_unknown_flag_is_an_error },
         { "test_config_flag_missing_its_path_is_an_error", test_config_flag_missing_its_path_is_an_error },
         { "test_free_on_error_is_safe", test_free_on_error_is_safe }

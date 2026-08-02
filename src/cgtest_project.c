@@ -362,7 +362,7 @@ CGTestProject cgtest_project_load(const char *project_path)
     abs_project = cpath_join(abs_project_scratch, sizeof(abs_project_scratch), cwd, project_path);
 
     /* "project_path" may name cgtest-project.json directly, or the
-     * directory it lives in (matching -C/--create's directory
+     * directory it lives in (matching -i/--init's directory
      * argument) - if it's a directory, look for cgtest-project.json
      * inside it. */
     if (stat(abs_project.data, &st) == 0 && S_ISDIR(st.st_mode)) {

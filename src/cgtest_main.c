@@ -21,7 +21,7 @@ static void print_help(void)
     printf("cgtest - a command-line C unit test DSL compiler\n");
     printf("\n");
     printf("  cgtest --config <path>   generate, compile and run cgtest-runner.c\n");
-    printf("  cgtest --create <dir>    create cgtest-project.json, cgtest.h, and an example test inside <dir>\n");
+    printf("  cgtest --init <dir>      create cgtest-project.json, cgtest.h, and an example test inside <dir>\n");
     printf("  cgtest --version         print the cgtest version\n");
     printf("  cgtest --help            print this message\n");
     printf("\n");
@@ -49,13 +49,13 @@ int main(int argc, char **argv)
         exit_code = 0;
         break;
 
-    case CGTEST_ARG_CREATE: {
-        CGTestCreateResult result = cgtest_create_run(args.create_path);
+    case CGTEST_ARG_INIT: {
+        CGTestCreateResult result = cgtest_create_run(args.init_path);
         if (!result.ok) {
             fprintf(stderr, "cgtest: %s\n", result.error);
             exit_code = 1;
         } else {
-            printf("created %s\n", args.create_path);
+            printf("created %s\n", args.init_path);
             exit_code = 0;
         }
         cgtest_create_free(&result);

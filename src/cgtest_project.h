@@ -48,7 +48,7 @@ CGTestProject cgtest_project_parse(const char *json, size_t length, const char *
  * (against the current working directory, if it's relative), and
  * parses it via cgtest_project_parse() with that file's own directory
  * as base_dir. "project_path" may name cgtest-project.json directly, or
- * a directory containing it (mirroring -C/--create's directory
+ * a directory containing it (mirroring -i/--init's directory
  * argument) - if it resolves to a directory, "cgtest-project.json" is
  * looked up inside it.
  */
