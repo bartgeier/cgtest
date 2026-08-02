@@ -1,5 +1,5 @@
 /* cgtest_runner.h - implements CGTEST_ARG_RUN (see specification.md's
- * "-c --config" section): discovers test_*.c files across a
+ * "-r --run" section): discovers test_*.c files across a
  * CGTestProject's test_directories, scans each for test_ functions
  * (ctestscanner.h), generates cgtest-runner.c, compiles it alongside
  * the project's own source_files, and executes the result.

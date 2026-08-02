@@ -21,7 +21,7 @@
 typedef struct {
     int help;
     int version;
-    char const *config_path;
+    char const *run_path;
     char const *init_path;
 } CGTestArqRaw;
 
@@ -39,9 +39,9 @@ static void fn_version(Arq_Queue *queue)
     raw_m->version = 1;
 }
 
-static void fn_config(Arq_Queue *queue)
+static void fn_run(Arq_Queue *queue)
 {
-    raw_m->config_path = arq_cstr_t(queue);
+    raw_m->run_path = arq_cstr_t(queue);
 }
 
 static void fn_init(Arq_Queue *queue)
@@ -56,7 +56,7 @@ static CGTestArgs cgtest_arq_fail(const char *message)
 {
     CGTestArgs args;
     args.action = CGTEST_ARG_ERROR;
-    args.config_path = NULL;
+    args.run_path = NULL;
     args.init_path = NULL;
     args.error = cmsg_dup(message, strlen(message));
     return args;
@@ -71,13 +71,13 @@ CGTestArgs cgtest_arq_parse(int argc, char **argv)
     Arq_Option options[] = {
         { 'h', "help",    fn_help,    "()" },
         { 'v', "version", fn_version, "()" },
-        { 'c', "config",  fn_config,  "(cstr_t path)" },
+        { 'r', "run",     fn_run,     "(cstr_t path)" },
         { 'i', "init",    fn_init,    "(cstr_t path = NULL)" }
     };
 
     raw.help = 0;
     raw.version = 0;
-    raw.config_path = NULL;
+    raw.run_path = NULL;
     raw.init_path = NULL;
     raw_m = &raw;
 
@@ -88,22 +88,22 @@ CGTestArgs cgtest_arq_parse(int argc, char **argv)
         return cgtest_arq_fail(arena);
     }
 
-    given = raw.help + raw.version + (raw.config_path != NULL) + (raw.init_path != NULL);
+    given = raw.help + raw.version + (raw.run_path != NULL) + (raw.init_path != NULL);
     if (given == 0) {
-        return cgtest_arq_fail("no action given; use one of -c, -i, -v or -h");
+        return cgtest_arq_fail("no action given; use one of -r, -i, -v or -h");
     }
     if (given > 1) {
-        return cgtest_arq_fail("-c, -i, -v and -h cannot be combined");
+        return cgtest_arq_fail("-r, -i, -v and -h cannot be combined");
     }
 
     args.error = NULL;
-    args.config_path = raw.config_path;
+    args.run_path = raw.run_path;
     args.init_path = raw.init_path;
     if (raw.help) {
         args.action = CGTEST_ARG_HELP;
     } else if (raw.version) {
         args.action = CGTEST_ARG_VERSION;
-    } else if (raw.config_path != NULL) {
+    } else if (raw.run_path != NULL) {
         args.action = CGTEST_ARG_RUN;
     } else {
         args.action = CGTEST_ARG_INIT;

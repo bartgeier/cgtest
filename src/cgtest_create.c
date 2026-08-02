@@ -40,7 +40,7 @@
 /* Points at "." for test_directories rather than a fictional path -
  * test_cgtest_macros.c (see CGTEST_TEST_MACROS_TEMPLATE1 and friends
  * below) is written into the same directory as this project file, so
- * "cgtest --config ." finds and runs it immediately, no editing
+ * "cgtest --run ." finds and runs it immediately, no editing
  * required first. source_files/include_paths start empty since that
  * example needs neither - add your own project's files here. */
 static const char *const CGTEST_PROJECT_TEMPLATE =
@@ -791,7 +791,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE1 =
     "/* test_cgtest_macros.c - one example per macro from cgtest.h. These\n"
     " * checks do not do anything useful; they exist purely to show each\n"
     " * macro's call shape. Discovered and run automatically by\n"
-    " * \"cgtest --config .\" - \".\" is already in cgtest-project.json's\n"
+    " * \"cgtest --run .\" - \".\" is already in cgtest-project.json's\n"
     " * test_directories by default. */\n"
     "#include \"cgtest.h\"\n"
     "\n"

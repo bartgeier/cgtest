@@ -19,19 +19,19 @@ typedef enum {
     CGTEST_ARG_ERROR,    /* argv was invalid; see CGTestArgs::error */
     CGTEST_ARG_HELP,     /* -h/--help was given */
     CGTEST_ARG_VERSION,  /* -v/--version was given */
-    CGTEST_ARG_RUN,      /* -c/--config <path> was given */
+    CGTEST_ARG_RUN,      /* -r/--run <path> was given */
     CGTEST_ARG_INIT      /* -i/--init <path> was given */
 } CGTestArgAction;
 
 typedef struct {
     CGTestArgAction  action;
-    char const      *config_path;  /* points into argv; set iff action == CGTEST_ARG_RUN */
+    char const      *run_path;     /* points into argv; set iff action == CGTEST_ARG_RUN */
     char const      *init_path;    /* points into argv; set iff action == CGTEST_ARG_INIT */
     char            *error;        /* malloc'd human-readable message, non-NULL iff action == CGTEST_ARG_ERROR */
 } CGTestArgs;
 
 /* Parses "argv" ("argc" entries, argv[0] the program name as usual)
- * per specification.md: -c/--config <path>, -i/--init <path>,
+ * per specification.md: -r/--run <path>, -i/--init <path>,
  * -v/--version, -h/--help. Exactly one of these must be given -
  * combining more than one, or giving none, is reported as an error.
  */

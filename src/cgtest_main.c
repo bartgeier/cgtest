@@ -20,7 +20,7 @@ static void print_help(void)
 {
     printf("cgtest - a command-line C unit test DSL compiler\n");
     printf("\n");
-    printf("  cgtest --config <path>   generate, compile and run cgtest-runner.c\n");
+    printf("  cgtest --run <path>      generate, compile and run cgtest-runner.c\n");
     printf("  cgtest --init <dir>      create cgtest-project.json, cgtest.h, and an example test inside <dir>\n");
     printf("  cgtest --version         print the cgtest version\n");
     printf("  cgtest --help            print this message\n");
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
     }
 
     case CGTEST_ARG_RUN: {
-        CGTestProject project = cgtest_project_load(args.config_path);
+        CGTestProject project = cgtest_project_load(args.run_path);
         if (!project.ok) {
             fprintf(stderr, "cgtest: %s\n", project.error);
             exit_code = 1;

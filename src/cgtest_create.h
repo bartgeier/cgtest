@@ -6,7 +6,7 @@
  * ASSERT_ counterparts; and the cgtest_failed flag the generated
  * runner reads), and a test_cgtest_macros.c with one example test per
  * macro from that header, into "dir". cgtest-project.json's default
- * test_directories already includes ".", so "cgtest --config dir"
+ * test_directories already includes ".", so "cgtest --run dir"
  * discovers and runs that example immediately - a new project has
  * something that actually passes out of the box, not just files to
  * edit.
