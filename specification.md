@@ -12,8 +12,12 @@ It compiles and runs a test runner from test files.
 ```cgtest.exe --run ./unitest/cgtest/cgtest-project.json```  
 Generates testrunner and excecute it.
 
-```cgtest.exe --init ./unitest/cgtest```  
-Creates a default template cgtest-project.json inside ./unitest/cgtest (creating the directory if it doesn't exist yet)  
+```cgtest.exe --init ./unitest```  
+Creates a default template cgtest-project.json inside ./unitest/cgtest (creating both directories
+if they don't exist yet). The three files always go into a "cgtest" child of the given directory,
+never the directory itself, so a project's own test files can `#include "cgtest/cgtest.h"` - the
+same gtest/gtest.h-style layout GoogleTest users already know - instead of a bare cgtest.h
+competing with the project's own headers at its root.  
 Creates the cgtest.h file alongside it, it contains macros for unit tests.  
 Also creates test_cgtest_macros.c alongside both - one example test function per macro from
 cgtest.h. The template project file's `test_directories` already includes `.`, so
@@ -53,7 +57,10 @@ What the project should NOT do.
     ```cgtest.exe --run ./unitest/cgtest```
   * -i --init path to the directory cgtest-project.json, cgtest.h, and test_cgtest_macros.c
     should be created in (the argument is always a directory, never the project file's own
-    path; the directory is created if it doesn't exist yet).
+    path). The three files are written into a "cgtest" child of that directory, not the
+    directory itself (e.g. `--init ./unitest` writes into `./unitest/cgtest`), so a project's
+    own test files can `#include "cgtest/cgtest.h"`; both directories are created if they
+    don't exist yet.
     If cgtest-project.json already exist in that directory than error and exit cgtest.exe with an appropriate message.
   * -v --version of cgtest
   * -h --help of cgtest
@@ -148,7 +155,7 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 * cgtest_arq.c cgtest_arq.h command line parser use arq lib from https://github.com/bartgeier/arq
 * cgtest_project.c cgtest_project.h use for json parsing jsmn https://github.com/zserge/jsmn
   parses cgtest-project.json
-* cgtest_create.c cgtest_create.h implements -i/--init: writes a template cgtest-project.json, cgtest.h, and test_cgtest_macros.c into a directory.
+* cgtest_create.c cgtest_create.h implements -i/--init: writes a template cgtest-project.json, cgtest.h, and test_cgtest_macros.c into a "cgtest" child of a directory.
 * cgtest_runner.c cgtest_runner.h implements -r/--run: generates cgtest-runner.c, compiles it, and executes it.
 * clexer.c clexer.h a C23 lexer/tokenizer.
 * cpreprocessor.c cpreprocessor.h directive-aware layer on top of clexer.c/h (recognizes #include/#embed/__has_include/__has_embed enough to disambiguate header-name tokens).
@@ -168,7 +175,7 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 ```bash
 cgtest.exe --run ./unitest/cgtest/cgtest-project.json
 cgtest.exe --run ./unitest/cgtest
-cgtest.exe --init ./unitest/cgtest
+cgtest.exe --init ./unitest
 cgtest.exe --version
 cgtest.exe --help
 ```

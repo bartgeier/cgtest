@@ -1,12 +1,12 @@
 /* cgtest_create.c - see cgtest_create.h.
  *
- * "dir" is always a directory, never a file path - cgtest-project.json
- * and cgtest.h are always written as "dir/cgtest-project.json" and
- * "dir/cgtest.h". "dir" is resolved to an absolute path the same way
- * cgtest_project_load() does (getcwd() + cpath_join()), created if it
- * doesn't exist yet (mkdir() - "dir"'s own parent must already exist;
- * this does not create intermediate directories), then the two
- * templates are written inside it.
+ * "dir" is always a directory, never a file path. "dir" is resolved to
+ * an absolute path the same way cgtest_project_load() does
+ * (getcwd() + cpath_join()), then cgtest-project.json, cgtest.h, and
+ * test_cgtest_macros.c are all written into its "cgtest" child
+ * directory ("dir/cgtest/cgtest-project.json" etc.) - creating both
+ * "dir" and "dir/cgtest", along with any missing parents, exactly
+ * like "mkdir -p" would.
  */
 #include "cgtest_create.h"
 #include "cpath.h"
@@ -1170,6 +1170,7 @@ static CGTestCreateResult cgtest_create_fail(const char *message)
 {
     CGTestCreateResult result;
     result.ok = 0;
+    result.dir = NULL;
     result.error = cmsg_dup(message, strlen(message));
     return result;
 }
@@ -1246,15 +1247,38 @@ static int cgtest_create_mkdir_p(char *path)
     return CGTEST_MKDIR(path);
 }
 
+/* Makes sure "dir" exists as a directory - creating it (and any
+ * missing parents) if it doesn't, or reporting a clear "not a
+ * directory" error if a file already occupies that path. Used once
+ * for the caller-supplied directory and once for its "cgtest" child,
+ * since both need the same create-if-missing/reject-if-a-file logic. */
+static int cgtest_create_ensure_dir(CPath dir, char *error_buf, size_t error_buf_size)
+{
+    struct stat st;
+
+    if (stat(dir.data, &st) != 0) {
+        if (cgtest_create_mkdir_p(dir.data) != 0) {
+            cmsg_build(error_buf, error_buf_size, "could not create directory ", dir.data, dir.length, "");
+            return 0;
+        }
+    } else if (!S_ISDIR(st.st_mode)) {
+        cmsg_build(error_buf, error_buf_size, "not a directory: ", dir.data, dir.length, "");
+        return 0;
+    }
+    return 1;
+}
+
 CGTestCreateResult cgtest_create_run(const char *dir)
 {
     CGTestCreateResult result;
     char cwd[CGTEST_CREATE_PATH_SCRATCH];
     char abs_dir_scratch[CGTEST_CREATE_PATH_SCRATCH];
+    char cgtest_dir_scratch[CGTEST_CREATE_PATH_SCRATCH];
     char project_scratch[CGTEST_CREATE_PATH_SCRATCH];
     char header_scratch[CGTEST_CREATE_PATH_SCRATCH];
     char test_scratch[CGTEST_CREATE_PATH_SCRATCH];
     CPath abs_dir;
+    CPath cgtest_dir;
     CPath project_path;
     CPath header_path;
     CPath test_path;
@@ -1267,17 +1291,22 @@ CGTestCreateResult cgtest_create_run(const char *dir)
 
     abs_dir = cpath_join(abs_dir_scratch, sizeof(abs_dir_scratch), cwd, dir);
 
-    if (stat(abs_dir.data, &st) != 0) {
-        if (cgtest_create_mkdir_p(abs_dir.data) != 0) {
-            cmsg_build(error_buf, sizeof(error_buf), "could not create directory ", abs_dir.data, abs_dir.length, "");
-            return cgtest_create_fail(error_buf);
-        }
-    } else if (!S_ISDIR(st.st_mode)) {
-        cmsg_build(error_buf, sizeof(error_buf), "not a directory: ", abs_dir.data, abs_dir.length, "");
+    if (!cgtest_create_ensure_dir(abs_dir, error_buf, sizeof(error_buf))) {
         return cgtest_create_fail(error_buf);
     }
 
-    project_path = cpath_join(project_scratch, sizeof(project_scratch), abs_dir.data, "cgtest-project.json");
+    /* The three files live in a "cgtest" child of "dir" rather than
+     * "dir" itself, so a project's tests can #include "cgtest/cgtest.h"
+     * - the same gtest/gtest.h-style layout GoogleTest users already
+     * know - instead of a bare cgtest.h competing with the project's
+     * own headers at its root. */
+    cgtest_dir = cpath_join(cgtest_dir_scratch, sizeof(cgtest_dir_scratch), abs_dir.data, "cgtest");
+
+    if (!cgtest_create_ensure_dir(cgtest_dir, error_buf, sizeof(error_buf))) {
+        return cgtest_create_fail(error_buf);
+    }
+
+    project_path = cpath_join(project_scratch, sizeof(project_scratch), cgtest_dir.data, "cgtest-project.json");
 
     if (stat(project_path.data, &st) == 0) {
         cmsg_build(error_buf, sizeof(error_buf), "cgtest-project.json already exists: ",
@@ -1285,8 +1314,8 @@ CGTestCreateResult cgtest_create_run(const char *dir)
         return cgtest_create_fail(error_buf);
     }
 
-    header_path = cpath_join(header_scratch, sizeof(header_scratch), abs_dir.data, "cgtest.h");
-    test_path = cpath_join(test_scratch, sizeof(test_scratch), abs_dir.data, "test_cgtest_macros.c");
+    header_path = cpath_join(header_scratch, sizeof(header_scratch), cgtest_dir.data, "cgtest.h");
+    test_path = cpath_join(test_scratch, sizeof(test_scratch), cgtest_dir.data, "test_cgtest_macros.c");
 
     if (!cgtest_create_write_file(project_path.data, error_buf, sizeof(error_buf),
                                    CGTEST_PROJECT_TEMPLATE, (const char *)NULL)) {
@@ -1346,12 +1375,15 @@ CGTestCreateResult cgtest_create_run(const char *dir)
     }
 
     result.ok = 1;
+    result.dir = cmsg_dup(cgtest_dir.data, cgtest_dir.length);
     result.error = NULL;
     return result;
 }
 
 void cgtest_create_free(CGTestCreateResult *result)
 {
+    free(result->dir);
+    result->dir = NULL;
     free(result->error);
     result->error = NULL;
 }

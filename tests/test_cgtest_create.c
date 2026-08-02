@@ -1,7 +1,7 @@
 /* test_cgtest_create.c - unit tests for cgtest_create_run(), which
  * writes a template cgtest-project.json, cgtest.h, and
- * test_cgtest_macros.c inside a given directory (creating that
- * directory if it doesn't exist yet).
+ * test_cgtest_macros.c inside a given directory's "cgtest" child
+ * (creating both if they don't exist yet).
  * Written in cgtest's own test convention (void test_<name>(void));
  * see test_ctestscanner.c's header comment for why main() below
  * dispatches them manually instead of via a generated cgtest-runner.
@@ -29,9 +29,10 @@ static int test_failed = 0;
     } while (0)
 
 #define FIXTURE_DIR "build/cgtest_create_fixture"
-#define PROJECT_PATH FIXTURE_DIR "/cgtest-project.json"
-#define HEADER_PATH FIXTURE_DIR "/cgtest.h"
-#define TEST_MACROS_PATH FIXTURE_DIR "/test_cgtest_macros.c"
+#define FIXTURE_CGTEST_DIR FIXTURE_DIR "/cgtest"
+#define PROJECT_PATH FIXTURE_CGTEST_DIR "/cgtest-project.json"
+#define HEADER_PATH FIXTURE_CGTEST_DIR "/cgtest.h"
+#define TEST_MACROS_PATH FIXTURE_CGTEST_DIR "/test_cgtest_macros.c"
 
 static void setup_fixture(void)
 {
@@ -43,6 +44,7 @@ static void teardown_fixture(void)
     remove(PROJECT_PATH);
     remove(HEADER_PATH);
     remove(TEST_MACROS_PATH);
+    remove(FIXTURE_CGTEST_DIR);
     remove(FIXTURE_DIR);
 }
 
@@ -70,6 +72,8 @@ void test_creates_project_and_header_in_existing_directory(void)
 
     CHECK(result.ok);
     CHECK(result.error == NULL);
+    CHECK(result.dir != NULL);
+    CHECK(strstr(result.dir, "/cgtest") != NULL);
     CHECK(read_whole_file(PROJECT_PATH, buf, sizeof(buf)) > 0);
     CHECK(read_whole_file(HEADER_PATH, buf, sizeof(buf)) > 0);
     CHECK(read_whole_file(TEST_MACROS_PATH, buf, sizeof(buf)) > 0);
@@ -153,6 +157,7 @@ void test_refuses_to_overwrite_existing_project(void)
     char buf[4096];
 
     setup_fixture();
+    mkdir(FIXTURE_CGTEST_DIR, 0755);
     f = fopen(PROJECT_PATH, "w");
     CHECK(f != NULL);
     fputs("PREEXISTING", f);
@@ -161,6 +166,7 @@ void test_refuses_to_overwrite_existing_project(void)
     result = cgtest_create_run(FIXTURE_DIR);
 
     CHECK(!result.ok);
+    CHECK(result.dir == NULL);
     CHECK(result.error != NULL);
     CHECK(strstr(result.error, "already exists") != NULL);
 
@@ -185,6 +191,7 @@ void test_path_that_is_a_regular_file_is_an_error(void)
     result = cgtest_create_run(FIXTURE_DIR);
 
     CHECK(!result.ok);
+    CHECK(result.dir == NULL);
     CHECK(result.error != NULL);
     CHECK(strstr(result.error, "not a directory") != NULL);
 
@@ -194,9 +201,10 @@ void test_path_that_is_a_regular_file_is_an_error(void)
 
 #define NESTED_PARENT_DIR "build/cgtest_create_nested_fixture"
 #define NESTED_DIR NESTED_PARENT_DIR "/child"
-#define NESTED_PROJECT_PATH NESTED_DIR "/cgtest-project.json"
-#define NESTED_HEADER_PATH NESTED_DIR "/cgtest.h"
-#define NESTED_TEST_MACROS_PATH NESTED_DIR "/test_cgtest_macros.c"
+#define NESTED_CGTEST_DIR NESTED_DIR "/cgtest"
+#define NESTED_PROJECT_PATH NESTED_CGTEST_DIR "/cgtest-project.json"
+#define NESTED_HEADER_PATH NESTED_CGTEST_DIR "/cgtest.h"
+#define NESTED_TEST_MACROS_PATH NESTED_CGTEST_DIR "/test_cgtest_macros.c"
 
 void test_creates_missing_parent_directories(void)
 {
@@ -207,6 +215,7 @@ void test_creates_missing_parent_directories(void)
     remove(NESTED_PROJECT_PATH);
     remove(NESTED_HEADER_PATH);
     remove(NESTED_TEST_MACROS_PATH);
+    remove(NESTED_CGTEST_DIR);
     remove(NESTED_DIR);
     remove(NESTED_PARENT_DIR); /* make sure neither exists yet */
 
@@ -214,7 +223,7 @@ void test_creates_missing_parent_directories(void)
 
     CHECK(result.ok);
     CHECK(result.error == NULL);
-    CHECK(stat(NESTED_DIR, &st) == 0);
+    CHECK(stat(NESTED_CGTEST_DIR, &st) == 0);
     CHECK(S_ISDIR(st.st_mode));
     CHECK(read_whole_file(NESTED_PROJECT_PATH, buf, sizeof(buf)) > 0);
     CHECK(read_whole_file(NESTED_HEADER_PATH, buf, sizeof(buf)) > 0);
@@ -224,6 +233,7 @@ void test_creates_missing_parent_directories(void)
     remove(NESTED_PROJECT_PATH);
     remove(NESTED_HEADER_PATH);
     remove(NESTED_TEST_MACROS_PATH);
+    remove(NESTED_CGTEST_DIR);
     remove(NESTED_DIR);
     remove(NESTED_PARENT_DIR);
 }
