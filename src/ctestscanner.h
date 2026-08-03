@@ -30,10 +30,20 @@ extern "C" {
 /* One discovered test function. "name" is malloc'd and NUL-terminated.
  * "fixture_type" is malloc'd and NUL-terminated when the function took
  * the one-parameter fixture form (e.g. "State" for "test_bar(State
- * *state)"), or NULL for the plain "(void)" form. */
+ * *state)"), or NULL for the plain "(void)" form.
+ *
+ * "has_teardown" is NOT populated by ctestscanner_find() - a single
+ * file's scan can't know whether a teardown_<name> exists elsewhere
+ * among a project's other test_*.c files. It always comes back 0 here;
+ * cgtest_runner_run() sets it after its own cross-file existence check
+ * (see cgtest_runner.h), before cgtest_runner_generate_source() reads
+ * it to decide whether to emit a teardown_<name>(&state) call at all -
+ * teardown_<name> is optional (specification.md ch.6), unlike
+ * setup_<name>. Meaningless when fixture_type is NULL. */
 typedef struct {
     char *name;
     char *fixture_type;
+    int   has_teardown;
     int   line;
 } CTestFunction;
 

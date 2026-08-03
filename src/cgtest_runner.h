@@ -77,7 +77,7 @@ typedef struct {
  *         if (!cgtest_fatal_failed) {
  *             test_<name>(&state);
  *         }
- *         teardown_<name>(&state);
+ *         teardown_<name>(&state);   // only if CTestFunction::has_teardown
  *     }
  *
  * cgtest_fatal_failed (set only by ASSERT_*, unlike cgtest_failed which
@@ -85,12 +85,16 @@ typedef struct {
  * cgtest_failed right before this block; if setup_<name> hit a fatal
  * failure, *state may be only partially initialized, so test_<name> is
  * skipped rather than run against it - matching GoogleTest's own
- * SetUp()/TestBody() behavior. teardown_<name> still always runs.
+ * SetUp()/TestBody() behavior. teardown_<name>(&state) is emitted only
+ * when CTestFunction::has_teardown is set - unlike setup_<name>, a
+ * fixture with nothing to release just omits it (specification.md ch.6),
+ * rather than requiring the author to write a no-op function.
  *
  * "<name>" is "test_<name>" with its "test_" prefix stripped. Callers
- * are expected to have already verified setup_<name>/teardown_<name>
- * exist (see cgtest_runner_run()) - this function itself performs no
- * such check, since it's pure and has no way to fail short of OOM.
+ * are expected to have already verified setup_<name> exists and set
+ * has_teardown accordingly (see cgtest_runner_run()) - this function
+ * itself performs no such check, since it's pure and has no way to
+ * fail short of OOM.
  *
  * Pure - performs no filesystem access itself (though the #include
  * lines it emits will be resolved once the result is compiled).
@@ -143,12 +147,15 @@ typedef struct {
  * error (see cgtest_runner_generate_source()'s header comment for why
  * that combination would otherwise be ambiguous). Likewise, every
  * discovered test function with a fixture parameter (CTestFunction::
- * fixture_type != NULL) must have a setup_<name>/teardown_<name>
- * identifier present somewhere among the discovered test files -
- * existence-only, not a signature check (see specification.md ch.6
- * "Validation before invoking the compiler") - otherwise it is
- * rejected as an error too, rather than surfacing as a raw linker
- * error once the compiler runs.
+ * fixture_type != NULL) must have a setup_<name> identifier present
+ * somewhere among the discovered test files - existence-only, not a
+ * signature check (see specification.md ch.6 "Validation before
+ * invoking the compiler") - otherwise it is rejected as an error too,
+ * rather than surfacing as a raw linker error once the compiler runs.
+ * teardown_<name> is optional: its presence is checked the same way,
+ * but a missing one is not an error - CTestFunction::has_teardown is
+ * simply set to whether it was found, for cgtest_runner_generate_source()
+ * to act on.
  *
  * A failure in any of steps 1-4 is reported as !ok with a message;
  * step 5's exit code (whatever the test run itself decided) is always

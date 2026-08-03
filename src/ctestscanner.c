@@ -62,6 +62,7 @@ static int ctestscanner_list_push(CTestFunctionList *list, const CToken *name_to
 
     list->items[list->count].name = name;
     list->items[list->count].fixture_type = fixture_type;
+    list->items[list->count].has_teardown = 0;
     list->items[list->count].line = line;
     list->count++;
     return 1;

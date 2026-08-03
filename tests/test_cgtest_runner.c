@@ -210,6 +210,7 @@ void test_generates_setup_teardown_wrapper_for_fixture_function(void)
 
     functions[0].name = "test_bar";
     functions[0].fixture_type = "State";
+    functions[0].has_teardown = 1;
     functions[0].line = 3;
 
     files[0].label = "/abs/path/test_widget.c";
@@ -229,6 +230,37 @@ void test_generates_setup_teardown_wrapper_for_fixture_function(void)
     free(source);
 }
 
+void test_omits_teardown_call_when_has_teardown_is_unset(void)
+{
+    /* teardown_<name> is optional (specification.md ch.6) - when
+     * CTestFunction::has_teardown is 0 (as set by cgtest_runner_run()
+     * when no teardown_bar was found among the discovered test files),
+     * the generated wrapper must not reference it at all, not even a
+     * call to something that doesn't exist. */
+    CTestFunction functions[1];
+    CGTestRunnerFile files[1];
+    char *source;
+
+    functions[0].name = "test_bar";
+    functions[0].fixture_type = "State";
+    functions[0].has_teardown = 0;
+    functions[0].line = 3;
+
+    files[0].label = "test_widget.c";
+    files[0].functions = functions;
+    files[0].function_count = 1;
+
+    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+
+    CHECK(source != NULL);
+    CHECK(strstr(source, "State state;") != NULL);
+    CHECK(strstr(source, "setup_bar(&state);") != NULL);
+    CHECK(strstr(source, "test_bar(&state);") != NULL);
+    CHECK(strstr(source, "teardown_bar") == NULL);
+
+    free(source);
+}
+
 void test_fixture_test_call_is_guarded_by_fatal_failed_check(void)
 {
     CTestFunction functions[1];
@@ -241,6 +273,7 @@ void test_fixture_test_call_is_guarded_by_fatal_failed_check(void)
 
     functions[0].name = "test_bar";
     functions[0].fixture_type = "State";
+    functions[0].has_teardown = 1;
     functions[0].line = 3;
 
     files[0].label = "test_widget.c";
@@ -253,8 +286,8 @@ void test_fixture_test_call_is_guarded_by_fatal_failed_check(void)
     /* cgtest_fatal_failed (set only by ASSERT_*, see cgtest.h) is reset
      * alongside cgtest_failed before setup_bar runs, then checked right
      * after it - a fatal failure during setup_bar means test_bar is
-     * skipped, but teardown_bar still always runs (specification.md
-     * ch.6). */
+     * skipped, but a present teardown_bar still always runs regardless
+     * (specification.md ch.6). */
     CHECK(strstr(source, "cgtest_fatal_failed = 0;") != NULL);
 
     setup_call = strstr(source, "setup_bar(&state);");
@@ -283,6 +316,7 @@ void test_fixture_wrapper_precedes_pass_fail_verdict(void)
 
     functions[0].name = "test_bar";
     functions[0].fixture_type = "State";
+    functions[0].has_teardown = 1;
     functions[0].line = 3;
 
     files[0].label = "test_widget.c";
@@ -448,8 +482,15 @@ void test_run_rejects_fixture_test_missing_setup_function(void)
     remove(FIXTURE_DIR);
 }
 
-void test_run_rejects_fixture_test_missing_teardown_function(void)
+void test_run_succeeds_with_fixture_test_missing_teardown_function(void)
 {
+    /* Unlike setup_bar, teardown_bar is optional (specification.md
+     * ch.6): a fixture with nothing to release doesn't require the
+     * author to write a no-op function. This test runs the full
+     * pipeline for real - not just far enough to hit a validation
+     * error, the way the duplicate-basename/missing-setup tests do -
+     * to prove the generated runner actually compiles and runs
+     * without a teardown_bar in sight. */
     CGTestProject project;
     CGTestRunResult result;
 
@@ -457,11 +498,11 @@ void test_run_rejects_fixture_test_missing_teardown_function(void)
     mkdir(FIXTURE_DIR "/missing_teardown", 0755);
     write_file(FIXTURE_DIR "/missing_teardown/test_widget.c",
         "typedef struct { int x; } State;\n"
-        "void setup_bar(State *state) { (void)state; }\n"
+        "void setup_bar(State *state) { state->x = 1; }\n"
         "void test_bar(State *state) { (void)state; }\n");
 
     memset(&project, 0, sizeof(project));
-    project.compiler_command = "gcc -std=c99"; /* never actually invoked - see below */
+    project.compiler_command = "gcc -std=c99";
     project.output_path = FIXTURE_DIR "/missing_teardown/build";
     cpathlist_init(&project.include_paths);
     cpathlist_init(&project.source_files);
@@ -470,17 +511,77 @@ void test_run_rejects_fixture_test_missing_teardown_function(void)
 
     result = cgtest_runner_run(&project);
 
-    CHECK(!result.ok);
-    CHECK(result.error != NULL);
-    CHECK(strstr(result.error, "missing") != NULL);
-    CHECK(strstr(result.error, "teardown_bar") != NULL);
+    CHECK(result.ok);
+    CHECK(result.error == NULL);
+    CHECK(result.exit_code == 0);
 
     cgtest_runner_free(&result);
     cpathlist_free(&project.include_paths);
     cpathlist_free(&project.source_files);
     cpathlist_free(&project.test_directories);
     remove(FIXTURE_DIR "/missing_teardown/test_widget.c");
+    remove(FIXTURE_DIR "/missing_teardown/build/cgtest-runner.c");
+    remove(FIXTURE_DIR "/missing_teardown/build/cgtest-runner");
+    remove(FIXTURE_DIR "/missing_teardown/build");
     remove(FIXTURE_DIR "/missing_teardown");
+    remove(FIXTURE_DIR);
+}
+
+void test_run_still_calls_teardown_function_when_present(void)
+{
+    /* Companion to the "missing teardown" test above: when
+     * teardown_bar IS present, it must still actually run - proven
+     * here via a real compile+run, not just a generated-source string
+     * check, since has_teardown is computed by cgtest_runner_run()
+     * itself (cgtest_runner_generate_source() alone can't exercise
+     * this). teardown_bar writes a marker file; its absence would mean
+     * teardown_bar was silently skipped despite existing. */
+    CGTestProject project;
+    CGTestRunResult result;
+    FILE *marker;
+
+    mkdir(FIXTURE_DIR, 0755);
+    mkdir(FIXTURE_DIR "/present_teardown", 0755);
+    write_file(FIXTURE_DIR "/present_teardown/test_widget.c",
+        "#include <stdio.h>\n"
+        "typedef struct { int x; } State;\n"
+        "void setup_bar(State *state) { state->x = 1; }\n"
+        "void teardown_bar(State *state) {\n"
+        "    FILE *f = fopen(\"" FIXTURE_DIR "/present_teardown/teardown_ran\", \"w\");\n"
+        "    (void)state;\n"
+        "    if (f != NULL) { fclose(f); }\n"
+        "}\n"
+        "void test_bar(State *state) { (void)state; }\n");
+
+    memset(&project, 0, sizeof(project));
+    project.compiler_command = "gcc -std=c99";
+    project.output_path = FIXTURE_DIR "/present_teardown/build";
+    cpathlist_init(&project.include_paths);
+    cpathlist_init(&project.source_files);
+    cpathlist_init(&project.test_directories);
+    cpathlist_register(&project.test_directories, "", FIXTURE_DIR "/present_teardown");
+
+    result = cgtest_runner_run(&project);
+
+    CHECK(result.ok);
+    CHECK(result.exit_code == 0);
+
+    marker = fopen(FIXTURE_DIR "/present_teardown/teardown_ran", "r");
+    CHECK(marker != NULL);
+    if (marker != NULL) {
+        fclose(marker);
+    }
+
+    cgtest_runner_free(&result);
+    cpathlist_free(&project.include_paths);
+    cpathlist_free(&project.source_files);
+    cpathlist_free(&project.test_directories);
+    remove(FIXTURE_DIR "/present_teardown/teardown_ran");
+    remove(FIXTURE_DIR "/present_teardown/test_widget.c");
+    remove(FIXTURE_DIR "/present_teardown/build/cgtest-runner.c");
+    remove(FIXTURE_DIR "/present_teardown/build/cgtest-runner");
+    remove(FIXTURE_DIR "/present_teardown/build");
+    remove(FIXTURE_DIR "/present_teardown");
     remove(FIXTURE_DIR);
 }
 
@@ -500,13 +601,15 @@ int main(void)
         { "test_preserves_function_order_within_a_file", test_preserves_function_order_within_a_file },
         { "test_preserves_file_order_across_files", test_preserves_file_order_across_files },
         { "test_generates_setup_teardown_wrapper_for_fixture_function", test_generates_setup_teardown_wrapper_for_fixture_function },
+        { "test_omits_teardown_call_when_has_teardown_is_unset", test_omits_teardown_call_when_has_teardown_is_unset },
         { "test_fixture_test_call_is_guarded_by_fatal_failed_check", test_fixture_test_call_is_guarded_by_fatal_failed_check },
         { "test_fixture_wrapper_precedes_pass_fail_verdict", test_fixture_wrapper_precedes_pass_fail_verdict },
         { "test_build_compile_command_uses_gcc_flags_by_default", test_build_compile_command_uses_gcc_flags_by_default },
         { "test_build_compile_command_uses_msvc_flags_when_configured", test_build_compile_command_uses_msvc_flags_when_configured },
         { "test_run_rejects_duplicate_basenames_across_directories", test_run_rejects_duplicate_basenames_across_directories },
         { "test_run_rejects_fixture_test_missing_setup_function", test_run_rejects_fixture_test_missing_setup_function },
-        { "test_run_rejects_fixture_test_missing_teardown_function", test_run_rejects_fixture_test_missing_teardown_function }
+        { "test_run_succeeds_with_fixture_test_missing_teardown_function", test_run_succeeds_with_fixture_test_missing_teardown_function },
+        { "test_run_still_calls_teardown_function_when_present", test_run_still_calls_teardown_function_when_present }
     };
     size_t count = sizeof(cases) / sizeof(cases[0]);
     size_t i;

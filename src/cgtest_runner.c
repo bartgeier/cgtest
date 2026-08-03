@@ -232,29 +232,43 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
                     goto fail;
                 }
             } else {
-                /* setup_<name>/teardown_<name> wrap this call, matching
-                 * specification.md ch.6 "Generated code" - "<name>"
-                 * here is "name" with its "test_" prefix stripped
-                 * (guaranteed present: ctestscanner_find() only ever
-                 * reports functions matching "test_<name>"). "state" is
-                 * declared on the stack, not heap-allocated - cgtest
-                 * never owns the fixture. test_<name>(&state) is
-                 * skipped when setup_<name> hit a fatal (ASSERT_*)
+                /* setup_<name> (mandatory) and, if present,
+                 * teardown_<name> (optional - specification.md ch.6;
+                 * a fixture with nothing to release just omits it,
+                 * rather than requiring a no-op function) wrap this
+                 * call. "<name>" here is "name" with its "test_" prefix
+                 * stripped (guaranteed present: ctestscanner_find()
+                 * only ever reports functions matching "test_<name>").
+                 * "state" is declared on the stack, not heap-allocated
+                 * - cgtest never owns the fixture. test_<name>(&state)
+                 * is skipped when setup_<name> hit a fatal (ASSERT_*)
                  * failure - *state may be only partially initialized in
                  * that case, so running the test body against it isn't
                  * safe (matches GoogleTest's SetUp()/TestBody()
-                 * behavior); teardown_<name>(&state) still always
-                 * runs. */
+                 * behavior); a present teardown_<name>(&state) still
+                 * always runs regardless. */
                 const char *suffix = name + 5;
+                int has_teardown = files[i].functions[j].has_teardown;
+
                 if (!cgtest_runner_buf_append_cstr(&buf, "    {\n        ") ||
                     !cgtest_runner_buf_append_cstr(&buf, fixture_type) ||
                     !cgtest_runner_buf_append_cstr(&buf, " state;\n        setup_") ||
                     !cgtest_runner_buf_append_cstr(&buf, suffix) ||
                     !cgtest_runner_buf_append_cstr(&buf, "(&state);\n        if (!cgtest_fatal_failed) {\n            ") ||
                     !cgtest_runner_buf_append_cstr(&buf, name) ||
-                    !cgtest_runner_buf_append_cstr(&buf, "(&state);\n        }\n        teardown_") ||
-                    !cgtest_runner_buf_append_cstr(&buf, suffix) ||
-                    !cgtest_runner_buf_append_cstr(&buf, "(&state);\n    }\n")) {
+                    !cgtest_runner_buf_append_cstr(&buf, "(&state);\n        }\n")) {
+                    goto fail;
+                }
+
+                if (has_teardown) {
+                    if (!cgtest_runner_buf_append_cstr(&buf, "        teardown_") ||
+                        !cgtest_runner_buf_append_cstr(&buf, suffix) ||
+                        !cgtest_runner_buf_append_cstr(&buf, "(&state);\n")) {
+                        goto fail;
+                    }
+                }
+
+                if (!cgtest_runner_buf_append_cstr(&buf, "    }\n")) {
                     goto fail;
                 }
             }
@@ -445,18 +459,24 @@ static int cgtest_runner_any_file_has_identifier(char *const *contents, const si
 
 /* Before compiling, every discovered test_ function with a fixture
  * parameter (CTestFunction::fixture_type != NULL) must have a
- * setup_<name>/teardown_<name> identifier present somewhere among
- * "contents" (every discovered test_*.c file's raw source, not just
- * the ones with their own test_ functions - a shared fixture file
- * might have neither) - otherwise this fails with a clear cgtest-
- * level message instead of surfacing as a raw linker error once the
- * compiler runs. Existence-only (see cgtest_runner_source_has_identifier()
- * above) - a parameter-type mismatch is left entirely to the C
- * compiler's own type checking.
+ * setup_<name> identifier present somewhere among "contents" (every
+ * discovered test_*.c file's raw source, not just the ones with their
+ * own test_ functions - a shared fixture file might have neither) -
+ * otherwise this fails with a clear cgtest-level message instead of
+ * surfacing as a raw linker error once the compiler runs. Existence-
+ * only (see cgtest_runner_source_has_identifier() above) - a
+ * parameter-type mismatch is left entirely to the C compiler's own
+ * type checking.
+ *
+ * teardown_<name> is optional (specification.md ch.6) - unlike a
+ * missing setup_<name>, "*state" is never read before setup_<name>
+ * runs, so there is nothing unsafe about skipping a teardown that
+ * doesn't exist. Rather than erroring, this records whether it exists
+ * in fn->has_teardown for cgtest_runner_generate_source() to act on.
  *
  * Returns 1 and leaves "result" untouched on success; returns 0 with
- * "result" set to the failure on the first missing function found. */
-static int cgtest_runner_check_fixtures(const CGTestRunnerFile *runner_files, size_t runner_file_count,
+ * "result" set to the failure if any setup_<name> is missing. */
+static int cgtest_runner_check_fixtures(CGTestRunnerFile *runner_files, size_t runner_file_count,
                                          char *const *contents, const size_t *lengths, size_t file_count,
                                          CGTestRunResult *result)
 {
@@ -465,7 +485,7 @@ static int cgtest_runner_check_fixtures(const CGTestRunnerFile *runner_files, si
 
     for (i = 0; i < runner_file_count; i++) {
         for (j = 0; j < runner_files[i].function_count; j++) {
-            const CTestFunction *fn = &runner_files[i].functions[j];
+            CTestFunction *fn = &runner_files[i].functions[j];
             const char *suffix;
             char ident[CGTEST_RUNNER_IDENT_BUFSZ];
             char msg[CGTEST_RUNNER_ERROR_BUFSZ];
@@ -484,11 +504,7 @@ static int cgtest_runner_check_fixtures(const CGTestRunnerFile *runner_files, si
             }
 
             cmsg_build(ident, sizeof(ident), "teardown_", suffix, strlen(suffix), "");
-            if (!cgtest_runner_any_file_has_identifier(contents, lengths, file_count, ident)) {
-                cmsg_build(msg, sizeof(msg), "missing fixture teardown function: ", ident, strlen(ident), "");
-                cgtest_runner_set_error(result, msg);
-                return 0;
-            }
+            fn->has_teardown = cgtest_runner_any_file_has_identifier(contents, lengths, file_count, ident);
         }
     }
     return 1;
