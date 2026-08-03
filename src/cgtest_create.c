@@ -107,6 +107,18 @@ static const char *const CGTEST_H_TEMPLATE_HEAD2 =
     "extern int cgtest_failed;\n"
     "\n";
 
+/* Set only by ASSERT_* (never EXPECT_*). For a fixture test (see
+ * ch.6), the generated runner skips test_<name>(&state) when this is
+ * set after setup_<name>(&state) - matching GoogleTest's SetUp()/
+ * TestBody() behavior. */
+static const char *const CGTEST_H_TEMPLATE_FATAL_FAILED =
+    "/* Set only by ASSERT_* (never EXPECT_*). For a fixture test (see\n"
+    " * ch.6), the generated runner skips test_<name>(&state) when this\n"
+    " * is set after setup_<name>(&state) - matching GoogleTest's\n"
+    " * SetUp()/TestBody() behavior. */\n"
+    "extern int cgtest_fatal_failed;\n"
+    "\n";
+
 static const char *const CGTEST_H_TEMPLATE_RELPATH1 =
     "/* Shortens __FILE__ to a path relative to the current working\n"
     " * directory (falls back to the full path if it isn't under it),\n"
@@ -235,6 +247,7 @@ static const char *const CGTEST_H_TEMPLATE_ASSERT_TRUE =
     "        if (!(cond)) { \\\n"
     "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_TRUE(%s)\\n\", cgtest_relpath(__FILE__), __LINE__, #cond); \\\n"
     "            cgtest_failed = 1; \\\n"
+    "            cgtest_fatal_failed = 1; \\\n"
     "            return; \\\n"
     "        } \\\n"
     "    } while (0)\n"
@@ -246,6 +259,7 @@ static const char *const CGTEST_H_TEMPLATE_ASSERT_FALSE =
     "        if (cond) { \\\n"
     "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_FALSE(%s)\\n\", cgtest_relpath(__FILE__), __LINE__, #cond); \\\n"
     "            cgtest_failed = 1; \\\n"
+    "            cgtest_fatal_failed = 1; \\\n"
     "            return; \\\n"
     "        } \\\n"
     "    } while (0)\n"
@@ -284,7 +298,7 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_INT =
     "    CGTEST_CMP_INT_(\"EXPECT_EQ_INT\", !=, \"  expected: %ld\\n  actual:   %ld\\n\", ((void)0), expected, actual)\n"
     "\n"
     "#define ASSERT_EQ_INT(expected, actual) \\\n"
-    "    CGTEST_CMP_INT_(\"ASSERT_EQ_INT\", !=, \"  expected: %ld\\n  actual:   %ld\\n\", return, expected, actual)\n"
+    "    CGTEST_CMP_INT_(\"ASSERT_EQ_INT\", !=, \"  expected: %ld\\n  actual:   %ld\\n\", { cgtest_fatal_failed = 1; return; }, expected, actual)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_EQ_NE_INT2 =
@@ -292,7 +306,7 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_INT2 =
     "    CGTEST_CMP_INT_(\"EXPECT_NE_INT\", ==, \"  unexpected: %ld\\n  actual:     %ld\\n\", ((void)0), unexpected, actual)\n"
     "\n"
     "#define ASSERT_NE_INT(unexpected, actual) \\\n"
-    "    CGTEST_CMP_INT_(\"ASSERT_NE_INT\", ==, \"  unexpected: %ld\\n  actual:     %ld\\n\", return, unexpected, actual)\n"
+    "    CGTEST_CMP_INT_(\"ASSERT_NE_INT\", ==, \"  unexpected: %ld\\n  actual:     %ld\\n\", { cgtest_fatal_failed = 1; return; }, unexpected, actual)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_CMP_UINT1 =
@@ -317,7 +331,7 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_UINT =
     "    CGTEST_CMP_UINT_(\"EXPECT_EQ_UINT\", !=, \"  expected: %lu\\n  actual:   %lu\\n\", ((void)0), expected, actual)\n"
     "\n"
     "#define ASSERT_EQ_UINT(expected, actual) \\\n"
-    "    CGTEST_CMP_UINT_(\"ASSERT_EQ_UINT\", !=, \"  expected: %lu\\n  actual:   %lu\\n\", return, expected, actual)\n"
+    "    CGTEST_CMP_UINT_(\"ASSERT_EQ_UINT\", !=, \"  expected: %lu\\n  actual:   %lu\\n\", { cgtest_fatal_failed = 1; return; }, expected, actual)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_EQ_NE_UINT2 =
@@ -325,7 +339,7 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_UINT2 =
     "    CGTEST_CMP_UINT_(\"EXPECT_NE_UINT\", ==, \"  unexpected: %lu\\n  actual:     %lu\\n\", ((void)0), unexpected, actual)\n"
     "\n"
     "#define ASSERT_NE_UINT(unexpected, actual) \\\n"
-    "    CGTEST_CMP_UINT_(\"ASSERT_NE_UINT\", ==, \"  unexpected: %lu\\n  actual:     %lu\\n\", return, unexpected, actual)\n"
+    "    CGTEST_CMP_UINT_(\"ASSERT_NE_UINT\", ==, \"  unexpected: %lu\\n  actual:     %lu\\n\", { cgtest_fatal_failed = 1; return; }, unexpected, actual)\n"
     "\n";
 
 /* Approximate equality via a small relative tolerance, replacing
@@ -377,7 +391,7 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_FLOAT =
     "    CGTEST_APPROX_FLOAT_(\"EXPECT_EQ_FLOAT\", >, \"  expected: %g\\n  actual:   %g\\n  diff:     %g (max allowed: %g)\\n\", ((void)0), expected, actual)\n"
     "\n"
     "#define ASSERT_EQ_FLOAT(expected, actual) \\\n"
-    "    CGTEST_APPROX_FLOAT_(\"ASSERT_EQ_FLOAT\", >, \"  expected: %g\\n  actual:   %g\\n  diff:     %g (max allowed: %g)\\n\", return, expected, actual)\n"
+    "    CGTEST_APPROX_FLOAT_(\"ASSERT_EQ_FLOAT\", >, \"  expected: %g\\n  actual:   %g\\n  diff:     %g (max allowed: %g)\\n\", { cgtest_fatal_failed = 1; return; }, expected, actual)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_EQ_NE_FLOAT2 =
@@ -385,7 +399,7 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_FLOAT2 =
     "    CGTEST_APPROX_FLOAT_(\"EXPECT_NE_FLOAT\", <=, \"  unexpected: %g\\n  actual:     %g\\n  diff:     %g (must exceed: %g)\\n\", ((void)0), unexpected, actual)\n"
     "\n"
     "#define ASSERT_NE_FLOAT(unexpected, actual) \\\n"
-    "    CGTEST_APPROX_FLOAT_(\"ASSERT_NE_FLOAT\", <=, \"  unexpected: %g\\n  actual:     %g\\n  diff:     %g (must exceed: %g)\\n\", return, unexpected, actual)\n"
+    "    CGTEST_APPROX_FLOAT_(\"ASSERT_NE_FLOAT\", <=, \"  unexpected: %g\\n  actual:     %g\\n  diff:     %g (must exceed: %g)\\n\", { cgtest_fatal_failed = 1; return; }, unexpected, actual)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_CMP_DOUBLE1 =
@@ -420,7 +434,7 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_DOUBLE =
     "    CGTEST_APPROX_DOUBLE_(\"EXPECT_EQ_DOUBLE\", >, \"  expected: %g\\n  actual:   %g\\n  diff:     %g (max allowed: %g)\\n\", ((void)0), expected, actual)\n"
     "\n"
     "#define ASSERT_EQ_DOUBLE(expected, actual) \\\n"
-    "    CGTEST_APPROX_DOUBLE_(\"ASSERT_EQ_DOUBLE\", >, \"  expected: %g\\n  actual:   %g\\n  diff:     %g (max allowed: %g)\\n\", return, expected, actual)\n"
+    "    CGTEST_APPROX_DOUBLE_(\"ASSERT_EQ_DOUBLE\", >, \"  expected: %g\\n  actual:   %g\\n  diff:     %g (max allowed: %g)\\n\", { cgtest_fatal_failed = 1; return; }, expected, actual)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_EQ_NE_DOUBLE2 =
@@ -428,7 +442,7 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_DOUBLE2 =
     "    CGTEST_APPROX_DOUBLE_(\"EXPECT_NE_DOUBLE\", <=, \"  unexpected: %g\\n  actual:     %g\\n  diff:     %g (must exceed: %g)\\n\", ((void)0), unexpected, actual)\n"
     "\n"
     "#define ASSERT_NE_DOUBLE(unexpected, actual) \\\n"
-    "    CGTEST_APPROX_DOUBLE_(\"ASSERT_NE_DOUBLE\", <=, \"  unexpected: %g\\n  actual:     %g\\n  diff:     %g (must exceed: %g)\\n\", return, unexpected, actual)\n"
+    "    CGTEST_APPROX_DOUBLE_(\"ASSERT_NE_DOUBLE\", <=, \"  unexpected: %g\\n  actual:     %g\\n  diff:     %g (must exceed: %g)\\n\", { cgtest_fatal_failed = 1; return; }, unexpected, actual)\n"
     "\n";
 
 /* Unlike EXPECT_EQ_DOUBLE's own built-in tolerance, this one takes a
@@ -465,7 +479,7 @@ static const char *const CGTEST_H_TEMPLATE_NEAR_DOUBLE3 =
     "    CGTEST_NEAR_DOUBLE_(\"EXPECT_NEAR_DOUBLE\", ((void)0), expected, actual, abs_error)\n"
     "\n"
     "#define ASSERT_NEAR_DOUBLE(expected, actual, abs_error) \\\n"
-    "    CGTEST_NEAR_DOUBLE_(\"ASSERT_NEAR_DOUBLE\", return, expected, actual, abs_error)\n"
+    "    CGTEST_NEAR_DOUBLE_(\"ASSERT_NEAR_DOUBLE\", { cgtest_fatal_failed = 1; return; }, expected, actual, abs_error)\n"
     "\n";
 
 /* LT_/LE_/GT_/GE_ (GoogleTest's EXPECT_LT/LE/GT/GE) - ordering
@@ -521,7 +535,7 @@ static const char *const CGTEST_H_TEMPLATE_LT_INT =
     "    CGTEST_CMP_INT_(\"EXPECT_LT_INT\", >=, \"  val1: %ld\\n  val2: %ld\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_LT_INT(val1, val2) \\\n"
-    "    CGTEST_CMP_INT_(\"ASSERT_LT_INT\", >=, \"  val1: %ld\\n  val2: %ld\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_INT_(\"ASSERT_LT_INT\", >=, \"  val1: %ld\\n  val2: %ld\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_LE_INT =
@@ -529,7 +543,7 @@ static const char *const CGTEST_H_TEMPLATE_LE_INT =
     "    CGTEST_CMP_INT_(\"EXPECT_LE_INT\", >, \"  val1: %ld\\n  val2: %ld\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_LE_INT(val1, val2) \\\n"
-    "    CGTEST_CMP_INT_(\"ASSERT_LE_INT\", >, \"  val1: %ld\\n  val2: %ld\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_INT_(\"ASSERT_LE_INT\", >, \"  val1: %ld\\n  val2: %ld\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_GT_INT =
@@ -537,7 +551,7 @@ static const char *const CGTEST_H_TEMPLATE_GT_INT =
     "    CGTEST_CMP_INT_(\"EXPECT_GT_INT\", <=, \"  val1: %ld\\n  val2: %ld\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_GT_INT(val1, val2) \\\n"
-    "    CGTEST_CMP_INT_(\"ASSERT_GT_INT\", <=, \"  val1: %ld\\n  val2: %ld\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_INT_(\"ASSERT_GT_INT\", <=, \"  val1: %ld\\n  val2: %ld\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_GE_INT =
@@ -545,7 +559,7 @@ static const char *const CGTEST_H_TEMPLATE_GE_INT =
     "    CGTEST_CMP_INT_(\"EXPECT_GE_INT\", <, \"  val1: %ld\\n  val2: %ld\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_GE_INT(val1, val2) \\\n"
-    "    CGTEST_CMP_INT_(\"ASSERT_GE_INT\", <, \"  val1: %ld\\n  val2: %ld\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_INT_(\"ASSERT_GE_INT\", <, \"  val1: %ld\\n  val2: %ld\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_LT_UINT =
@@ -553,7 +567,7 @@ static const char *const CGTEST_H_TEMPLATE_LT_UINT =
     "    CGTEST_CMP_UINT_(\"EXPECT_LT_UINT\", >=, \"  val1: %lu\\n  val2: %lu\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_LT_UINT(val1, val2) \\\n"
-    "    CGTEST_CMP_UINT_(\"ASSERT_LT_UINT\", >=, \"  val1: %lu\\n  val2: %lu\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_UINT_(\"ASSERT_LT_UINT\", >=, \"  val1: %lu\\n  val2: %lu\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_LE_UINT =
@@ -561,7 +575,7 @@ static const char *const CGTEST_H_TEMPLATE_LE_UINT =
     "    CGTEST_CMP_UINT_(\"EXPECT_LE_UINT\", >, \"  val1: %lu\\n  val2: %lu\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_LE_UINT(val1, val2) \\\n"
-    "    CGTEST_CMP_UINT_(\"ASSERT_LE_UINT\", >, \"  val1: %lu\\n  val2: %lu\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_UINT_(\"ASSERT_LE_UINT\", >, \"  val1: %lu\\n  val2: %lu\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_GT_UINT =
@@ -569,7 +583,7 @@ static const char *const CGTEST_H_TEMPLATE_GT_UINT =
     "    CGTEST_CMP_UINT_(\"EXPECT_GT_UINT\", <=, \"  val1: %lu\\n  val2: %lu\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_GT_UINT(val1, val2) \\\n"
-    "    CGTEST_CMP_UINT_(\"ASSERT_GT_UINT\", <=, \"  val1: %lu\\n  val2: %lu\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_UINT_(\"ASSERT_GT_UINT\", <=, \"  val1: %lu\\n  val2: %lu\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_GE_UINT =
@@ -577,7 +591,7 @@ static const char *const CGTEST_H_TEMPLATE_GE_UINT =
     "    CGTEST_CMP_UINT_(\"EXPECT_GE_UINT\", <, \"  val1: %lu\\n  val2: %lu\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_GE_UINT(val1, val2) \\\n"
-    "    CGTEST_CMP_UINT_(\"ASSERT_GE_UINT\", <, \"  val1: %lu\\n  val2: %lu\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_UINT_(\"ASSERT_GE_UINT\", <, \"  val1: %lu\\n  val2: %lu\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_LT_FLOAT =
@@ -585,7 +599,7 @@ static const char *const CGTEST_H_TEMPLATE_LT_FLOAT =
     "    CGTEST_CMP_FLOAT_(\"EXPECT_LT_FLOAT\", >=, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_LT_FLOAT(val1, val2) \\\n"
-    "    CGTEST_CMP_FLOAT_(\"ASSERT_LT_FLOAT\", >=, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_FLOAT_(\"ASSERT_LT_FLOAT\", >=, \"  val1: %g\\n  val2: %g\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_LE_FLOAT =
@@ -593,7 +607,7 @@ static const char *const CGTEST_H_TEMPLATE_LE_FLOAT =
     "    CGTEST_CMP_FLOAT_(\"EXPECT_LE_FLOAT\", >, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_LE_FLOAT(val1, val2) \\\n"
-    "    CGTEST_CMP_FLOAT_(\"ASSERT_LE_FLOAT\", >, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_FLOAT_(\"ASSERT_LE_FLOAT\", >, \"  val1: %g\\n  val2: %g\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_GT_FLOAT =
@@ -601,7 +615,7 @@ static const char *const CGTEST_H_TEMPLATE_GT_FLOAT =
     "    CGTEST_CMP_FLOAT_(\"EXPECT_GT_FLOAT\", <=, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_GT_FLOAT(val1, val2) \\\n"
-    "    CGTEST_CMP_FLOAT_(\"ASSERT_GT_FLOAT\", <=, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_FLOAT_(\"ASSERT_GT_FLOAT\", <=, \"  val1: %g\\n  val2: %g\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_GE_FLOAT =
@@ -609,7 +623,7 @@ static const char *const CGTEST_H_TEMPLATE_GE_FLOAT =
     "    CGTEST_CMP_FLOAT_(\"EXPECT_GE_FLOAT\", <, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_GE_FLOAT(val1, val2) \\\n"
-    "    CGTEST_CMP_FLOAT_(\"ASSERT_GE_FLOAT\", <, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_FLOAT_(\"ASSERT_GE_FLOAT\", <, \"  val1: %g\\n  val2: %g\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_LT_DOUBLE =
@@ -617,7 +631,7 @@ static const char *const CGTEST_H_TEMPLATE_LT_DOUBLE =
     "    CGTEST_CMP_DOUBLE_(\"EXPECT_LT_DOUBLE\", >=, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_LT_DOUBLE(val1, val2) \\\n"
-    "    CGTEST_CMP_DOUBLE_(\"ASSERT_LT_DOUBLE\", >=, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_DOUBLE_(\"ASSERT_LT_DOUBLE\", >=, \"  val1: %g\\n  val2: %g\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_LE_DOUBLE =
@@ -625,7 +639,7 @@ static const char *const CGTEST_H_TEMPLATE_LE_DOUBLE =
     "    CGTEST_CMP_DOUBLE_(\"EXPECT_LE_DOUBLE\", >, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_LE_DOUBLE(val1, val2) \\\n"
-    "    CGTEST_CMP_DOUBLE_(\"ASSERT_LE_DOUBLE\", >, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_DOUBLE_(\"ASSERT_LE_DOUBLE\", >, \"  val1: %g\\n  val2: %g\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_GT_DOUBLE =
@@ -633,7 +647,7 @@ static const char *const CGTEST_H_TEMPLATE_GT_DOUBLE =
     "    CGTEST_CMP_DOUBLE_(\"EXPECT_GT_DOUBLE\", <=, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_GT_DOUBLE(val1, val2) \\\n"
-    "    CGTEST_CMP_DOUBLE_(\"ASSERT_GT_DOUBLE\", <=, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_DOUBLE_(\"ASSERT_GT_DOUBLE\", <=, \"  val1: %g\\n  val2: %g\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_GE_DOUBLE =
@@ -641,7 +655,7 @@ static const char *const CGTEST_H_TEMPLATE_GE_DOUBLE =
     "    CGTEST_CMP_DOUBLE_(\"EXPECT_GE_DOUBLE\", <, \"  val1: %g\\n  val2: %g\\n\", ((void)0), val1, val2)\n"
     "\n"
     "#define ASSERT_GE_DOUBLE(val1, val2) \\\n"
-    "    CGTEST_CMP_DOUBLE_(\"ASSERT_GE_DOUBLE\", <, \"  val1: %g\\n  val2: %g\\n\", return, val1, val2)\n"
+    "    CGTEST_CMP_DOUBLE_(\"ASSERT_GE_DOUBLE\", <, \"  val1: %g\\n  val2: %g\\n\", { cgtest_fatal_failed = 1; return; }, val1, val2)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_CMP_PTR1 =
@@ -666,7 +680,7 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_PTR =
     "    CGTEST_CMP_PTR_(\"EXPECT_EQ_PTR\", !=, \"  expected: %p\\n  actual:   %p\\n\", ((void)0), expected, actual)\n"
     "\n"
     "#define ASSERT_EQ_PTR(expected, actual) \\\n"
-    "    CGTEST_CMP_PTR_(\"ASSERT_EQ_PTR\", !=, \"  expected: %p\\n  actual:   %p\\n\", return, expected, actual)\n"
+    "    CGTEST_CMP_PTR_(\"ASSERT_EQ_PTR\", !=, \"  expected: %p\\n  actual:   %p\\n\", { cgtest_fatal_failed = 1; return; }, expected, actual)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_EQ_NE_PTR2 =
@@ -674,7 +688,7 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_PTR2 =
     "    CGTEST_CMP_PTR_(\"EXPECT_NE_PTR\", ==, \"  unexpected: %p\\n  actual:     %p\\n\", ((void)0), unexpected, actual)\n"
     "\n"
     "#define ASSERT_NE_PTR(unexpected, actual) \\\n"
-    "    CGTEST_CMP_PTR_(\"ASSERT_NE_PTR\", ==, \"  unexpected: %p\\n  actual:     %p\\n\", return, unexpected, actual)\n"
+    "    CGTEST_CMP_PTR_(\"ASSERT_NE_PTR\", ==, \"  unexpected: %p\\n  actual:     %p\\n\", { cgtest_fatal_failed = 1; return; }, unexpected, actual)\n"
     "\n";
 
 /* Content comparison via strcmp(), not pointer equality - two equal
@@ -706,7 +720,7 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_STR =
     "    CGTEST_CMP_STR_(\"EXPECT_EQ_STR\", !=, \"  expected: \", \"  actual:   \", ((void)0), expected, actual)\n"
     "\n"
     "#define ASSERT_EQ_STR(expected, actual) \\\n"
-    "    CGTEST_CMP_STR_(\"ASSERT_EQ_STR\", !=, \"  expected: \", \"  actual:   \", return, expected, actual)\n"
+    "    CGTEST_CMP_STR_(\"ASSERT_EQ_STR\", !=, \"  expected: \", \"  actual:   \", { cgtest_fatal_failed = 1; return; }, expected, actual)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_EQ_NE_STR2 =
@@ -714,7 +728,7 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_STR2 =
     "    CGTEST_CMP_STR_(\"EXPECT_NE_STR\", ==, \"  unexpected: \", \"  actual:     \", ((void)0), unexpected, actual)\n"
     "\n"
     "#define ASSERT_NE_STR(unexpected, actual) \\\n"
-    "    CGTEST_CMP_STR_(\"ASSERT_NE_STR\", ==, \"  unexpected: \", \"  actual:     \", return, unexpected, actual)\n"
+    "    CGTEST_CMP_STR_(\"ASSERT_NE_STR\", ==, \"  unexpected: \", \"  actual:     \", { cgtest_fatal_failed = 1; return; }, unexpected, actual)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_STRCASECMP1 =
@@ -767,7 +781,7 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_STR_NOCASE =
     "    CGTEST_CMP_STR_NOCASE_(\"EXPECT_EQ_STR_NOCASE\", !=, \"  expected: \", \"  actual:   \", ((void)0), expected, actual)\n"
     "\n"
     "#define ASSERT_EQ_STR_NOCASE(expected, actual) \\\n"
-    "    CGTEST_CMP_STR_NOCASE_(\"ASSERT_EQ_STR_NOCASE\", !=, \"  expected: \", \"  actual:   \", return, expected, actual)\n"
+    "    CGTEST_CMP_STR_NOCASE_(\"ASSERT_EQ_STR_NOCASE\", !=, \"  expected: \", \"  actual:   \", { cgtest_fatal_failed = 1; return; }, expected, actual)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_EQ_NE_STR_NOCASE2 =
@@ -775,7 +789,7 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_STR_NOCASE2 =
     "    CGTEST_CMP_STR_NOCASE_(\"EXPECT_NE_STR_NOCASE\", ==, \"  unexpected: \", \"  actual:     \", ((void)0), unexpected, actual)\n"
     "\n"
     "#define ASSERT_NE_STR_NOCASE(unexpected, actual) \\\n"
-    "    CGTEST_CMP_STR_NOCASE_(\"ASSERT_NE_STR_NOCASE\", ==, \"  unexpected: \", \"  actual:     \", return, unexpected, actual)\n"
+    "    CGTEST_CMP_STR_NOCASE_(\"ASSERT_NE_STR_NOCASE\", ==, \"  unexpected: \", \"  actual:     \", { cgtest_fatal_failed = 1; return; }, unexpected, actual)\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_FOOTER =
@@ -793,12 +807,34 @@ static const char *const CGTEST_H_TEMPLATE_FOOTER =
  * so it includes via "cgtest/cgtest.h" and doesn't reference the
  * mathlib example's other files in its header comment). */
 static const char *const CGTEST_TEST_MACROS_TEMPLATE1 =
-    "/* test_cgtest_macros.c - one example per macro from cgtest.h. These\n"
-    " * checks do not do anything useful; they exist purely to show each\n"
-    " * macro's call shape. Discovered and run automatically by\n"
-    " * \"cgtest --run .\" - \".\" is already in cgtest-project.json's\n"
-    " * test_directories by default. */\n"
+    "/* test_cgtest_macros.c - a fixture example, then one example per\n"
+    " * macro from cgtest.h. These checks do not do anything useful; they\n"
+    " * exist purely to show each macro's call shape (and, for the first\n"
+    " * one, the fixture shape - see specification.md ch.6 \"Fixtures\").\n"
+    " * Discovered and run automatically by \"cgtest --run .\" - \".\" is\n"
+    " * already in cgtest-project.json's test_directories by default. */\n"
     "#include \"cgtest.h\"\n"
+    "\n"
+    "typedef struct {\n"
+    "    int value;\n"
+    "} Counter;\n"
+    "\n";
+
+static const char *const CGTEST_TEST_MACROS_TEMPLATE2 =
+    "void setup_counter(Counter *counter)\n"
+    "{\n"
+    "    counter->value = 42;\n"
+    "}\n"
+    "\n"
+    "void teardown_counter(Counter *counter)\n"
+    "{\n"
+    "    counter->value = 0;\n"
+    "}\n"
+    "\n"
+    "void test_counter(Counter *counter)\n"
+    "{\n"
+    "    EXPECT_EQ_INT(42, counter->value);\n"
+    "}\n"
     "\n"
     "void test_expect_true(void)\n"
     "{\n"
@@ -808,7 +844,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE1 =
     "void test_expect_false(void)\n"
     "{\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE2 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE3 =
     "    EXPECT_FALSE(1 == 2);\n"
     "}\n"
     "\n"
@@ -843,7 +879,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE2 =
     "}\n"
     "\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE3 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE4 =
     "void test_expect_eq_uint(void)\n"
     "{\n"
     "    EXPECT_EQ_UINT(42u, 42u);\n"
@@ -868,7 +904,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE3 =
     "{\n"
     "    /* 1.1f - 1.0f isn't bit-identical to 0.1f - this passes only\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE4 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE5 =
     "     * because of EXPECT_EQ_FLOAT's epsilon tolerance; exact equality\n"
     "     * would fail here. */\n"
     "    EXPECT_EQ_FLOAT(0.1f, 1.1f - 1.0f);\n"
@@ -887,7 +923,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE4 =
     "}\n"
     "\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE5 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE6 =
     "void test_assert_ne_float(void)\n"
     "{\n"
     "    ASSERT_NE_FLOAT(4.2f, 4.3f);\n"
@@ -913,7 +949,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE5 =
     "{\n"
     "    ASSERT_NE_DOUBLE(4.2, 4.3);\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE6 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE7 =
     "}\n"
     "\n"
     "void test_expect_near_double(void)\n"
@@ -947,7 +983,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE6 =
     "}\n"
     "\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE7 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE8 =
     "void test_expect_gt_int(void)\n"
     "{\n"
     "    EXPECT_GT_INT(2, 1);\n"
@@ -981,7 +1017,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE7 =
     "void test_expect_le_uint(void)\n"
     "{\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE8 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE9 =
     "    EXPECT_LE_UINT(2u, 2u);\n"
     "}\n"
     "\n"
@@ -1015,7 +1051,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE8 =
     "    EXPECT_LT_FLOAT(1.0f, 2.0f);\n"
     "}\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE9 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE10 =
     "\n"
     "void test_assert_lt_float(void)\n"
     "{\n"
@@ -1047,7 +1083,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE9 =
     "    EXPECT_GE_FLOAT(2.0f, 2.0f);\n"
     "}\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE10 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE11 =
     "\n"
     "void test_assert_ge_float(void)\n"
     "{\n"
@@ -1079,7 +1115,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE10 =
     "    EXPECT_GT_DOUBLE(2.0, 1.0);\n"
     "}\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE11 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE12 =
     "\n"
     "void test_assert_gt_double(void)\n"
     "{\n"
@@ -1114,7 +1150,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE11 =
     "{\n"
     "    int x = 0;\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE12 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE13 =
     "    int y = 0;\n"
     "\n"
     "    EXPECT_NE_PTR(&x, &y);\n"
@@ -1146,7 +1182,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE12 =
     "void test_assert_ne_str(void)\n"
     "{\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE13 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE14 =
     "    ASSERT_NE_STR(\"cgtest\", \"gtest\");\n"
     "}\n"
     "\n"
@@ -1328,7 +1364,7 @@ CGTestCreateResult cgtest_create_run(const char *dir)
     }
     if (!cgtest_create_write_file(header_path.data, error_buf, sizeof(error_buf),
                                    CGTEST_H_TEMPLATE_HEAD1, CGTEST_H_TEMPLATE_HEAD1B, CGTEST_H_TEMPLATE_HEAD1C,
-                                   CGTEST_H_TEMPLATE_HEAD2,
+                                   CGTEST_H_TEMPLATE_HEAD2, CGTEST_H_TEMPLATE_FATAL_FAILED,
                                    CGTEST_H_TEMPLATE_RELPATH1, CGTEST_H_TEMPLATE_RELPATH2,
                                    CGTEST_H_TEMPLATE_STRFIELD1, CGTEST_H_TEMPLATE_STRFIELD2,
                                    CGTEST_H_TEMPLATE_STRFIELD3, CGTEST_H_TEMPLATE_STRFIELD4,
@@ -1369,12 +1405,13 @@ CGTestCreateResult cgtest_create_run(const char *dir)
     }
     if (!cgtest_create_write_file(test_path.data, error_buf, sizeof(error_buf),
                                    CGTEST_TEST_MACROS_TEMPLATE1, CGTEST_TEST_MACROS_TEMPLATE2,
-                                   CGTEST_TEST_MACROS_TEMPLATE3, CGTEST_TEST_MACROS_TEMPLATE4,
-                                   CGTEST_TEST_MACROS_TEMPLATE5, CGTEST_TEST_MACROS_TEMPLATE6,
-                                   CGTEST_TEST_MACROS_TEMPLATE7, CGTEST_TEST_MACROS_TEMPLATE8,
-                                   CGTEST_TEST_MACROS_TEMPLATE9, CGTEST_TEST_MACROS_TEMPLATE10,
-                                   CGTEST_TEST_MACROS_TEMPLATE11, CGTEST_TEST_MACROS_TEMPLATE12,
-                                   CGTEST_TEST_MACROS_TEMPLATE13,
+                                   CGTEST_TEST_MACROS_TEMPLATE3,
+                                   CGTEST_TEST_MACROS_TEMPLATE4, CGTEST_TEST_MACROS_TEMPLATE5,
+                                   CGTEST_TEST_MACROS_TEMPLATE6, CGTEST_TEST_MACROS_TEMPLATE7,
+                                   CGTEST_TEST_MACROS_TEMPLATE8, CGTEST_TEST_MACROS_TEMPLATE9,
+                                   CGTEST_TEST_MACROS_TEMPLATE10, CGTEST_TEST_MACROS_TEMPLATE11,
+                                   CGTEST_TEST_MACROS_TEMPLATE12, CGTEST_TEST_MACROS_TEMPLATE13,
+                                   CGTEST_TEST_MACROS_TEMPLATE14,
                                    (const char *)NULL)) {
         return cgtest_create_fail(error_buf);
     }

@@ -179,3 +179,120 @@ cgtest.exe --init ./unitest
 cgtest.exe --version
 cgtest.exe --help
 ```
+
+---
+
+## 6. Fixtures
+
+Implemented in ctestscanner.c/h and cgtest_runner.c/h; see
+examples/mathlib/tests/test_math_fixture.c for a working example. One guiding
+constraint shaped the design: a core reason to use cgtest over GoogleTest is faster
+compilation and execution, so the fixture design stays fully static - no heap
+allocation cgtest itself imposes, no vtables/virtual dispatch, no per-test polymorphic
+instance construction the way GoogleTest's class-based `TEST_F` fixtures work.
+Everything below is plain C structs, stack allocation, and functions the compiler
+resolves at compile time.
+
+### Shape
+
+A test function opts into a fixture by taking one pointer parameter instead of `(void)`:
+
+```c
+void test_bar(State *state) { ... }
+```
+
+Two more functions, name-derived from the test function (`test_<name>` ->
+`setup_<name>`/`teardown_<name>`), initialize and clean up that fixture in place:
+
+```c
+void setup_bar(State *state) { ... }
+void teardown_bar(State *state) { ... }
+```
+
+Both return `void` - `setup_bar` reports a failure the same way any other test-adjacent
+code does, by calling `EXPECT_*`/`ASSERT_*` (see "Generated code" below for how a fatal
+one affects `test_bar`).
+
+`setup_<name>` is mandatory: `*state` is passed to `test_<name>` uninitialized stack
+memory otherwise, since `State` is a plain struct with no constructor - unlike
+GoogleTest, where a fixture object is always at least default-constructed even if
+`SetUp()` is never overridden, so omitting it there is safe. `teardown_<name>` is
+optional: a fixture with nothing to release can simply not define one, rather than being
+required to write a no-op function - GoogleTest treats `SetUp()`/`TearDown()`
+symmetrically (both optional, since both are virtual methods with empty default bodies),
+but cgtest's lack of that mechanism (no vtables - see the constraint above) makes
+`setup_<name>` a deliberate exception, not a symmetric pair.
+
+### Per-test, not per-file
+
+Setup/teardown wrap *each* call to `test_bar`, not the whole file, matching GoogleTest's
+per-test semantics (fresh state, no mutation leaking between tests) rather than cgtest's
+existing "first/last function in a file as manual setup/teardown" convention (see
+chapter 4), which continues to exist unchanged as a separate, simpler idiom for tests
+that don't need a fixture.
+
+### Generated code
+
+`State` is declared on the stack in the generated runner, not heap-allocated/returned by
+`setup_bar` - cgtest never owns or frees the fixture, only the author's `setup_bar`/
+`teardown_bar` do (e.g. if `State` itself contains heap-owned members):
+
+```c
+{
+    State state;
+    setup_bar(&state);
+    if (!cgtest_fatal_failed) {
+        test_bar(&state);
+    }
+    teardown_bar(&state);   /* only if teardown_bar was found - see below */
+}
+```
+
+`cgtest_fatal_failed` is a second flag alongside `cgtest_failed`, set only by `ASSERT_*`
+(never `EXPECT_*`) and reset to 0 by the runner right before `setup_bar` runs, same as
+`cgtest_failed`. If `setup_bar` hits a fatal (`ASSERT_*`) failure, `*state` may be only
+partially initialized, so `test_bar` is skipped rather than run against it - matching
+GoogleTest's own `SetUp()`/`TestBody()` behavior, where a fatal `SetUp()` failure skips
+`TestBody()` but a non-fatal `EXPECT_*` one does not. A present `teardown_bar` still
+always runs regardless of that check; when none was found (see "Validation before
+invoking the compiler" below), the call is omitted entirely rather than emitted against a
+function that doesn't exist.
+
+### What ctestscanner.h needed
+
+`ctestscanner_find()` matched only the literal pattern `void test_<name>(void) {` (see
+`CTestFunction` in ctestscanner.h) before this chapter was implemented. It now also
+recognizes the one-parameter form and captures the parameter's type text (e.g. `State`)
+verbatim into `CTestFunction::fixture_type` (`NULL` for the plain `(void)` form), to
+emit the `State state;` declaration above - no other understanding of the type is
+required, since the C compiler enforces everything else.
+
+### Validation before invoking the compiler
+
+Before compiling, cgtest checks that `setup_<name>` exists for every test that takes a
+fixture, and fails with a clear cgtest-level message (like the existing
+duplicate-basename-across-directories check in cgtest_runner.c) rather than surfacing a
+raw linker error. This check is existence-only - it does *not* compare `setup_<name>`'s
+declared parameter type against `test_<name>`'s; a type mismatch (e.g. a typo'd type
+name) is left entirely to the C compiler's own type checking, which already reports it
+better than a bespoke cgtest-side comparison would.
+
+`teardown_<name>` is checked for existence the same way, but a missing one is not an
+error - it's recorded (`CTestFunction::has_teardown`) so "Generated code" above can omit
+the call entirely instead.
+
+### Explicitly rejected: multiple fixtures per test
+
+`test_more(State0 *a, State1 *b)` was considered and rejected. Supporting it isn't a
+small extension - fixtures shared across many tests naturally want to be keyed by type
+or parameter name rather than by test name, which is a different naming convention, not
+a generalization of the one above, and scanning would need to parse an arbitrary
+parameter list instead of "0 or 1 params". The author gets the same result today by
+aggregating manually:
+
+```c
+typedef struct { State0 s0; State1 s1; } MoreState;
+```
+
+with one `setup_more`/`teardown_more` initializing both members. cgtest caps fixtures at
+exactly one per test and points to composition for anything more.
