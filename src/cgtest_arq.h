@@ -27,6 +27,7 @@ typedef struct {
     CGTestArgAction  action;
     char const      *run_path;     /* points into argv; set iff action == CGTEST_ARG_RUN */
     char const      *init_path;    /* points into argv; set iff action == CGTEST_ARG_INIT */
+    int              time;         /* 1 if -t/--time was given; meaningful only when action == CGTEST_ARG_RUN */
     char            *error;        /* malloc'd human-readable message, non-NULL iff action == CGTEST_ARG_ERROR */
 } CGTestArgs;
 
@@ -34,6 +35,12 @@ typedef struct {
  * per specification.md: -r/--run <path>, -i/--init <path>,
  * -v/--version, -h/--help. Exactly one of these must be given -
  * combining more than one, or giving none, is reported as an error.
+ *
+ * -t/--time is a separate modifier flag (not an action of its own):
+ * it prints a scan/generate/compile/run timing breakdown alongside
+ * -r/--run's normal output (see cgtest_runner.h's CGTestRunResult).
+ * Giving it without -r/--run, or alongside -i/-v/-h, is an error - it
+ * has nothing to modify otherwise.
  */
 CGTestArgs cgtest_arq_parse(int argc, char **argv);
 

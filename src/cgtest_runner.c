@@ -16,6 +16,7 @@
 #include "cpath.h"
 #include "cmsg.h"
 #include "clexer.h"
+#include "ctimer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -529,6 +530,20 @@ CGTestRunResult cgtest_runner_run(const CGTestProject *project)
     char *compile_cmd;
     int system_result;
     size_t i;
+    double t_start;
+    double t_phase;
+    double t_now;
+    double scan_ms;
+    double generate_ms;
+    double compile_ms;
+    double run_ms;
+
+    t_start = ctimer_now_ms();
+    t_phase = t_start;
+    scan_ms = 0.0;
+    generate_ms = 0.0;
+    compile_ms = 0.0;
+    run_ms = 0.0;
 
     result.ok = 0;
     result.error = NULL;
@@ -634,6 +649,13 @@ CGTestRunResult cgtest_runner_run(const CGTestProject *project)
         }
     }
 
+    /* "scan" ends here: discovery, function scanning, and every
+     * pre-compile validation check above are done - everything below
+     * is building/writing cgtest-runner.c itself. */
+    t_now = ctimer_now_ms();
+    scan_ms = t_now - t_phase;
+    t_phase = t_now;
+
     if (stat(project->output_path, &st) != 0) {
         if (CGTEST_RUNNER_MKDIR(project->output_path) != 0) {
             char msg[CGTEST_RUNNER_ERROR_BUFSZ];
@@ -686,7 +708,19 @@ CGTestRunResult cgtest_runner_run(const CGTestProject *project)
     }
     fclose(f);
 
+    t_now = ctimer_now_ms();
+    generate_ms = t_now - t_phase;
+    t_phase = t_now;
+
     system_result = system(compile_cmd);
+
+    /* Measured immediately after the call, before checking whether it
+     * failed - compile_ms reflects time actually spent compiling
+     * either way, useful even (especially) when the compile fails. */
+    t_now = ctimer_now_ms();
+    compile_ms = t_now - t_phase;
+    t_phase = t_now;
+
     if (system_result != 0) {
         cgtest_runner_set_error(&result, "compilation failed (see compiler output above)");
         goto cleanup;
@@ -697,6 +731,12 @@ CGTestRunResult cgtest_runner_run(const CGTestProject *project)
         cmsg_build(exec_cmd, sizeof(exec_cmd), "\"", runner_bin_path.data, runner_bin_path.length, "\"");
         system_result = system(exec_cmd);
     }
+
+    /* Same reasoning as compile_ms above - measured before the
+     * system_result == -1 check. */
+    t_now = ctimer_now_ms();
+    run_ms = t_now - t_phase;
+
     if (system_result == -1) {
         cgtest_runner_set_error(&result, "could not execute cgtest-runner");
         goto cleanup;
@@ -707,6 +747,12 @@ CGTestRunResult cgtest_runner_run(const CGTestProject *project)
     result.exit_code = cgtest_runner_decode_exit(system_result);
 
 cleanup:
+    result.scan_ms = scan_ms;
+    result.generate_ms = generate_ms;
+    result.compile_ms = compile_ms;
+    result.run_ms = run_ms;
+    result.total_ms = ctimer_now_ms() - t_start;
+
     free(compile_cmd);
     free(source);
     for (i = 0; i < runner_file_count; i++) {

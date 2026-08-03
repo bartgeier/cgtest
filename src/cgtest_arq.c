@@ -23,6 +23,7 @@ typedef struct {
     int version;
     char const *run_path;
     char const *init_path;
+    int time;
 } CGTestArqRaw;
 
 static CGTestArqRaw *raw_m;
@@ -52,12 +53,19 @@ static void fn_init(Arq_Queue *queue)
     }
 }
 
+static void fn_time(Arq_Queue *queue)
+{
+    (void)queue;
+    raw_m->time = 1;
+}
+
 static CGTestArgs cgtest_arq_fail(const char *message)
 {
     CGTestArgs args;
     args.action = CGTEST_ARG_ERROR;
     args.run_path = NULL;
     args.init_path = NULL;
+    args.time = 0;
     args.error = cmsg_dup(message, strlen(message));
     return args;
 }
@@ -72,13 +80,15 @@ CGTestArgs cgtest_arq_parse(int argc, char **argv)
         { 'h', "help",    fn_help,    "()" },
         { 'v', "version", fn_version, "()" },
         { 'r', "run",     fn_run,     "(cstr_t path)" },
-        { 'i', "init",    fn_init,    "(cstr_t path = NULL)" }
+        { 'i', "init",    fn_init,    "(cstr_t path = NULL)" },
+        { 't', "time",    fn_time,    "()" }
     };
 
     raw.help = 0;
     raw.version = 0;
     raw.run_path = NULL;
     raw.init_path = NULL;
+    raw.time = 0;
     raw_m = &raw;
 
     if (0 < arq_verify(arena, sizeof(arena), options, sizeof(options) / sizeof(options[0]))) {
@@ -99,6 +109,7 @@ CGTestArgs cgtest_arq_parse(int argc, char **argv)
     args.error = NULL;
     args.run_path = raw.run_path;
     args.init_path = raw.init_path;
+    args.time = raw.time;
     if (raw.help) {
         args.action = CGTEST_ARG_HELP;
     } else if (raw.version) {
@@ -108,6 +119,11 @@ CGTestArgs cgtest_arq_parse(int argc, char **argv)
     } else {
         args.action = CGTEST_ARG_INIT;
     }
+
+    if (raw.time && args.action != CGTEST_ARG_RUN) {
+        return cgtest_arq_fail("-t/--time can only be combined with -r/--run");
+    }
+
     return args;
 }
 

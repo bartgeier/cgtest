@@ -121,9 +121,24 @@ char *cgtest_runner_build_compile_command(const CGTestProject *project,
                                            const char *runner_c_path, const char *runner_bin_path);
 
 typedef struct {
-    int   ok;         /* 0 = failed before a runner binary could be produced/run; see error */
-    char *error;      /* malloc'd human-readable message, non-NULL only if !ok */
-    int   exit_code;  /* the compiled cgtest-runner binary's exit code; valid only if ok */
+    int    ok;          /* 0 = failed before a runner binary could be produced/run; see error */
+    char  *error;       /* malloc'd human-readable message, non-NULL only if !ok */
+    int    exit_code;   /* the compiled cgtest-runner binary's exit code; valid only if ok */
+
+    /* Wall-clock milliseconds per phase (see ctimer.h), always
+     * measured regardless of the -t/--time flag - printing them (only
+     * when that flag was given) is cgtest_main.c's job, the one place
+     * allowed to write to stdout/stderr (see its own header comment).
+     * A phase never reached because an earlier one failed stays 0.0;
+     * total_ms is the actual wall time from cgtest_runner_run()'s
+     * entry to its return, which may exceed the sum of the four below
+     * if the failure happened mid-phase (e.g. partway through file
+     * discovery, before "scan" is considered complete). */
+    double scan_ms;       /* ctestfiles_scan()/ctestscanner_find() + fixture/duplicate-basename validation */
+    double generate_ms;   /* cgtest_runner_generate_source() + writing cgtest-runner.c to disk */
+    double compile_ms;    /* the compiler invocation */
+    double run_ms;        /* executing the compiled cgtest-runner binary */
+    double total_ms;
 } CGTestRunResult;
 
 /* Runs "project" end to end:

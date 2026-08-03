@@ -21,11 +21,23 @@ static void print_help(void)
     printf("cgtest - a command-line C unit test DSL compiler\n");
     printf("\n");
     printf("  cgtest --run <path>      generate, compile and run cgtest-runner.c\n");
+    printf("  cgtest --run <path> --time   also print a scan/generate/compile/run timing breakdown\n");
     printf("  cgtest --init <dir>      create cgtest-project.json, cgtest.h, and an example test inside <dir>/cgtest\n");
     printf("  cgtest --version         print the cgtest version\n");
     printf("  cgtest --help            print this message\n");
     printf("\n");
     printf("https://github.com/bartgeier/cgtest\n");
+}
+
+/* Printed after --run's own output, only when -t/--time was given (see
+ * CGTestArgs::time) - regardless of whether the run itself succeeded,
+ * since seeing where time went is useful on a compile failure too
+ * (see CGTestRunResult's field comments for what "unreached phase" -
+ * printed as 0.0 - means). */
+static void print_timing(const CGTestRunResult *result)
+{
+    printf("scan: %.1fms  generate: %.1fms  compile: %.1fms  run: %.1fms  total: %.1fms\n",
+           result->scan_ms, result->generate_ms, result->compile_ms, result->run_ms, result->total_ms);
 }
 
 int main(int argc, char **argv)
@@ -74,6 +86,9 @@ int main(int argc, char **argv)
                 exit_code = 1;
             } else {
                 exit_code = result.exit_code;
+            }
+            if (args.time) {
+                print_timing(&result);
             }
             cgtest_runner_free(&result);
         }
