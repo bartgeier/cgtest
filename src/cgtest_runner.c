@@ -122,6 +122,10 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
     CGTestRunnerBuf buf;
     size_t i;
     size_t j;
+    size_t k;
+    const char **seen_types;
+    size_t seen_count;
+    size_t total_functions;
 
     if (!cgtest_runner_buf_init(&buf)) {
         return NULL;
@@ -159,11 +163,132 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
         goto fail;
     }
 
+    /* Every discovered test_*.c file compiles as its own translation
+     * unit (see cgtest_runner_build_compile_command()) - cgtest-runner.c
+     * never #includes them, so their own static helpers/globals stay
+     * properly file-scoped instead of sharing a namespace with every
+     * other test file. What cgtest-runner.c needs from each file
+     * instead is declared here: a forward declaration of each distinct
+     * fixture type (see below), then an "extern" for every discovered
+     * function.
+     *
+     * Fixture types are forward-declared as incomplete ("typedef struct
+     * T T;") rather than #include'd or copied in full - cgtest-runner.c
+     * only ever holds/passes a "T *"/"T **", never allocates or
+     * dereferences a "T" by value, so it never needs T's real
+     * definition (see specification.md ch.6 "Generated code"). This
+     * requires the test file's own definition to tag its struct to
+     * match the typedef name (e.g. "typedef struct T { ... } T;", not
+     * the tag-less "typedef struct { ... } T;") - only then are the two
+     * separately-compiled "T"s the same type by C's own cross-
+     * translation-unit compatibility rule, not just two same-spelled
+     * but distinct opaque types that happen to work by ABI accident.
+     *
+     * Deduplicated across every file/function (counted via
+     * "total_functions" as an upper bound for the scratch array below)
+     * - the same type name forward-declared twice is a hard error under
+     * strict C89 -pedantic-errors (that redundant-typedef allowance is
+     * C11-only), and two *different* fixture tests sharing a type name
+     * is an ordinary, expected case (e.g. every test in one file using
+     * the same fixture). */
+    total_functions = 0;
     for (i = 0; i < file_count; i++) {
-        if (!cgtest_runner_buf_append_cstr(&buf, "#include \"") ||
-            !cgtest_runner_buf_append_cstr(&buf, cgtest_runner_basename(files[i].label)) ||
-            !cgtest_runner_buf_append_cstr(&buf, "\"\n")) {
+        total_functions += files[i].function_count;
+    }
+
+    seen_types = NULL;
+    if (total_functions > 0) {
+        seen_types = (const char **)malloc(total_functions * sizeof(const char *));
+        if (seen_types == NULL) {
             goto fail;
+        }
+    }
+
+    seen_count = 0;
+    for (i = 0; i < file_count; i++) {
+        for (j = 0; j < files[i].function_count; j++) {
+            const char *fixture_type = files[i].functions[j].fixture_type;
+            int already_seen;
+
+            if (fixture_type == NULL) {
+                continue;
+            }
+
+            already_seen = 0;
+            for (k = 0; k < seen_count; k++) {
+                if (strcmp(seen_types[k], fixture_type) == 0) {
+                    already_seen = 1;
+                    break;
+                }
+            }
+            if (already_seen) {
+                continue;
+            }
+
+            if (!cgtest_runner_buf_append_cstr(&buf, "typedef struct ") ||
+                !cgtest_runner_buf_append_cstr(&buf, fixture_type) ||
+                !cgtest_runner_buf_append_cstr(&buf, " ") ||
+                !cgtest_runner_buf_append_cstr(&buf, fixture_type) ||
+                !cgtest_runner_buf_append_cstr(&buf, ";\n")) {
+                free(seen_types);
+                goto fail;
+            }
+            seen_types[seen_count++] = fixture_type;
+        }
+    }
+    free(seen_types);
+
+    if (seen_count > 0 && !cgtest_runner_buf_append_cstr(&buf, "\n")) {
+        goto fail;
+    }
+
+    for (i = 0; i < file_count; i++) {
+        for (j = 0; j < files[i].function_count; j++) {
+            const char *name = files[i].functions[j].name;
+            const char *fixture_type = files[i].functions[j].fixture_type;
+
+            if (fixture_type == NULL) {
+                if (!cgtest_runner_buf_append_cstr(&buf, "extern void ") ||
+                    !cgtest_runner_buf_append_cstr(&buf, name) ||
+                    !cgtest_runner_buf_append_cstr(&buf, "(void);\n")) {
+                    goto fail;
+                }
+            } else {
+                /* "<name>" here is "name" with its "test_" prefix
+                 * stripped (guaranteed present: ctestscanner_find()
+                 * only ever reports functions matching "test_<name>").
+                 * setup_<name> takes a "T **" (out-param, not a return
+                 * value) specifically so it stays void-returning -
+                 * EXPECT_* and ASSERT_* (see cgtest.h) work inside it
+                 * completely unchanged, including ASSERT_*'s early
+                 * "return;", which wouldn't type-check in a function
+                 * declared to return "T *". */
+                const char *suffix = name + 5;
+                int has_teardown = files[i].functions[j].has_teardown;
+
+                if (!cgtest_runner_buf_append_cstr(&buf, "extern void setup_") ||
+                    !cgtest_runner_buf_append_cstr(&buf, suffix) ||
+                    !cgtest_runner_buf_append_cstr(&buf, "(") ||
+                    !cgtest_runner_buf_append_cstr(&buf, fixture_type) ||
+                    !cgtest_runner_buf_append_cstr(&buf, " **state);\n") ||
+                    !cgtest_runner_buf_append_cstr(&buf, "extern void ") ||
+                    !cgtest_runner_buf_append_cstr(&buf, name) ||
+                    !cgtest_runner_buf_append_cstr(&buf, "(") ||
+                    !cgtest_runner_buf_append_cstr(&buf, fixture_type) ||
+                    !cgtest_runner_buf_append_cstr(&buf, " *state);\n")) {
+                    goto fail;
+                }
+
+                if (has_teardown) {
+                    if (!cgtest_runner_buf_append_cstr(&buf, "extern void teardown_") ||
+                        !cgtest_runner_buf_append_cstr(&buf, suffix) ||
+                        !cgtest_runner_buf_append_cstr(&buf, "(") ||
+                        !cgtest_runner_buf_append_cstr(&buf, fixture_type) ||
+                        !cgtest_runner_buf_append_cstr(&buf, " *state);\n")) {
+                        goto fail;
+                    }
+                }
+            }
         }
     }
 
@@ -240,31 +365,35 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
                  * call. "<name>" here is "name" with its "test_" prefix
                  * stripped (guaranteed present: ctestscanner_find()
                  * only ever reports functions matching "test_<name>").
-                 * "state" is declared on the stack, not heap-allocated
-                 * - cgtest never owns the fixture. test_<name>(&state)
-                 * is skipped when setup_<name> hit a fatal (ASSERT_*)
-                 * failure - *state may be only partially initialized in
-                 * that case, so running the test body against it isn't
-                 * safe (matches GoogleTest's SetUp()/TestBody()
-                 * behavior); a present teardown_<name>(&state) still
-                 * always runs regardless. */
+                 * "state" starts NULL and is populated by setup_<name>
+                 * itself (an out-param, not a return value - see the
+                 * extern declaration above for why); cgtest-runner.c
+                 * never allocates or frees *state, only ever holds the
+                 * pointer setup_<name> hands back - if setup_<name>
+                 * never assigns it (e.g. a fatal ASSERT_* failure before
+                 * doing so), "state" stays the well-defined NULL it
+                 * started as, safe to pass to a present teardown_<name>.
+                 * test_<name>(state) is skipped when setup_<name> hit a
+                 * fatal (ASSERT_*) failure, matching GoogleTest's
+                 * SetUp()/TestBody() behavior; a present
+                 * teardown_<name>(state) still always runs regardless. */
                 const char *suffix = name + 5;
                 int has_teardown = files[i].functions[j].has_teardown;
 
                 if (!cgtest_runner_buf_append_cstr(&buf, "    {\n        ") ||
                     !cgtest_runner_buf_append_cstr(&buf, fixture_type) ||
-                    !cgtest_runner_buf_append_cstr(&buf, " state;\n        setup_") ||
+                    !cgtest_runner_buf_append_cstr(&buf, " *state = NULL;\n        setup_") ||
                     !cgtest_runner_buf_append_cstr(&buf, suffix) ||
                     !cgtest_runner_buf_append_cstr(&buf, "(&state);\n        if (!cgtest_fatal_failed) {\n            ") ||
                     !cgtest_runner_buf_append_cstr(&buf, name) ||
-                    !cgtest_runner_buf_append_cstr(&buf, "(&state);\n        }\n")) {
+                    !cgtest_runner_buf_append_cstr(&buf, "(state);\n        }\n")) {
                     goto fail;
                 }
 
                 if (has_teardown) {
                     if (!cgtest_runner_buf_append_cstr(&buf, "        teardown_") ||
                         !cgtest_runner_buf_append_cstr(&buf, suffix) ||
-                        !cgtest_runner_buf_append_cstr(&buf, "(&state);\n")) {
+                        !cgtest_runner_buf_append_cstr(&buf, "(state);\n")) {
                         goto fail;
                     }
                 }
@@ -349,16 +478,15 @@ static char *cgtest_runner_read_file(const char *path, size_t *out_length)
     return buffer;
 }
 
-/* Note: discovered test_*.c files are deliberately NOT passed here as
- * separate compilation units - cgtest-runner.c already pulls each one
- * in via its own #include "<basename>" line (see
- * cgtest_runner_generate_source()), so compiling them again here would
- * duplicate every test_ function's definition and fail to link.
- * Instead, every test_directories entry is added as its own include
- * flag so the compiler's quoted-include search finds each bare
- * filename - safe because cgtest_runner_run() has already rejected any
- * basename that appears in more than one test_directories entry. */
-char *cgtest_runner_build_compile_command(const CGTestProject *project,
+/* Every discovered test_*.c file (files[i].label) is passed as its own
+ * source argument, the same way project->source_files are - each
+ * compiles as its own translation unit, matching what
+ * cgtest_runner_generate_source() now assumes (an "extern" declaration
+ * per function, not an #include). Every test_directories entry is
+ * still added as its own include flag too - not for resolving the test
+ * files themselves anymore, but so a test file's own #include of a
+ * sibling header elsewhere in test_directories still keeps working. */
+char *cgtest_runner_build_compile_command(const CGTestProject *project, const CGTestRunnerFile *files, size_t file_count,
                                            const char *runner_c_path, const char *runner_bin_path)
 {
     CGTestRunnerBuf buf;
@@ -390,6 +518,13 @@ char *cgtest_runner_build_compile_command(const CGTestProject *project,
     for (i = 0; i < project->source_files.count; i++) {
         if (!cgtest_runner_buf_append_cstr(&buf, " \"") ||
             !cgtest_runner_buf_append_cstr(&buf, project->source_files.entries[i]) ||
+            !cgtest_runner_buf_append_cstr(&buf, "\"")) {
+            goto fail;
+        }
+    }
+    for (i = 0; i < file_count; i++) {
+        if (!cgtest_runner_buf_append_cstr(&buf, " \"") ||
+            !cgtest_runner_buf_append_cstr(&buf, files[i].label) ||
             !cgtest_runner_buf_append_cstr(&buf, "\"")) {
             goto fail;
         }
@@ -628,13 +763,16 @@ CGTestRunResult cgtest_runner_run(const CGTestProject *project)
         goto cleanup;
     }
 
-    /* The generated source #includes each file by its bare basename
-     * (see cgtest_runner_generate_source()), resolved at compile time
-     * via an include flag per test_directories entry - so two files
-     * sharing a basename across different test_directories would
-     * silently resolve to whichever one the compiler's search order
-     * finds first. Reject that up front rather than risk compiling
-     * the wrong file. */
+    /* Every discovered file is passed to the compiler as its own
+     * source argument (see cgtest_runner_build_compile_command()), not
+     * resolved via an include search anymore - but two test files
+     * sharing a basename across different test_directories is still
+     * rejected outright: MSVC's cl.exe names each source file's object
+     * file after its own basename by default, so two same-named files
+     * from different directories in one compile invocation would
+     * silently collide (whichever compiles second overwrites the
+     * first's object file). Reject that up front rather than risk a
+     * silently-wrong build. */
     for (i = 0; i < runner_file_count; i++) {
         size_t k;
         for (k = i + 1; k < runner_file_count; k++) {
@@ -679,7 +817,7 @@ CGTestRunResult cgtest_runner_run(const CGTestProject *project)
      * comment in cgtest-runner.c itself - handy for anyone who wants
      * to see or re-run the exact compile invocation without digging
      * through cgtest.exe's own output. */
-    compile_cmd = cgtest_runner_build_compile_command(project, runner_c_path.data, runner_bin_path.data);
+    compile_cmd = cgtest_runner_build_compile_command(project, runner_files, runner_file_count, runner_c_path.data, runner_bin_path.data);
     if (compile_cmd == NULL) {
         cgtest_runner_set_error(&result, "out of memory");
         goto cleanup;

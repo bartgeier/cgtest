@@ -5,19 +5,21 @@
  * specification.md ch.6 "Fixtures").
  */
 #include "cgtest/cgtest.h"
+#include <stdlib.h>
 
-typedef struct {
+typedef struct Counter {
     int value;
 } Counter;
 
-void setup_counter(Counter *counter)
+void setup_counter(Counter **counter)
 {
-    counter->value = 42;
+    *counter = calloc(1, sizeof(Counter));
+    (*counter)->value = 42;
 }
 
 void teardown_counter(Counter *counter)
 {
-    counter->value = 0;
+    free(counter);
 }
 
 void test_counter(Counter *counter)

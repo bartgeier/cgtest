@@ -2,27 +2,31 @@
  * "-r --run" section): discovers test_*.c files across a
  * CGTestProject's test_directories, scans each for test_ functions
  * (ctestscanner.h), generates cgtest-runner.c, compiles it alongside
- * the project's own source_files, and executes the result.
+ * the project's own source_files and every discovered test_*.c file
+ * (each as its own translation unit - see below), and executes the
+ * result.
  *
- * The generated runner #includes each discovered test_*.c file by its
- * bare filename directly rather than compiling it as its own
- * translation unit and declaring its test_ functions extern - one
- * short line per file instead of one per function, and the compiler
- * already has each function's real definition in scope by the time
- * main() calls it, so no forward declaration is needed. A bare
- * filename only resolves because cgtest_runner_run() adds every
- * test_directories entry as its own include flag to the compile
- * command (see cgtest_runner_run()'s duplicate-basename check below
- * for why that's still safe). Two tradeoffs worth knowing:
- *  - every included file shares one translation unit, so two test
- *    files defining a same-named helper (not just a test_ function)
- *    would collide - acceptable here since cgtest's own test_*.c
- *    convention keeps files self-contained;
- *  - two test files with the same basename in different
- *    test_directories would otherwise resolve ambiguously (whichever
- *    include path the compiler searches first) - cgtest_runner_run()
- *    rejects this case outright instead of risking a silently-wrong
- *    include.
+ * The generated runner never #includes a discovered test_*.c file -
+ * it only "extern"-declares the functions it needs to call
+ * (test_<name>, setup_<name>, and, if present, teardown_<name>), and
+ * cgtest_runner_build_compile_command() passes every test file to the
+ * compiler as its own separate source argument, alongside
+ * cgtest-runner.c itself. This means a static helper or global defined
+ * in one test file can no longer collide with a same-named one in
+ * another - each file keeps its own translation unit's scope, the
+ * normal C rule, rather than sharing one the way #include would force.
+ * A fixture's type (specification.md ch.6) still needs to be knowable
+ * to cgtest-runner.c despite this - see cgtest_runner_generate_source()
+ * for how that's resolved without ever needing the type's full
+ * definition there.
+ *
+ * Two test files sharing a basename across different test_directories
+ * is still rejected outright by cgtest_runner_run() (see its
+ * duplicate-basename check) even though bare-filename #include
+ * resolution is no longer the reason - MSVC's cl.exe otherwise names
+ * each source file's object file after its own basename by default,
+ * so two same-named files from different directories in one compile
+ * invocation would silently collide.
  *
  * Like cgtest_project.h, the source-generation step is split out as a
  * pure function (cgtest_runner_generate_source()) so it's unit-
@@ -45,10 +49,11 @@ extern "C" {
 /* One test_*.c file, already scanned for its test_ functions in the
  * order they appear (see ctestscanner_find()). Non-owning - "label"
  * and "functions" must outlive the cgtest_runner_generate_source()
- * call that reads them. "label" is the file's full path; only its
- * basename (everything after the last '/') ends up in the generated
- * #include line - the full path still matters for error messages and
- * for cgtest_runner_run()'s duplicate-basename check.
+ * call that reads them. "label" is the file's full path, used both for
+ * error messages and as the actual source argument
+ * cgtest_runner_build_compile_command() passes to the compiler
+ * (cgtest_runner_generate_source() itself only ever uses its
+ * basename, for the "== <file> ==" header it prints per file).
  */
 typedef struct {
     const char    *label;
@@ -61,34 +66,58 @@ typedef struct {
  * cgtest_runner_run() is about to invoke to compile this very file -
  * purely informational, so anyone inspecting or manually re-running
  * cgtest-runner.c can see it without digging through cgtest.exe's own
- * output), then #include "<basename of files[i].label>" for every
- * file (in array order), then a generated main() that calls every
- * discovered function in that same file order (and within a file, in
- * ctestscanner_find()'s order), printing PASS/FAIL per test and a
- * final summary, exiting nonzero iff any test failed.
+ * output), then one "typedef struct T T;" forward declaration per
+ * distinct fixture type across every file (deduplicated - see below),
+ * then an "extern" declaration for every discovered function, then a
+ * generated main() that calls every discovered function in file order
+ * (and within a file, in ctestscanner_find()'s order), printing
+ * PASS/FAIL per test and a final summary, exiting nonzero iff any test
+ * failed.
+ *
+ * Every discovered test_*.c file is its own translation unit (see
+ * cgtest_runner_build_compile_command()) - this function never
+ * #includes one, it only declares what it needs from it:
+ *
+ *     extern void test_foo(void);                 // plain (void) test
+ *
+ *     extern void setup_bar(State **state);        // fixture test (see below)
+ *     extern void test_bar(State *state);
+ *     extern void teardown_bar(State *state);       // only if CTestFunction::has_teardown
  *
  * A function whose CTestFunction::fixture_type is non-NULL (see
  * specification.md ch.6 "Fixtures") is called wrapped in its own
  * block instead of a bare "test_<name>();":
  *
  *     {
- *         <fixture_type> state;
+ *         State *state = NULL;
  *         setup_<name>(&state);
  *         if (!cgtest_fatal_failed) {
- *             test_<name>(&state);
+ *             test_<name>(state);
  *         }
- *         teardown_<name>(&state);   // only if CTestFunction::has_teardown
+ *         teardown_<name>(state);   // only if CTestFunction::has_teardown
  *     }
+ *
+ * "State" is forward-declared as an incomplete type ("typedef struct
+ * State State;", deduplicated across every use of the same type name)
+ * rather than #include'd or copied in full - this function only ever
+ * holds/passes a "State *"/"State **" here, never allocates or
+ * dereferences one by value, so it never needs the real definition.
+ * setup_<name> takes "State **" (an out-param) rather than returning
+ * "State *" specifically so it stays void-returning - EXPECT_* and
+ * ASSERT_* (see cgtest.h) work inside it exactly like they do in
+ * test_<name>, including ASSERT_*'s early "return;", which wouldn't
+ * type-check in a function declared to return "State *". "state"
+ * starts NULL and is populated by setup_<name> itself; if setup_<name>
+ * hits a fatal (ASSERT_*) failure before assigning it, it stays the
+ * well-defined NULL it started as - safe to skip in the test_<name>
+ * call above and safe to pass to a present teardown_<name>. cgtest
+ * itself never allocates or frees "state" - only the author's
+ * setup_<name>/teardown_<name> do, and it's fine for neither to free
+ * it: the runner process exits shortly after the last test either way.
  *
  * cgtest_fatal_failed (set only by ASSERT_*, unlike cgtest_failed which
  * both EXPECT_* and ASSERT_* set - see cgtest.h) is reset to 0 alongside
- * cgtest_failed right before this block; if setup_<name> hit a fatal
- * failure, *state may be only partially initialized, so test_<name> is
- * skipped rather than run against it - matching GoogleTest's own
- * SetUp()/TestBody() behavior. teardown_<name>(&state) is emitted only
- * when CTestFunction::has_teardown is set - unlike setup_<name>, a
- * fixture with nothing to release just omits it (specification.md ch.6),
- * rather than requiring the author to write a no-op function.
+ * cgtest_failed right before this block.
  *
  * "<name>" is "test_<name>" with its "test_" prefix stripped. Callers
  * are expected to have already verified setup_<name> exists and set
@@ -96,28 +125,29 @@ typedef struct {
  * itself performs no such check, since it's pure and has no way to
  * fail short of OOM.
  *
- * Pure - performs no filesystem access itself (though the #include
- * lines it emits will be resolved once the result is compiled).
- * Returns a malloc'd, NUL-terminated string the caller owns (free()
- * it); returns NULL only on allocation failure.
+ * Pure - performs no filesystem access itself. Returns a malloc'd,
+ * NUL-terminated string the caller owns (free() it); returns NULL only
+ * on allocation failure.
  */
 char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_count, const char *compile_command);
 
 /* Builds the full compiler invocation for "project": project->compiler_command
  * verbatim, then an include flag for every include_paths and
- * test_directories entry, then every source_files entry, then
- * "runner_c_path" itself, then the flag(s) naming "runner_bin_path" as
- * the output. Two flag dialects, chosen by project->msvc: GCC/Clang's
- * "-I\"path\"" and "-o \"path\"" (msvc == 0, the default), or MSVC
- * cl.exe's "/I\"path\"" and "/Fe:\"path\"" (msvc != 0) - cl.exe accepts
- * neither "-I" nor "-o", so a plain compiler_command change alone can't
- * target it.
+ * test_directories entry, then every source_files entry, then every
+ * files[i].label (each discovered test_*.c file, compiled as its own
+ * translation unit - see cgtest_runner_generate_source()'s header
+ * comment for why), then "runner_c_path" itself, then the flag(s)
+ * naming "runner_bin_path" as the output. Two flag dialects, chosen by
+ * project->msvc: GCC/Clang's "-I\"path\"" and "-o \"path\"" (msvc == 0,
+ * the default), or MSVC cl.exe's "/I\"path\"" and "/Fe:\"path\""
+ * (msvc != 0) - cl.exe accepts neither "-I" nor "-o", so a plain
+ * compiler_command change alone can't target it.
  *
  * Pure - performs no filesystem access itself. Returns a malloc'd,
  * NUL-terminated string the caller owns (free() it); returns NULL only
  * on allocation failure.
  */
-char *cgtest_runner_build_compile_command(const CGTestProject *project,
+char *cgtest_runner_build_compile_command(const CGTestProject *project, const CGTestRunnerFile *files, size_t file_count,
                                            const char *runner_c_path, const char *runner_bin_path);
 
 typedef struct {
@@ -150,11 +180,11 @@ typedef struct {
  *     doesn't exist yet, same as cgtest_create_run()'s directory
  *     handling).
  *  4. Compile it there via cgtest_runner_build_compile_command(): project->
- *     compiler_command, project->include_paths, and project->source_files,
- *     plus an include flag for every test_directories entry (so
- *     cgtest-runner.c's bare-filename #include lines resolve) - every
- *     discovered test file is pulled in that way, not compiled
- *     separately.
+ *     compiler_command, project->include_paths, project->source_files,
+ *     an include flag for every test_directories entry, and every
+ *     discovered test_*.c file passed as its own source argument
+ *     (compiled as its own translation unit, alongside cgtest-runner.c
+ *     itself).
  *  5. Execute the resulting binary.
  *
  * Before generating the source, any two test_*.c files across

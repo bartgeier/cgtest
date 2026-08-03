@@ -196,11 +196,11 @@ cgtest.exe --help
 Implemented in ctestscanner.c/h and cgtest_runner.c/h; see
 examples/mathlib/tests/test_math_fixture.c for a working example. One guiding
 constraint shaped the design: a core reason to use cgtest over GoogleTest is faster
-compilation and execution, so the fixture design stays fully static - no heap
-allocation cgtest itself imposes, no vtables/virtual dispatch, no per-test polymorphic
-instance construction the way GoogleTest's class-based `TEST_F` fixtures work.
-Everything below is plain C structs, stack allocation, and functions the compiler
-resolves at compile time.
+compilation and execution, so the fixture design stays fully static - no vtables/virtual
+dispatch, no per-test polymorphic instance construction the way GoogleTest's class-based
+`TEST_F` fixtures work, and no allocation cgtest itself imposes (only the author's own
+`setup_<name>` does, if it needs to). Everything below is plain C structs and functions
+the compiler resolves at compile time.
 
 ### Shape
 
@@ -211,26 +211,39 @@ void test_bar(State *state) { ... }
 ```
 
 Two more functions, name-derived from the test function (`test_<name>` ->
-`setup_<name>`/`teardown_<name>`), initialize and clean up that fixture in place:
+`setup_<name>`/`teardown_<name>`), initialize and clean up that fixture:
 
 ```c
-void setup_bar(State *state) { ... }
+typedef struct State {
+    int value;
+} State;
+
+void setup_bar(State **state) { ... }
 void teardown_bar(State *state) { ... }
 ```
 
-Both return `void` - `setup_bar` reports a failure the same way any other test-adjacent
-code does, by calling `EXPECT_*`/`ASSERT_*` (see "Generated code" below for how a fatal
-one affects `test_bar`).
+`State`'s struct tag must match its typedef name (`typedef struct State { ... } State;`,
+not the tag-less `typedef struct { ... } State;`) - see "Generated code" below for why.
 
-`setup_<name>` is mandatory: `*state` is passed to `test_<name>` uninitialized stack
-memory otherwise, since `State` is a plain struct with no constructor - unlike
-GoogleTest, where a fixture object is always at least default-constructed even if
-`SetUp()` is never overridden, so omitting it there is safe. `teardown_<name>` is
-optional: a fixture with nothing to release can simply not define one, rather than being
-required to write a no-op function - GoogleTest treats `SetUp()`/`TearDown()`
-symmetrically (both optional, since both are virtual methods with empty default bodies),
-but cgtest's lack of that mechanism (no vtables - see the constraint above) makes
-`setup_<name>` a deliberate exception, not a symmetric pair.
+Both `setup_<name>` and `teardown_<name>` return `void` - `setup_<name>` reports a
+failure the same way any other test-adjacent code does, by calling `EXPECT_*`/`ASSERT_*`
+(see "Generated code" below for how a fatal one affects `test_bar`, and why `setup_<name>`
+takes a `State **` out-param rather than returning `State *`).
+
+`setup_<name>` is mandatory: `*state` is passed to `test_<name>` uninitialized otherwise.
+`teardown_<name>` is optional: a fixture with nothing to release can simply not define
+one, rather than being required to write a no-op function - GoogleTest treats
+`SetUp()`/`TearDown()` symmetrically (both optional, since both are virtual methods with
+empty default bodies), but cgtest's lack of that mechanism (no vtables - see the
+constraint above) makes `setup_<name>` a deliberate exception, not a symmetric pair.
+
+`setup_<name>` owns allocating `*state` (typically via `calloc`/`malloc` - see "Generated
+code" below for why cgtest can't stack-allocate it directly the way earlier designs did).
+Neither cgtest nor `teardown_<name>` is required to free it: the runner process exits
+shortly after the last test regardless, so an unfreed `*state` is reclaimed by the OS
+either way. `teardown_<name>` freeing it anyway is the recommended pattern when prompt
+cleanup matters (e.g. a fixture holding a real OS resource, not just memory) - see
+examples/mathlib/tests/test_cgtest_macros.c's `teardown_counter` for the pattern.
 
 ### Per-test, not per-file
 
@@ -242,39 +255,89 @@ that don't need a fixture.
 
 ### Generated code
 
-`State` is declared on the stack in the generated runner, not heap-allocated/returned by
-`setup_bar` - cgtest never owns or frees the fixture, only the author's `setup_bar`/
-`teardown_bar` do (e.g. if `State` itself contains heap-owned members):
+Every discovered test_*.c file compiles as its own translation unit and is passed to the
+compiler as its own source argument (see cgtest_runner_build_compile_command()) - the
+generated cgtest-runner.c never `#include`s one. This is why: the original design
+`#include`d every discovered file directly into cgtest-runner.c so it shared one
+translation unit with the generated `main()`, simple to generate but meaning two test
+files defining a same-named `static` helper (not just a `test_` function) would collide -
+a real, recurring annoyance once fixtures made cross-file naming conflicts more likely.
+Compiling each file separately and declaring only what cgtest-runner.c actually calls as
+`extern` fixes that: each file keeps its own translation unit's scope, the normal C rule.
+
+```c
+typedef struct State State;                  /* one per distinct fixture type - see below */
+
+extern void test_foo(void);                  /* plain (void) test */
+
+extern void setup_bar(State **state);        /* fixture test */
+extern void test_bar(State *state);
+extern void teardown_bar(State *state);       /* only if teardown_bar was found - see below */
+```
+
+A fixture test is then called wrapped in its own block instead of a bare `test_bar();`:
 
 ```c
 {
-    State state;
+    State *state = NULL;
     setup_bar(&state);
     if (!cgtest_fatal_failed) {
-        test_bar(&state);
+        test_bar(state);
     }
-    teardown_bar(&state);   /* only if teardown_bar was found - see below */
+    teardown_bar(state);   /* only if teardown_bar was found - see below */
 }
 ```
 
+`State` is forward-declared as an *incomplete* type (`typedef struct State State;`,
+deduplicated - the same name forward-declared twice is a hard error under strict C89
+`-pedantic-errors`, since that redundant-typedef allowance is C11-only) rather than
+`#include`d or copied in full. cgtest-runner.c only ever holds or passes a `State *`/
+`State **` - it never allocates or dereferences a `State` by value - so it never needs the
+real definition. This only produces a well-defined, standards-compliant type across the
+two separately-compiled translation units (not just two same-spelled opaque types that
+happen to work by ABI accident) because `State`'s struct tag matches its typedef name
+(see "Shape" above) - C treats an incomplete tagged type in one translation unit and its
+later completion in another as the same type when the tags match.
+
+`setup_bar` takes `State **` (an out-param) rather than returning `State *` specifically
+so it stays `void`-returning - `EXPECT_*`/`ASSERT_*` work inside it exactly like they do
+in `test_bar`, including `ASSERT_*`'s early `return;`, which wouldn't type-check in a
+function declared to return `State *`. `state` starts `NULL` and is populated by
+`setup_bar` itself; if `setup_bar` hits a fatal (`ASSERT_*`) failure before assigning it,
+`state` stays the well-defined `NULL` it started as - safe to skip in the `test_bar` call
+above and safe to pass to a present `teardown_bar`.
+
 `cgtest_fatal_failed` is a second flag alongside `cgtest_failed`, set only by `ASSERT_*`
 (never `EXPECT_*`) and reset to 0 by the runner right before `setup_bar` runs, same as
-`cgtest_failed`. If `setup_bar` hits a fatal (`ASSERT_*`) failure, `*state` may be only
-partially initialized, so `test_bar` is skipped rather than run against it - matching
-GoogleTest's own `SetUp()`/`TestBody()` behavior, where a fatal `SetUp()` failure skips
-`TestBody()` but a non-fatal `EXPECT_*` one does not. A present `teardown_bar` still
+`cgtest_failed`. A fatal `setup_bar` failure means `test_bar` is skipped rather than run -
+matching GoogleTest's own `SetUp()`/`TestBody()` behavior, where a fatal `SetUp()` failure
+skips `TestBody()` but a non-fatal `EXPECT_*` one does not. A present `teardown_bar` still
 always runs regardless of that check; when none was found (see "Validation before
 invoking the compiler" below), the call is omitted entirely rather than emitted against a
 function that doesn't exist.
+
+### Explicitly rejected: returning the fixture from setup_<name>
+
+`State *setup_bar(void)` (returning the fixture instead of the `State **` out-param
+above) was considered and rejected. It reads more naturally, but breaks `ASSERT_*`'s
+early `return;` inside `setup_bar` - `return;` (no value) doesn't type-check in a function
+declared to return `State *`. Making that work would mean a distinct assertion macro
+family just for setup functions (returning `NULL` on failure instead of a bare `return;`),
+adding real API surface and a special case ("`ASSERT_*` works everywhere except inside
+`setup_<name>`") for a stylistic win. The out-param keeps `setup_<name>` `void`-returning,
+so every macro behaves identically in `test_`/`setup_`/`teardown_` with no exception to
+remember.
 
 ### What ctestscanner.h needed
 
 `ctestscanner_find()` matched only the literal pattern `void test_<name>(void) {` (see
 `CTestFunction` in ctestscanner.h) before this chapter was implemented. It now also
 recognizes the one-parameter form and captures the parameter's type text (e.g. `State`)
-verbatim into `CTestFunction::fixture_type` (`NULL` for the plain `(void)` form), to
-emit the `State state;` declaration above - no other understanding of the type is
-required, since the C compiler enforces everything else.
+verbatim into `CTestFunction::fixture_type` (`NULL` for the plain `(void)` form), used to
+emit the forward declaration and `State *state = NULL;` local above - no other
+understanding of the type is required, since the C compiler enforces everything else
+(including whether its struct tag actually matches its typedef name, as "Generated code"
+above requires).
 
 ### Validation before invoking the compiler
 
@@ -300,7 +363,7 @@ parameter list instead of "0 or 1 params". The author gets the same result today
 aggregating manually:
 
 ```c
-typedef struct { State0 s0; State1 s1; } MoreState;
+typedef struct MoreState { State0 s0; State1 s1; } MoreState;
 ```
 
 with one `setup_more`/`teardown_more` initializing both members. cgtest caps fixtures at

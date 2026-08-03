@@ -14,15 +14,18 @@ cgtest --help                print this message
 ## Fixtures
 
 A test function opts into a fixture by taking one pointer parameter instead of
-`(void)`. `setup_<name>` initializes it before each call and is required;
+`(void)`. `setup_<name>` allocates and initializes it before each call and is required;
 `teardown_<name>` cleans it up afterwards and is optional (skip it if there's nothing
-to release):
+to release - the fixture is reclaimed when the process exits either way):
 
 ```c
-typedef struct { int value; } State;
+typedef struct State { int value; } State;   /* tag must match the typedef name */
 
-void setup_bar(State *state) { state->value = 42; }
-void teardown_bar(State *state) { /* release anything setup_bar acquired */ }
+void setup_bar(State **state) {
+    *state = calloc(1, sizeof(State));
+    (*state)->value = 42;
+}
+void teardown_bar(State *state) { free(state); /* only if prompt cleanup matters */ }
 
 void test_bar(State *state) {
     EXPECT_EQ_INT(42, state->value);

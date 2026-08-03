@@ -4,11 +4,12 @@
  * the generated result is exercised end to end via examples/mathlib
  * instead (see README/specification.md), not here - matching
  * cgtest_project.h's split between the pure parser and its disk-facing
- * cgtest_project_load(). The one exception is
- * test_run_rejects_duplicate_basenames_across_directories below: it
- * calls cgtest_runner_run() directly, but only far enough to hit the
- * duplicate-basename check, which fails before any compiler is
- * invoked - still no real compilation needed.
+ * cgtest_project_load(). The exceptions are the test_run_*() tests
+ * below that call cgtest_runner_run() directly: some (duplicate
+ * basenames, missing setup) fail before any compiler is invoked; the
+ * rest genuinely compile+run a tiny throwaway project, since some
+ * behavior (has_teardown, real linking across separately-compiled test
+ * files) can only be proven that way.
  *
  * Written in cgtest's own test convention (void test_<name>(void)); see
  * test_ctestscanner.c's header comment for why main() below dispatches
@@ -39,7 +40,7 @@ void test_generates_valid_shell_with_no_files(void)
     CHECK(source != NULL);
     CHECK(strstr(source, "int main(void)") != NULL);
     CHECK(strstr(source, "total - failed") != NULL);
-    CHECK(strstr(source, "#include \"") == NULL);
+    CHECK(strstr(source, "extern") == NULL);
 
     free(source);
 }
@@ -60,7 +61,7 @@ void test_embeds_the_compile_command_as_a_leading_comment(void)
     free(source);
 }
 
-void test_includes_the_file_and_calls_its_function(void)
+void test_declares_extern_and_calls_its_function(void)
 {
     CTestFunction functions[1];
     CGTestRunnerFile files[1];
@@ -77,9 +78,11 @@ void test_includes_the_file_and_calls_its_function(void)
     source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
 
     CHECK(source != NULL);
-    CHECK(strstr(source, "#include \"test_math.c\"") != NULL);
+    /* Never #include'd - each test file is its own translation unit
+     * (see cgtest_runner.h); only "extern"-declared here. */
+    CHECK(strstr(source, "#include \"") == NULL);
+    CHECK(strstr(source, "extern void test_math_add(void);") != NULL);
     CHECK(strstr(source, "/abs/path") == NULL);
-    CHECK(strstr(source, "extern") == NULL);
     CHECK(strstr(source, "test_math_add()") != NULL);
     CHECK(strstr(source, "[       OK ]%s test_math_add") != NULL);
     CHECK(strstr(source, "[  FAILED  ]%s test_math_add") != NULL);
@@ -128,9 +131,9 @@ void test_skips_the_header_for_a_file_with_no_test_functions(void)
     source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
     CHECK(source != NULL);
 
-    /* Still #include'd (it may hold setup/helper code, just no test_
-     * functions of its own), just no "== test_empty.c ==" header. */
-    CHECK(strstr(source, "#include \"test_empty.c\"") != NULL);
+    /* No functions discovered in it - nothing to "extern" and no
+     * "== test_empty.c ==" header either. */
+    CHECK(strstr(source, "test_empty") == NULL);
     CHECK(strstr(source, "== test_empty.c ==") == NULL);
 
     free(source);
@@ -220,12 +223,90 @@ void test_generates_setup_teardown_wrapper_for_fixture_function(void)
     source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
 
     CHECK(source != NULL);
-    CHECK(strstr(source, "State state;") != NULL);
+    CHECK(strstr(source, "typedef struct State State;") != NULL);
+    CHECK(strstr(source, "extern void setup_bar(State **state);") != NULL);
+    CHECK(strstr(source, "extern void test_bar(State *state);") != NULL);
+    CHECK(strstr(source, "extern void teardown_bar(State *state);") != NULL);
+    CHECK(strstr(source, "State *state = NULL;") != NULL);
     CHECK(strstr(source, "setup_bar(&state);") != NULL);
-    CHECK(strstr(source, "test_bar(&state);") != NULL);
-    CHECK(strstr(source, "teardown_bar(&state);") != NULL);
+    CHECK(strstr(source, "test_bar(state);") != NULL);
+    CHECK(strstr(source, "teardown_bar(state);") != NULL);
     /* Not called bare, the way a (void) test would be. */
     CHECK(strstr(source, "test_bar();") == NULL);
+
+    free(source);
+}
+
+void test_deduplicates_fixture_type_forward_declaration(void)
+{
+    /* Repeating "typedef struct State State;" once per test sharing
+     * that fixture type would be a hard error under strict C89
+     * -pedantic-errors (that redundant-typedef allowance is C11-only -
+     * see cgtest_runner_generate_source()'s header comment) - it must
+     * be forward-declared exactly once regardless of how many tests
+     * (here: two, in two different files) use it. */
+    CTestFunction fn_a[1];
+    CTestFunction fn_b[1];
+    CGTestRunnerFile files[2];
+    char *source;
+    const char *first;
+    const char *second;
+
+    fn_a[0].name = "test_bar";
+    fn_a[0].fixture_type = "State";
+    fn_a[0].has_teardown = 0;
+    fn_a[0].line = 1;
+    fn_b[0].name = "test_baz";
+    fn_b[0].fixture_type = "State";
+    fn_b[0].has_teardown = 0;
+    fn_b[0].line = 1;
+
+    files[0].label = "test_a.c";
+    files[0].functions = fn_a;
+    files[0].function_count = 1;
+    files[1].label = "test_b.c";
+    files[1].functions = fn_b;
+    files[1].function_count = 1;
+
+    source = cgtest_runner_generate_source(files, 2, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    CHECK(source != NULL);
+
+    first = strstr(source, "typedef struct State State;");
+    CHECK(first != NULL);
+    second = strstr(first + 1, "typedef struct State State;");
+    CHECK(second == NULL);
+
+    free(source);
+}
+
+void test_forward_declares_each_distinct_fixture_type_once(void)
+{
+    CTestFunction fn_a[1];
+    CTestFunction fn_b[1];
+    CGTestRunnerFile files[2];
+    char *source;
+
+    fn_a[0].name = "test_bar";
+    fn_a[0].fixture_type = "State";
+    fn_a[0].has_teardown = 0;
+    fn_a[0].line = 1;
+    fn_b[0].name = "test_baz";
+    fn_b[0].fixture_type = "Counter";
+    fn_b[0].has_teardown = 0;
+    fn_b[0].line = 1;
+
+    files[0].label = "test_a.c";
+    files[0].functions = fn_a;
+    files[0].function_count = 1;
+    files[1].label = "test_b.c";
+    files[1].functions = fn_b;
+    files[1].function_count = 1;
+
+    source = cgtest_runner_generate_source(files, 2, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    CHECK(source != NULL);
+
+    CHECK(strstr(source, "typedef struct State State;") != NULL);
+    CHECK(strstr(source, "typedef struct Counter Counter;") != NULL);
 
     free(source);
 }
@@ -236,7 +317,7 @@ void test_omits_teardown_call_when_has_teardown_is_unset(void)
      * CTestFunction::has_teardown is 0 (as set by cgtest_runner_run()
      * when no teardown_bar was found among the discovered test files),
      * the generated wrapper must not reference it at all, not even a
-     * call to something that doesn't exist. */
+     * call (or extern declaration) for something that doesn't exist. */
     CTestFunction functions[1];
     CGTestRunnerFile files[1];
     char *source;
@@ -253,9 +334,9 @@ void test_omits_teardown_call_when_has_teardown_is_unset(void)
     source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
 
     CHECK(source != NULL);
-    CHECK(strstr(source, "State state;") != NULL);
+    CHECK(strstr(source, "State *state = NULL;") != NULL);
     CHECK(strstr(source, "setup_bar(&state);") != NULL);
-    CHECK(strstr(source, "test_bar(&state);") != NULL);
+    CHECK(strstr(source, "test_bar(state);") != NULL);
     CHECK(strstr(source, "teardown_bar") == NULL);
 
     free(source);
@@ -292,8 +373,8 @@ void test_fixture_test_call_is_guarded_by_fatal_failed_check(void)
 
     setup_call = strstr(source, "setup_bar(&state);");
     guard = strstr(source, "if (!cgtest_fatal_failed) {");
-    test_call = strstr(source, "test_bar(&state);");
-    teardown_call = strstr(source, "teardown_bar(&state);");
+    test_call = strstr(source, "test_bar(state);");
+    teardown_call = strstr(source, "teardown_bar(state);");
 
     CHECK(setup_call != NULL);
     CHECK(guard != NULL);
@@ -326,7 +407,7 @@ void test_fixture_wrapper_precedes_pass_fail_verdict(void)
     source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
     CHECK(source != NULL);
 
-    teardown_call = strstr(source, "teardown_bar(&state);");
+    teardown_call = strstr(source, "teardown_bar(state);");
     verdict = strstr(source, "if (!cgtest_failed)");
     CHECK(teardown_call != NULL);
     CHECK(verdict != NULL);
@@ -347,6 +428,7 @@ static void write_file(const char *path, const char *content)
 void test_build_compile_command_uses_gcc_flags_by_default(void)
 {
     CGTestProject project;
+    CGTestRunnerFile files[1];
     char *cmd;
 
     memset(&project, 0, sizeof(project));
@@ -358,12 +440,17 @@ void test_build_compile_command_uses_gcc_flags_by_default(void)
     cpathlist_register(&project.source_files, "", "src/mathlib.c");
     cpathlist_register(&project.test_directories, "", "tests");
 
-    cmd = cgtest_runner_build_compile_command(&project, "build/cgtest-runner.c", "build/cgtest-runner");
+    files[0].label = "tests/test_math.c";
+    files[0].functions = NULL;
+    files[0].function_count = 0;
+
+    cmd = cgtest_runner_build_compile_command(&project, files, 1, "build/cgtest-runner.c", "build/cgtest-runner");
 
     CHECK(cmd != NULL);
     CHECK(strstr(cmd, "-I\"src\"") != NULL);
     CHECK(strstr(cmd, "-I\"tests\"") != NULL);
     CHECK(strstr(cmd, "\"src/mathlib.c\"") != NULL);
+    CHECK(strstr(cmd, "\"tests/test_math.c\"") != NULL);
     CHECK(strstr(cmd, "-o \"build/cgtest-runner\"") != NULL);
     CHECK(strstr(cmd, "/I") == NULL);
     CHECK(strstr(cmd, "/Fe") == NULL);
@@ -377,6 +464,7 @@ void test_build_compile_command_uses_gcc_flags_by_default(void)
 void test_build_compile_command_uses_msvc_flags_when_configured(void)
 {
     CGTestProject project;
+    CGTestRunnerFile files[1];
     char *cmd;
 
     memset(&project, 0, sizeof(project));
@@ -389,15 +477,42 @@ void test_build_compile_command_uses_msvc_flags_when_configured(void)
     cpathlist_register(&project.source_files, "", "src/mathlib.c");
     cpathlist_register(&project.test_directories, "", "tests");
 
-    cmd = cgtest_runner_build_compile_command(&project, "build/cgtest-runner.c", "build/cgtest-runner.exe");
+    files[0].label = "tests/test_math.c";
+    files[0].functions = NULL;
+    files[0].function_count = 0;
+
+    cmd = cgtest_runner_build_compile_command(&project, files, 1, "build/cgtest-runner.c", "build/cgtest-runner.exe");
 
     CHECK(cmd != NULL);
     CHECK(strstr(cmd, "/I\"src\"") != NULL);
     CHECK(strstr(cmd, "/I\"tests\"") != NULL);
     CHECK(strstr(cmd, "\"src/mathlib.c\"") != NULL);
+    CHECK(strstr(cmd, "\"tests/test_math.c\"") != NULL);
     CHECK(strstr(cmd, "/Fe:\"build/cgtest-runner.exe\"") != NULL);
     CHECK(strstr(cmd, "-I") == NULL);
     CHECK(strstr(cmd, " -o ") == NULL);
+
+    free(cmd);
+    cpathlist_free(&project.include_paths);
+    cpathlist_free(&project.source_files);
+    cpathlist_free(&project.test_directories);
+}
+
+void test_build_compile_command_with_no_test_files(void)
+{
+    CGTestProject project;
+    char *cmd;
+
+    memset(&project, 0, sizeof(project));
+    project.compiler_command = "gcc -std=c99";
+    cpathlist_init(&project.include_paths);
+    cpathlist_init(&project.source_files);
+    cpathlist_init(&project.test_directories);
+
+    cmd = cgtest_runner_build_compile_command(&project, NULL, 0, "build/cgtest-runner.c", "build/cgtest-runner");
+
+    CHECK(cmd != NULL);
+    CHECK(strstr(cmd, "\"build/cgtest-runner.c\"") != NULL);
 
     free(cmd);
     cpathlist_free(&project.include_paths);
@@ -454,7 +569,7 @@ void test_run_rejects_fixture_test_missing_setup_function(void)
     mkdir(FIXTURE_DIR, 0755);
     mkdir(FIXTURE_DIR "/missing_setup", 0755);
     write_file(FIXTURE_DIR "/missing_setup/test_widget.c",
-        "typedef struct { int x; } State;\n"
+        "typedef struct State { int x; } State;\n"
         "void teardown_bar(State *state) { (void)state; }\n"
         "void test_bar(State *state) { (void)state; }\n");
 
@@ -486,20 +601,37 @@ void test_run_succeeds_with_fixture_test_missing_teardown_function(void)
 {
     /* Unlike setup_bar, teardown_bar is optional (specification.md
      * ch.6): a fixture with nothing to release doesn't require the
-     * author to write a no-op function. This test runs the full
-     * pipeline for real - not just far enough to hit a validation
-     * error, the way the duplicate-basename/missing-setup tests do -
-     * to prove the generated runner actually compiles and runs
-     * without a teardown_bar in sight. */
+     * author to write a no-op function - here, cgtest never frees
+     * *state either (the process exits right after; see
+     * cgtest_runner.h), so there is genuinely nothing that must run.
+     * This test runs the full pipeline for real - not just far enough
+     * to hit a validation error, the way the duplicate-basename/
+     * missing-setup tests do - to prove the generated runner actually
+     * compiles and runs without a teardown_bar in sight, and that
+     * setup_bar's calloc'd value correctly reaches test_bar through
+     * the "State **" out-param (see the "value_ok" marker file below -
+     * proof beyond just a nonzero exit code, since these bare test
+     * files don't use cgtest.h's EXPECT_* and ASSERT_* macros at all). */
     CGTestProject project;
     CGTestRunResult result;
+    FILE *marker;
 
     mkdir(FIXTURE_DIR, 0755);
     mkdir(FIXTURE_DIR "/missing_teardown", 0755);
     write_file(FIXTURE_DIR "/missing_teardown/test_widget.c",
-        "typedef struct { int x; } State;\n"
-        "void setup_bar(State *state) { state->x = 1; }\n"
-        "void test_bar(State *state) { (void)state; }\n");
+        "#include <stdio.h>\n"
+        "#include <stdlib.h>\n"
+        "typedef struct State { int x; } State;\n"
+        "void setup_bar(State **state) {\n"
+        "    *state = calloc(1, sizeof(State));\n"
+        "    (*state)->x = 42;\n"
+        "}\n"
+        "void test_bar(State *state) {\n"
+        "    if (state->x == 42) {\n"
+        "        FILE *f = fopen(\"" FIXTURE_DIR "/missing_teardown/value_ok\", \"w\");\n"
+        "        if (f != NULL) { fclose(f); }\n"
+        "    }\n"
+        "}\n");
 
     memset(&project, 0, sizeof(project));
     project.compiler_command = "gcc -std=c99";
@@ -515,10 +647,17 @@ void test_run_succeeds_with_fixture_test_missing_teardown_function(void)
     CHECK(result.error == NULL);
     CHECK(result.exit_code == 0);
 
+    marker = fopen(FIXTURE_DIR "/missing_teardown/value_ok", "r");
+    CHECK(marker != NULL);
+    if (marker != NULL) {
+        fclose(marker);
+    }
+
     cgtest_runner_free(&result);
     cpathlist_free(&project.include_paths);
     cpathlist_free(&project.source_files);
     cpathlist_free(&project.test_directories);
+    remove(FIXTURE_DIR "/missing_teardown/value_ok");
     remove(FIXTURE_DIR "/missing_teardown/test_widget.c");
     remove(FIXTURE_DIR "/missing_teardown/build/cgtest-runner.c");
     remove(FIXTURE_DIR "/missing_teardown/build/cgtest-runner");
@@ -534,7 +673,9 @@ void test_run_still_calls_teardown_function_when_present(void)
      * here via a real compile+run, not just a generated-source string
      * check, since has_teardown is computed by cgtest_runner_run()
      * itself (cgtest_runner_generate_source() alone can't exercise
-     * this). teardown_bar writes a marker file; its absence would mean
+     * this). teardown_bar writes a marker file (and frees *state,
+     * demonstrating the recommended pattern when prompt cleanup
+     * matters - specification.md ch.6); its absence would mean
      * teardown_bar was silently skipped despite existing. */
     CGTestProject project;
     CGTestRunResult result;
@@ -544,12 +685,13 @@ void test_run_still_calls_teardown_function_when_present(void)
     mkdir(FIXTURE_DIR "/present_teardown", 0755);
     write_file(FIXTURE_DIR "/present_teardown/test_widget.c",
         "#include <stdio.h>\n"
-        "typedef struct { int x; } State;\n"
-        "void setup_bar(State *state) { state->x = 1; }\n"
+        "#include <stdlib.h>\n"
+        "typedef struct State { int x; } State;\n"
+        "void setup_bar(State **state) { *state = calloc(1, sizeof(State)); }\n"
         "void teardown_bar(State *state) {\n"
         "    FILE *f = fopen(\"" FIXTURE_DIR "/present_teardown/teardown_ran\", \"w\");\n"
-        "    (void)state;\n"
         "    if (f != NULL) { fclose(f); }\n"
+        "    free(state);\n"
         "}\n"
         "void test_bar(State *state) { (void)state; }\n");
 
@@ -582,6 +724,53 @@ void test_run_still_calls_teardown_function_when_present(void)
     remove(FIXTURE_DIR "/present_teardown/build/cgtest-runner");
     remove(FIXTURE_DIR "/present_teardown/build");
     remove(FIXTURE_DIR "/present_teardown");
+    remove(FIXTURE_DIR);
+}
+
+void test_run_allows_same_named_static_helper_across_files(void)
+{
+    /* The point of compiling each test file as its own translation
+     * unit instead of #include-ing them all into one cgtest-runner.c
+     * (see cgtest_runner.h): two files can each define their own
+     * private "static int helper(void)" without colliding, the normal
+     * C rule for separate translation units - previously (when every
+     * file shared one TU via #include) this was a hard compile error. */
+    CGTestProject project;
+    CGTestRunResult result;
+
+    mkdir(FIXTURE_DIR, 0755);
+    mkdir(FIXTURE_DIR "/same_helper", 0755);
+    write_file(FIXTURE_DIR "/same_helper/test_one.c",
+        "static int helper(void) { return 1; }\n"
+        "void test_one(void) { (void)helper(); }\n");
+    write_file(FIXTURE_DIR "/same_helper/test_two.c",
+        "static int helper(void) { return 2; }\n"
+        "void test_two(void) { (void)helper(); }\n");
+
+    memset(&project, 0, sizeof(project));
+    project.compiler_command = "gcc -std=c99";
+    project.output_path = FIXTURE_DIR "/same_helper/build";
+    cpathlist_init(&project.include_paths);
+    cpathlist_init(&project.source_files);
+    cpathlist_init(&project.test_directories);
+    cpathlist_register(&project.test_directories, "", FIXTURE_DIR "/same_helper");
+
+    result = cgtest_runner_run(&project);
+
+    CHECK(result.ok);
+    CHECK(result.error == NULL);
+    CHECK(result.exit_code == 0);
+
+    cgtest_runner_free(&result);
+    cpathlist_free(&project.include_paths);
+    cpathlist_free(&project.source_files);
+    cpathlist_free(&project.test_directories);
+    remove(FIXTURE_DIR "/same_helper/test_one.c");
+    remove(FIXTURE_DIR "/same_helper/test_two.c");
+    remove(FIXTURE_DIR "/same_helper/build/cgtest-runner.c");
+    remove(FIXTURE_DIR "/same_helper/build/cgtest-runner");
+    remove(FIXTURE_DIR "/same_helper/build");
+    remove(FIXTURE_DIR "/same_helper");
     remove(FIXTURE_DIR);
 }
 
@@ -641,21 +830,25 @@ int main(void)
     static const TestCase cases[] = {
         { "test_generates_valid_shell_with_no_files", test_generates_valid_shell_with_no_files },
         { "test_embeds_the_compile_command_as_a_leading_comment", test_embeds_the_compile_command_as_a_leading_comment },
-        { "test_includes_the_file_and_calls_its_function", test_includes_the_file_and_calls_its_function },
+        { "test_declares_extern_and_calls_its_function", test_declares_extern_and_calls_its_function },
         { "test_header_uses_bare_basename_and_precedes_its_tests", test_header_uses_bare_basename_and_precedes_its_tests },
         { "test_skips_the_header_for_a_file_with_no_test_functions", test_skips_the_header_for_a_file_with_no_test_functions },
         { "test_preserves_function_order_within_a_file", test_preserves_function_order_within_a_file },
         { "test_preserves_file_order_across_files", test_preserves_file_order_across_files },
         { "test_generates_setup_teardown_wrapper_for_fixture_function", test_generates_setup_teardown_wrapper_for_fixture_function },
+        { "test_deduplicates_fixture_type_forward_declaration", test_deduplicates_fixture_type_forward_declaration },
+        { "test_forward_declares_each_distinct_fixture_type_once", test_forward_declares_each_distinct_fixture_type_once },
         { "test_omits_teardown_call_when_has_teardown_is_unset", test_omits_teardown_call_when_has_teardown_is_unset },
         { "test_fixture_test_call_is_guarded_by_fatal_failed_check", test_fixture_test_call_is_guarded_by_fatal_failed_check },
         { "test_fixture_wrapper_precedes_pass_fail_verdict", test_fixture_wrapper_precedes_pass_fail_verdict },
         { "test_build_compile_command_uses_gcc_flags_by_default", test_build_compile_command_uses_gcc_flags_by_default },
         { "test_build_compile_command_uses_msvc_flags_when_configured", test_build_compile_command_uses_msvc_flags_when_configured },
+        { "test_build_compile_command_with_no_test_files", test_build_compile_command_with_no_test_files },
         { "test_run_rejects_duplicate_basenames_across_directories", test_run_rejects_duplicate_basenames_across_directories },
         { "test_run_rejects_fixture_test_missing_setup_function", test_run_rejects_fixture_test_missing_setup_function },
         { "test_run_succeeds_with_fixture_test_missing_teardown_function", test_run_succeeds_with_fixture_test_missing_teardown_function },
         { "test_run_still_calls_teardown_function_when_present", test_run_still_calls_teardown_function_when_present },
+        { "test_run_allows_same_named_static_helper_across_files", test_run_allows_same_named_static_helper_across_files },
         { "test_run_populates_timing_fields", test_run_populates_timing_fields }
     };
     size_t count = sizeof(cases) / sizeof(cases[0]);
