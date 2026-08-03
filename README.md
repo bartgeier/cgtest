@@ -10,5 +10,25 @@ cgtest --version         print the cgtest version
 cgtest --help            print this message
 ```
 
+## Fixtures
+
+A test function opts into a fixture by taking one pointer parameter instead of
+`(void)`. `setup_<name>` initializes it before each call and is required;
+`teardown_<name>` cleans it up afterwards and is optional (skip it if there's nothing
+to release):
+
+```c
+typedef struct { int value; } State;
+
+void setup_bar(State *state) { state->value = 42; }
+void teardown_bar(State *state) { /* release anything setup_bar acquired */ }
+
+void test_bar(State *state) {
+    EXPECT_EQ_INT(42, state->value);
+}
+```
+
+See specification.md chapter 6 for the full design.
+
 https://github.com/bartgeier/cgtest
 
