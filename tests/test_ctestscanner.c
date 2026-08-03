@@ -144,6 +144,130 @@ void test_ignores_wrong_parameter_list(void)
     CHECK(fns == NULL);
 }
 
+/* --- fixture form: "void test_<name>(Type *param) { ... }" -------- */
+
+void test_finds_fixture_function_and_captures_type(void)
+{
+    const char *src = "void test_bar(State *state) { }\n";
+    size_t count;
+    CTestFunction *fns = scan(src, &count);
+
+    CHECK(count == 1);
+    CHECK(strcmp(fns[0].name, "test_bar") == 0);
+    CHECK(fns[0].fixture_type != NULL);
+    CHECK(strcmp(fns[0].fixture_type, "State") == 0);
+
+    ctestscanner_free(fns, count);
+}
+
+void test_plain_void_function_has_no_fixture_type(void)
+{
+    const char *src = "void test_foo(void) { }\n";
+    size_t count;
+    CTestFunction *fns = scan(src, &count);
+
+    CHECK(count == 1);
+    CHECK(fns[0].fixture_type == NULL);
+
+    ctestscanner_free(fns, count);
+}
+
+void test_mixes_void_and_fixture_functions_in_order(void)
+{
+    const char *src =
+        "void test_a(void) { }\n"
+        "void test_b(State *state) { }\n"
+        "void test_c(void) { }\n";
+    size_t count;
+    CTestFunction *fns = scan(src, &count);
+
+    CHECK(count == 3);
+    CHECK(strcmp(fns[0].name, "test_a") == 0);
+    CHECK(fns[0].fixture_type == NULL);
+    CHECK(strcmp(fns[1].name, "test_b") == 0);
+    CHECK(fns[1].fixture_type != NULL);
+    CHECK(strcmp(fns[1].fixture_type, "State") == 0);
+    CHECK(strcmp(fns[2].name, "test_c") == 0);
+    CHECK(fns[2].fixture_type == NULL);
+
+    ctestscanner_free(fns, count);
+}
+
+void test_fixture_type_captured_verbatim_for_different_type_name(void)
+{
+    const char *src = "void test_widget(WidgetFixture *fx) { }\n";
+    size_t count;
+    CTestFunction *fns = scan(src, &count);
+
+    CHECK(count == 1);
+    CHECK(strcmp(fns[0].fixture_type, "WidgetFixture") == 0);
+
+    ctestscanner_free(fns, count);
+}
+
+void test_ignores_fixture_param_without_star(void)
+{
+    /* "State state" (by value, no pointer) does not match the fixture
+     * form - fixtures are always passed by pointer (see
+     * specification.md ch.6 "Shape"). */
+    const char *src = "void test_bar(State state) { }\n";
+    size_t count;
+    CTestFunction *fns = scan(src, &count);
+
+    CHECK(count == 0);
+    CHECK(fns == NULL);
+}
+
+void test_ignores_fixture_param_with_keyword_type(void)
+{
+    /* "int *state" is deliberately not treated as a fixture - the type
+     * must be a plain (typedef'd) identifier, not a builtin keyword
+     * type. */
+    const char *src = "void test_bar(int *state) { }\n";
+    size_t count;
+    CTestFunction *fns = scan(src, &count);
+
+    CHECK(count == 0);
+    CHECK(fns == NULL);
+}
+
+void test_ignores_fixture_prototype_declaration(void)
+{
+    const char *src =
+        "void test_bar(State *state);\n"
+        "void test_bar(State *state) { }\n";
+    size_t count;
+    CTestFunction *fns = scan(src, &count);
+
+    CHECK(count == 1);
+    CHECK(strcmp(fns[0].name, "test_bar") == 0);
+    CHECK(strcmp(fns[0].fixture_type, "State") == 0);
+
+    ctestscanner_free(fns, count);
+}
+
+void test_handles_fixture_signature_split_across_lines(void)
+{
+    const char *src =
+        "void\n"
+        "test_bar\n"
+        "(\n"
+        "State\n"
+        "*\n"
+        "state\n"
+        ")\n"
+        "{\n"
+        "}\n";
+    size_t count;
+    CTestFunction *fns = scan(src, &count);
+
+    CHECK(count == 1);
+    CHECK(strcmp(fns[0].name, "test_bar") == 0);
+    CHECK(strcmp(fns[0].fixture_type, "State") == 0);
+
+    ctestscanner_free(fns, count);
+}
+
 void test_handles_signature_split_across_lines(void)
 {
     const char *src =
@@ -319,6 +443,14 @@ int main(void)
         { "test_ignores_name_with_test_as_substring_not_prefix", test_ignores_name_with_test_as_substring_not_prefix },
         { "test_accepts_exact_test_prefix_as_name", test_accepts_exact_test_prefix_as_name },
         { "test_ignores_wrong_parameter_list", test_ignores_wrong_parameter_list },
+        { "test_finds_fixture_function_and_captures_type", test_finds_fixture_function_and_captures_type },
+        { "test_plain_void_function_has_no_fixture_type", test_plain_void_function_has_no_fixture_type },
+        { "test_mixes_void_and_fixture_functions_in_order", test_mixes_void_and_fixture_functions_in_order },
+        { "test_fixture_type_captured_verbatim_for_different_type_name", test_fixture_type_captured_verbatim_for_different_type_name },
+        { "test_ignores_fixture_param_without_star", test_ignores_fixture_param_without_star },
+        { "test_ignores_fixture_param_with_keyword_type", test_ignores_fixture_param_with_keyword_type },
+        { "test_ignores_fixture_prototype_declaration", test_ignores_fixture_prototype_declaration },
+        { "test_handles_fixture_signature_split_across_lines", test_handles_fixture_signature_split_across_lines },
         { "test_handles_signature_split_across_lines", test_handles_signature_split_across_lines },
         { "test_handles_comments_between_tokens", test_handles_comments_between_tokens },
         { "test_skips_include_directive", test_skips_include_directive },

@@ -182,15 +182,16 @@ cgtest.exe --help
 
 ---
 
-## 6. Fixtures (TODO - design notes, not implemented yet)
+## 6. Fixtures
 
-Not implemented. This chapter records the design arrived at through discussion, to pick
-back up later rather than re-deriving it. One guiding constraint: a core reason to use
-cgtest over GoogleTest is faster compilation and execution, so any fixture design must
-stay fully static - no heap allocation cgtest itself imposes, no vtables/virtual
-dispatch, no per-test polymorphic instance construction the way GoogleTest's
-class-based `TEST_F` fixtures work. Everything below is plain C structs, stack
-allocation, and functions the compiler resolves at compile time.
+Implemented in ctestscanner.c/h and cgtest_runner.c/h; see
+examples/mathlib/tests/test_math_fixture.c for a working example. One guiding
+constraint shaped the design: a core reason to use cgtest over GoogleTest is faster
+compilation and execution, so the fixture design stays fully static - no heap
+allocation cgtest itself imposes, no vtables/virtual dispatch, no per-test polymorphic
+instance construction the way GoogleTest's class-based `TEST_F` fixtures work.
+Everything below is plain C structs, stack allocation, and functions the compiler
+resolves at compile time.
 
 ### Shape
 
@@ -235,18 +236,19 @@ that don't need a fixture.
 }
 ```
 
-### What ctestscanner.h needs
+### What ctestscanner.h needed
 
-Currently `ctestscanner_find()` only matches the literal pattern
-`void test_<name>(void) {` (see `CTestFunction` in ctestscanner.h). It would need to
-additionally recognize the one-parameter form and capture the parameter's type text
-(e.g. `State`) verbatim, to emit the `State state;` declaration above - no other
-understanding of the type is required, since the C compiler enforces everything else.
+`ctestscanner_find()` matched only the literal pattern `void test_<name>(void) {` (see
+`CTestFunction` in ctestscanner.h) before this chapter was implemented. It now also
+recognizes the one-parameter form and captures the parameter's type text (e.g. `State`)
+verbatim into `CTestFunction::fixture_type` (`NULL` for the plain `(void)` form), to
+emit the `State state;` declaration above - no other understanding of the type is
+required, since the C compiler enforces everything else.
 
 ### Validation before invoking the compiler
 
-Before compiling, cgtest should check that `setup_<name>`/`teardown_<name>` exist for
-every test that takes a fixture, and fail with a clear cgtest-level message (like the
+Before compiling, cgtest checks that `setup_<name>`/`teardown_<name>` exist for every
+test that takes a fixture, and fails with a clear cgtest-level message (like the
 existing duplicate-basename-across-directories check in cgtest_runner.c) rather than
 surfacing a raw linker error. This check is existence-only - it does *not* compare
 `setup_<name>`'s/`teardown_<name>`'s declared parameter type against `test_<name>`'s;

@@ -67,6 +67,22 @@ typedef struct {
  * ctestscanner_find()'s order), printing PASS/FAIL per test and a
  * final summary, exiting nonzero iff any test failed.
  *
+ * A function whose CTestFunction::fixture_type is non-NULL (see
+ * specification.md ch.6 "Fixtures") is called wrapped in its own
+ * block instead of a bare "test_<name>();":
+ *
+ *     {
+ *         <fixture_type> state;
+ *         setup_<name>(&state);
+ *         test_<name>(&state);
+ *         teardown_<name>(&state);
+ *     }
+ *
+ * "<name>" is "test_<name>" with its "test_" prefix stripped. Callers
+ * are expected to have already verified setup_<name>/teardown_<name>
+ * exist (see cgtest_runner_run()) - this function itself performs no
+ * such check, since it's pure and has no way to fail short of OOM.
+ *
  * Pure - performs no filesystem access itself (though the #include
  * lines it emits will be resolved once the result is compiled).
  * Returns a malloc'd, NUL-terminated string the caller owns (free()
@@ -116,7 +132,14 @@ typedef struct {
  * Before generating the source, any two test_*.c files across
  * different test_directories that share a basename are rejected as an
  * error (see cgtest_runner_generate_source()'s header comment for why
- * that combination would otherwise be ambiguous).
+ * that combination would otherwise be ambiguous). Likewise, every
+ * discovered test function with a fixture parameter (CTestFunction::
+ * fixture_type != NULL) must have a setup_<name>/teardown_<name>
+ * identifier present somewhere among the discovered test files -
+ * existence-only, not a signature check (see specification.md ch.6
+ * "Validation before invoking the compiler") - otherwise it is
+ * rejected as an error too, rather than surfacing as a raw linker
+ * error once the compiler runs.
  *
  * A failure in any of steps 1-4 is reported as !ok with a message;
  * step 5's exit code (whatever the test run itself decided) is always

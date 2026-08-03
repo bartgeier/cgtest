@@ -15,6 +15,7 @@
 #include "ctestfiles.h"
 #include "cpath.h"
 #include "cmsg.h"
+#include "clexer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,6 +55,7 @@ static int cgtest_runner_decode_exit(int system_result)
 
 #define CGTEST_RUNNER_PATH_SCRATCH 4096
 #define CGTEST_RUNNER_ERROR_BUFSZ  256
+#define CGTEST_RUNNER_IDENT_BUFSZ  128
 
 /* A small growable buffer for building unbounded-length text (a
  * generated C source file, or a compiler command line with an
@@ -199,6 +201,7 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
 
         for (j = 0; j < files[i].function_count; j++) {
             const char *name = files[i].functions[j].name;
+            const char *fixture_type = files[i].functions[j].fixture_type;
             /* Printed before the call, not after: whether the test
              * passed isn't known until it's actually run, so this
              * announces which test any FAIL: lines below belong to -
@@ -212,9 +215,39 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
              * prints the test name after it in the default color. */
             if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"%s[ RUN      ]%s ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "\\n\", cgtest_green, cgtest_reset);\n    total++;\n    file_total++;\n    cgtest_failed = 0;\n    ") ||
-                !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "();\n    if (!cgtest_failed) {\n        printf(\"%s[       OK ]%s ") ||
+                !cgtest_runner_buf_append_cstr(&buf, "\\n\", cgtest_green, cgtest_reset);\n    total++;\n    file_total++;\n    cgtest_failed = 0;\n")) {
+                goto fail;
+            }
+
+            if (fixture_type == NULL) {
+                if (!cgtest_runner_buf_append_cstr(&buf, "    ") ||
+                    !cgtest_runner_buf_append_cstr(&buf, name) ||
+                    !cgtest_runner_buf_append_cstr(&buf, "();\n")) {
+                    goto fail;
+                }
+            } else {
+                /* setup_<name>/teardown_<name> wrap this call, matching
+                 * specification.md ch.6 "Generated code" - "<name>"
+                 * here is "name" with its "test_" prefix stripped
+                 * (guaranteed present: ctestscanner_find() only ever
+                 * reports functions matching "test_<name>"). "state" is
+                 * declared on the stack, not heap-allocated - cgtest
+                 * never owns the fixture. */
+                const char *suffix = name + 5;
+                if (!cgtest_runner_buf_append_cstr(&buf, "    {\n        ") ||
+                    !cgtest_runner_buf_append_cstr(&buf, fixture_type) ||
+                    !cgtest_runner_buf_append_cstr(&buf, " state;\n        setup_") ||
+                    !cgtest_runner_buf_append_cstr(&buf, suffix) ||
+                    !cgtest_runner_buf_append_cstr(&buf, "(&state);\n        ") ||
+                    !cgtest_runner_buf_append_cstr(&buf, name) ||
+                    !cgtest_runner_buf_append_cstr(&buf, "(&state);\n        teardown_") ||
+                    !cgtest_runner_buf_append_cstr(&buf, suffix) ||
+                    !cgtest_runner_buf_append_cstr(&buf, "(&state);\n    }\n")) {
+                    goto fail;
+                }
+            }
+
+            if (!cgtest_runner_buf_append_cstr(&buf, "    if (!cgtest_failed) {\n        printf(\"%s[       OK ]%s ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
                 !cgtest_runner_buf_append_cstr(&buf, "\\n\", cgtest_green, cgtest_reset);\n    } else {\n        printf(\"%s[  FAILED  ]%s ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
@@ -362,12 +395,102 @@ fail:
     return NULL;
 }
 
+/* Returns 1 if "source" tokenizes to an identifier token spelled
+ * exactly "name" anywhere in it, 0 otherwise. Used only for the
+ * existence-only fixture check below - it does not distinguish a
+ * function definition from a declaration, a call, or any other use,
+ * since specification.md ch.6 "Validation before invoking the
+ * compiler" only asks that setup_<name>/teardown_<name> exist
+ * somewhere, leaving everything else (signature match included) to
+ * the C compiler itself. */
+static int cgtest_runner_source_has_identifier(const char *source, size_t length, const char *name)
+{
+    CLexer lexer;
+    CToken token;
+    size_t name_len = strlen(name);
+
+    clexer_init(&lexer, source, length);
+    token = clexer_next_token(&lexer);
+    while (token.type != CTOK_EOF) {
+        if (token.type == CTOK_IDENTIFIER && token.length == name_len && memcmp(token.start, name, name_len) == 0) {
+            return 1;
+        }
+        token = clexer_next_token(&lexer);
+    }
+    return 0;
+}
+
+static int cgtest_runner_any_file_has_identifier(char *const *contents, const size_t *lengths, size_t count, const char *name)
+{
+    size_t i;
+    for (i = 0; i < count; i++) {
+        if (cgtest_runner_source_has_identifier(contents[i], lengths[i], name)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* Before compiling, every discovered test_ function with a fixture
+ * parameter (CTestFunction::fixture_type != NULL) must have a
+ * setup_<name>/teardown_<name> identifier present somewhere among
+ * "contents" (every discovered test_*.c file's raw source, not just
+ * the ones with their own test_ functions - a shared fixture file
+ * might have neither) - otherwise this fails with a clear cgtest-
+ * level message instead of surfacing as a raw linker error once the
+ * compiler runs. Existence-only (see cgtest_runner_source_has_identifier()
+ * above) - a parameter-type mismatch is left entirely to the C
+ * compiler's own type checking.
+ *
+ * Returns 1 and leaves "result" untouched on success; returns 0 with
+ * "result" set to the failure on the first missing function found. */
+static int cgtest_runner_check_fixtures(const CGTestRunnerFile *runner_files, size_t runner_file_count,
+                                         char *const *contents, const size_t *lengths, size_t file_count,
+                                         CGTestRunResult *result)
+{
+    size_t i;
+    size_t j;
+
+    for (i = 0; i < runner_file_count; i++) {
+        for (j = 0; j < runner_files[i].function_count; j++) {
+            const CTestFunction *fn = &runner_files[i].functions[j];
+            const char *suffix;
+            char ident[CGTEST_RUNNER_IDENT_BUFSZ];
+            char msg[CGTEST_RUNNER_ERROR_BUFSZ];
+
+            if (fn->fixture_type == NULL) {
+                continue;
+            }
+            /* "test_" prefix guaranteed by ctestscanner_find(). */
+            suffix = fn->name + 5;
+
+            cmsg_build(ident, sizeof(ident), "setup_", suffix, strlen(suffix), "");
+            if (!cgtest_runner_any_file_has_identifier(contents, lengths, file_count, ident)) {
+                cmsg_build(msg, sizeof(msg), "missing fixture setup function: ", ident, strlen(ident), "");
+                cgtest_runner_set_error(result, msg);
+                return 0;
+            }
+
+            cmsg_build(ident, sizeof(ident), "teardown_", suffix, strlen(suffix), "");
+            if (!cgtest_runner_any_file_has_identifier(contents, lengths, file_count, ident)) {
+                cmsg_build(msg, sizeof(msg), "missing fixture teardown function: ", ident, strlen(ident), "");
+                cgtest_runner_set_error(result, msg);
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 CGTestRunResult cgtest_runner_run(const CGTestProject *project)
 {
     CGTestRunResult result;
     CPathList test_files;
     CGTestRunnerFile *runner_files;
     size_t runner_file_count;
+    char **file_contents;
+    size_t *file_lengths;
+    size_t file_contents_count;
     char *source;
     char runner_c_scratch[CGTEST_RUNNER_PATH_SCRATCH];
     char runner_bin_scratch[CGTEST_RUNNER_PATH_SCRATCH];
@@ -386,6 +509,9 @@ CGTestRunResult cgtest_runner_run(const CGTestProject *project)
     cpathlist_init(&test_files);
     runner_files = NULL;
     runner_file_count = 0;
+    file_contents = NULL;
+    file_lengths = NULL;
+    file_contents_count = 0;
     source = NULL;
     compile_cmd = NULL;
 
@@ -415,27 +541,31 @@ CGTestRunResult cgtest_runner_run(const CGTestProject *project)
     }
 
     runner_files = (CGTestRunnerFile *)malloc(test_files.count * sizeof(CGTestRunnerFile));
-    if (runner_files == NULL) {
+    file_contents = (char **)malloc(test_files.count * sizeof(char *));
+    file_lengths = (size_t *)malloc(test_files.count * sizeof(size_t));
+    if (runner_files == NULL || file_contents == NULL || file_lengths == NULL) {
         cgtest_runner_set_error(&result, "out of memory");
         goto cleanup;
     }
 
+    /* Contents are kept around (not freed right after scanning) so
+     * cgtest_runner_check_fixtures() below can search every file's raw
+     * text for setup_<name>/teardown_<name> identifiers - freed
+     * together with everything else in "cleanup". */
     for (i = 0; i < test_files.count; i++) {
-        char *content;
-        size_t length;
         CTestFunction *functions;
         size_t count;
 
-        content = cgtest_runner_read_file(test_files.entries[i], &length);
-        if (content == NULL) {
+        file_contents[i] = cgtest_runner_read_file(test_files.entries[i], &file_lengths[i]);
+        if (file_contents[i] == NULL) {
             char msg[CGTEST_RUNNER_ERROR_BUFSZ];
             cmsg_build(msg, sizeof(msg), "could not read test file: ", test_files.entries[i], strlen(test_files.entries[i]), "");
             cgtest_runner_set_error(&result, msg);
             goto cleanup;
         }
+        file_contents_count++;
 
-        functions = ctestscanner_find(content, length, &count);
-        free(content);
+        functions = ctestscanner_find(file_contents[i], file_lengths[i], &count);
 
         if (count > 0) {
             runner_files[runner_file_count].label = test_files.entries[i];
@@ -447,6 +577,11 @@ CGTestRunResult cgtest_runner_run(const CGTestProject *project)
 
     if (runner_file_count == 0) {
         cgtest_runner_set_error(&result, "no test_ functions found in any test_*.c file");
+        goto cleanup;
+    }
+
+    if (!cgtest_runner_check_fixtures(runner_files, runner_file_count, file_contents, file_lengths,
+                                       test_files.count, &result)) {
         goto cleanup;
     }
 
@@ -550,6 +685,11 @@ cleanup:
         ctestscanner_free(runner_files[i].functions, runner_files[i].function_count);
     }
     free(runner_files);
+    for (i = 0; i < file_contents_count; i++) {
+        free(file_contents[i]);
+    }
+    free(file_contents);
+    free(file_lengths);
     cpathlist_free(&test_files);
     return result;
 }
