@@ -585,6 +585,52 @@ void test_run_still_calls_teardown_function_when_present(void)
     remove(FIXTURE_DIR);
 }
 
+void test_run_populates_timing_fields(void)
+{
+    /* Timing (CGTestRunResult::scan_ms/generate_ms/compile_ms/run_ms/
+     * total_ms - see ctimer.h) is always measured, regardless of
+     * whether -t/--time was given - printing it is cgtest_main.c's
+     * job. A real compile is genuinely exercised here (unlike the
+     * duplicate-basename/missing-setup tests, which fail before
+     * reaching one), so compile_ms should be the dominant phase, not
+     * just nonzero - matching what a real cgtest --run --time
+     * invocation actually shows. */
+    CGTestProject project;
+    CGTestRunResult result;
+
+    mkdir(FIXTURE_DIR, 0755);
+    mkdir(FIXTURE_DIR "/timing", 0755);
+    write_file(FIXTURE_DIR "/timing/test_widget.c", "void test_bar(void) { }\n");
+
+    memset(&project, 0, sizeof(project));
+    project.compiler_command = "gcc -std=c99";
+    project.output_path = FIXTURE_DIR "/timing/build";
+    cpathlist_init(&project.include_paths);
+    cpathlist_init(&project.source_files);
+    cpathlist_init(&project.test_directories);
+    cpathlist_register(&project.test_directories, "", FIXTURE_DIR "/timing");
+
+    result = cgtest_runner_run(&project);
+
+    CHECK(result.ok);
+    CHECK(result.scan_ms >= 0.0);
+    CHECK(result.generate_ms >= 0.0);
+    CHECK(result.compile_ms > 0.0);
+    CHECK(result.run_ms >= 0.0);
+    CHECK(result.total_ms >= result.compile_ms);
+
+    cgtest_runner_free(&result);
+    cpathlist_free(&project.include_paths);
+    cpathlist_free(&project.source_files);
+    cpathlist_free(&project.test_directories);
+    remove(FIXTURE_DIR "/timing/test_widget.c");
+    remove(FIXTURE_DIR "/timing/build/cgtest-runner.c");
+    remove(FIXTURE_DIR "/timing/build/cgtest-runner");
+    remove(FIXTURE_DIR "/timing/build");
+    remove(FIXTURE_DIR "/timing");
+    remove(FIXTURE_DIR);
+}
+
 typedef struct {
     const char *name;
     void (*fn)(void);
@@ -609,7 +655,8 @@ int main(void)
         { "test_run_rejects_duplicate_basenames_across_directories", test_run_rejects_duplicate_basenames_across_directories },
         { "test_run_rejects_fixture_test_missing_setup_function", test_run_rejects_fixture_test_missing_setup_function },
         { "test_run_succeeds_with_fixture_test_missing_teardown_function", test_run_succeeds_with_fixture_test_missing_teardown_function },
-        { "test_run_still_calls_teardown_function_when_present", test_run_still_calls_teardown_function_when_present }
+        { "test_run_still_calls_teardown_function_when_present", test_run_still_calls_teardown_function_when_present },
+        { "test_run_populates_timing_fields", test_run_populates_timing_fields }
     };
     size_t count = sizeof(cases) / sizeof(cases[0]);
     size_t i;

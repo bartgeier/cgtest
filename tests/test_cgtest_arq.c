@@ -172,6 +172,61 @@ void test_unknown_flag_is_an_error(void)
     cgtest_arq_free(&args);
 }
 
+void test_short_time_flag_combined_with_run(void)
+{
+    char *argv[] = { "cgtest", "-r", "./cgtest-project.json", "-t", NULL };
+    CGTestArgs args = parse(argv);
+
+    CHECK(args.action == CGTEST_ARG_RUN);
+    CHECK(args.time == 1);
+
+    cgtest_arq_free(&args);
+}
+
+void test_long_time_flag_combined_with_run(void)
+{
+    char *argv[] = { "cgtest", "--run", "./cgtest-project.json", "--time", NULL };
+    CGTestArgs args = parse(argv);
+
+    CHECK(args.action == CGTEST_ARG_RUN);
+    CHECK(args.time == 1);
+
+    cgtest_arq_free(&args);
+}
+
+void test_run_without_time_flag_defaults_to_off(void)
+{
+    char *argv[] = { "cgtest", "-r", "./cgtest-project.json", NULL };
+    CGTestArgs args = parse(argv);
+
+    CHECK(args.action == CGTEST_ARG_RUN);
+    CHECK(args.time == 0);
+
+    cgtest_arq_free(&args);
+}
+
+void test_time_flag_without_run_is_an_error(void)
+{
+    char *argv[] = { "cgtest", "-t", NULL };
+    CGTestArgs args = parse(argv);
+
+    CHECK(args.action == CGTEST_ARG_ERROR);
+    CHECK(args.error != NULL);
+
+    cgtest_arq_free(&args);
+}
+
+void test_time_flag_combined_with_init_is_an_error(void)
+{
+    char *argv[] = { "cgtest", "-i", "./dir", "-t", NULL };
+    CGTestArgs args = parse(argv);
+
+    CHECK(args.action == CGTEST_ARG_ERROR);
+    CHECK(args.error != NULL);
+
+    cgtest_arq_free(&args);
+}
+
 void test_run_flag_missing_its_path_is_an_error(void)
 {
     char *argv[] = { "cgtest", "-r", NULL };
@@ -214,6 +269,11 @@ int main(void)
         { "test_combining_run_and_version_is_an_error", test_combining_run_and_version_is_an_error },
         { "test_combining_run_and_init_is_an_error", test_combining_run_and_init_is_an_error },
         { "test_unknown_flag_is_an_error", test_unknown_flag_is_an_error },
+        { "test_short_time_flag_combined_with_run", test_short_time_flag_combined_with_run },
+        { "test_long_time_flag_combined_with_run", test_long_time_flag_combined_with_run },
+        { "test_run_without_time_flag_defaults_to_off", test_run_without_time_flag_defaults_to_off },
+        { "test_time_flag_without_run_is_an_error", test_time_flag_without_run_is_an_error },
+        { "test_time_flag_combined_with_init_is_an_error", test_time_flag_combined_with_init_is_an_error },
         { "test_run_flag_missing_its_path_is_an_error", test_run_flag_missing_its_path_is_an_error },
         { "test_free_on_error_is_safe", test_free_on_error_is_safe }
     };

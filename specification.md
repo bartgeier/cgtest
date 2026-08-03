@@ -62,6 +62,12 @@ What the project should NOT do.
     own test files can `#include "cgtest/cgtest.h"`; both directories are created if they
     don't exist yet.
     If cgtest-project.json already exist in that directory than error and exit cgtest.exe with an appropriate message.
+  * -t --time a modifier, not an action of its own: combined with -r/--run, prints a
+    scan/generate/compile/run wall-clock timing breakdown after the normal output
+    (see ctimer.h for the portable timer and CGTestRunResult for the measured
+    fields). Given alone, or combined with -i/-v/-h, it is an error - it has nothing
+    to modify otherwise.
+    ```cgtest.exe --run ./unitest/cgtest --time```
   * -v --version of cgtest
   * -h --help of cgtest
 
@@ -164,6 +170,8 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 * cpath.c cpath.h lexical path joining and normalization.
 * cpathlist.c cpathlist.h a growable list of resolved absolute paths, built on top of cpath.c/h.
 * cmsg.c cmsg.h helper for building bounded, truncation-safe human-readable error messages.
+* ctimer.c ctimer.h portable wall-clock elapsed-time measurement, used by -r/--run's -t/--time
+  phase breakdown.
 * cgtest_main.c main function
 
 - Colorized terminal output
@@ -175,6 +183,7 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 ```bash
 cgtest.exe --run ./unitest/cgtest/cgtest-project.json
 cgtest.exe --run ./unitest/cgtest
+cgtest.exe --run ./unitest/cgtest --time
 cgtest.exe --init ./unitest
 cgtest.exe --version
 cgtest.exe --help
