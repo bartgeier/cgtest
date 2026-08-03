@@ -1,8 +1,29 @@
-/* test_cgtest_macros.c - one example per macro from cgtest.h, alongside
- * test_math.c and test_math_edge_cases.c. These checks don't exercise
- * mathlib at all; they exist purely to show each macro's call shape.
+/* test_cgtest_macros.c - a fixture example, then one example per macro
+ * from cgtest.h, alongside test_math.c and test_math_edge_cases.c. These
+ * checks don't exercise mathlib at all; they exist purely to show each
+ * macro's call shape (and, for the first one, the fixture shape - see
+ * specification.md ch.6 "Fixtures").
  */
 #include "cgtest/cgtest.h"
+
+typedef struct {
+    int value;
+} Counter;
+
+void setup_counter(Counter *counter)
+{
+    counter->value = 42;
+}
+
+void teardown_counter(Counter *counter)
+{
+    counter->value = 0;
+}
+
+void test_counter(Counter *counter)
+{
+    EXPECT_EQ_INT(42, counter->value);
+}
 
 void test_expect_true(void)
 {

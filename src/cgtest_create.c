@@ -793,12 +793,34 @@ static const char *const CGTEST_H_TEMPLATE_FOOTER =
  * so it includes via "cgtest/cgtest.h" and doesn't reference the
  * mathlib example's other files in its header comment). */
 static const char *const CGTEST_TEST_MACROS_TEMPLATE1 =
-    "/* test_cgtest_macros.c - one example per macro from cgtest.h. These\n"
-    " * checks do not do anything useful; they exist purely to show each\n"
-    " * macro's call shape. Discovered and run automatically by\n"
-    " * \"cgtest --run .\" - \".\" is already in cgtest-project.json's\n"
-    " * test_directories by default. */\n"
+    "/* test_cgtest_macros.c - a fixture example, then one example per\n"
+    " * macro from cgtest.h. These checks do not do anything useful; they\n"
+    " * exist purely to show each macro's call shape (and, for the first\n"
+    " * one, the fixture shape - see specification.md ch.6 \"Fixtures\").\n"
+    " * Discovered and run automatically by \"cgtest --run .\" - \".\" is\n"
+    " * already in cgtest-project.json's test_directories by default. */\n"
     "#include \"cgtest.h\"\n"
+    "\n"
+    "typedef struct {\n"
+    "    int value;\n"
+    "} Counter;\n"
+    "\n";
+
+static const char *const CGTEST_TEST_MACROS_TEMPLATE2 =
+    "void setup_counter(Counter *counter)\n"
+    "{\n"
+    "    counter->value = 42;\n"
+    "}\n"
+    "\n"
+    "void teardown_counter(Counter *counter)\n"
+    "{\n"
+    "    counter->value = 0;\n"
+    "}\n"
+    "\n"
+    "void test_counter(Counter *counter)\n"
+    "{\n"
+    "    EXPECT_EQ_INT(42, counter->value);\n"
+    "}\n"
     "\n"
     "void test_expect_true(void)\n"
     "{\n"
@@ -808,7 +830,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE1 =
     "void test_expect_false(void)\n"
     "{\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE2 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE3 =
     "    EXPECT_FALSE(1 == 2);\n"
     "}\n"
     "\n"
@@ -843,7 +865,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE2 =
     "}\n"
     "\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE3 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE4 =
     "void test_expect_eq_uint(void)\n"
     "{\n"
     "    EXPECT_EQ_UINT(42u, 42u);\n"
@@ -868,7 +890,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE3 =
     "{\n"
     "    /* 1.1f - 1.0f isn't bit-identical to 0.1f - this passes only\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE4 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE5 =
     "     * because of EXPECT_EQ_FLOAT's epsilon tolerance; exact equality\n"
     "     * would fail here. */\n"
     "    EXPECT_EQ_FLOAT(0.1f, 1.1f - 1.0f);\n"
@@ -887,7 +909,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE4 =
     "}\n"
     "\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE5 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE6 =
     "void test_assert_ne_float(void)\n"
     "{\n"
     "    ASSERT_NE_FLOAT(4.2f, 4.3f);\n"
@@ -913,7 +935,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE5 =
     "{\n"
     "    ASSERT_NE_DOUBLE(4.2, 4.3);\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE6 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE7 =
     "}\n"
     "\n"
     "void test_expect_near_double(void)\n"
@@ -947,7 +969,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE6 =
     "}\n"
     "\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE7 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE8 =
     "void test_expect_gt_int(void)\n"
     "{\n"
     "    EXPECT_GT_INT(2, 1);\n"
@@ -981,7 +1003,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE7 =
     "void test_expect_le_uint(void)\n"
     "{\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE8 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE9 =
     "    EXPECT_LE_UINT(2u, 2u);\n"
     "}\n"
     "\n"
@@ -1015,7 +1037,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE8 =
     "    EXPECT_LT_FLOAT(1.0f, 2.0f);\n"
     "}\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE9 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE10 =
     "\n"
     "void test_assert_lt_float(void)\n"
     "{\n"
@@ -1047,7 +1069,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE9 =
     "    EXPECT_GE_FLOAT(2.0f, 2.0f);\n"
     "}\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE10 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE11 =
     "\n"
     "void test_assert_ge_float(void)\n"
     "{\n"
@@ -1079,7 +1101,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE10 =
     "    EXPECT_GT_DOUBLE(2.0, 1.0);\n"
     "}\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE11 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE12 =
     "\n"
     "void test_assert_gt_double(void)\n"
     "{\n"
@@ -1114,7 +1136,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE11 =
     "{\n"
     "    int x = 0;\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE12 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE13 =
     "    int y = 0;\n"
     "\n"
     "    EXPECT_NE_PTR(&x, &y);\n"
@@ -1146,7 +1168,7 @@ static const char *const CGTEST_TEST_MACROS_TEMPLATE12 =
     "void test_assert_ne_str(void)\n"
     "{\n";
 
-static const char *const CGTEST_TEST_MACROS_TEMPLATE13 =
+static const char *const CGTEST_TEST_MACROS_TEMPLATE14 =
     "    ASSERT_NE_STR(\"cgtest\", \"gtest\");\n"
     "}\n"
     "\n"
@@ -1369,12 +1391,13 @@ CGTestCreateResult cgtest_create_run(const char *dir)
     }
     if (!cgtest_create_write_file(test_path.data, error_buf, sizeof(error_buf),
                                    CGTEST_TEST_MACROS_TEMPLATE1, CGTEST_TEST_MACROS_TEMPLATE2,
-                                   CGTEST_TEST_MACROS_TEMPLATE3, CGTEST_TEST_MACROS_TEMPLATE4,
-                                   CGTEST_TEST_MACROS_TEMPLATE5, CGTEST_TEST_MACROS_TEMPLATE6,
-                                   CGTEST_TEST_MACROS_TEMPLATE7, CGTEST_TEST_MACROS_TEMPLATE8,
-                                   CGTEST_TEST_MACROS_TEMPLATE9, CGTEST_TEST_MACROS_TEMPLATE10,
-                                   CGTEST_TEST_MACROS_TEMPLATE11, CGTEST_TEST_MACROS_TEMPLATE12,
-                                   CGTEST_TEST_MACROS_TEMPLATE13,
+                                   CGTEST_TEST_MACROS_TEMPLATE3,
+                                   CGTEST_TEST_MACROS_TEMPLATE4, CGTEST_TEST_MACROS_TEMPLATE5,
+                                   CGTEST_TEST_MACROS_TEMPLATE6, CGTEST_TEST_MACROS_TEMPLATE7,
+                                   CGTEST_TEST_MACROS_TEMPLATE8, CGTEST_TEST_MACROS_TEMPLATE9,
+                                   CGTEST_TEST_MACROS_TEMPLATE10, CGTEST_TEST_MACROS_TEMPLATE11,
+                                   CGTEST_TEST_MACROS_TEMPLATE12, CGTEST_TEST_MACROS_TEMPLATE13,
+                                   CGTEST_TEST_MACROS_TEMPLATE14,
                                    (const char *)NULL)) {
         return cgtest_create_fail(error_buf);
     }
