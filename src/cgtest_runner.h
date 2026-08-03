@@ -74,9 +74,18 @@ typedef struct {
  *     {
  *         <fixture_type> state;
  *         setup_<name>(&state);
- *         test_<name>(&state);
+ *         if (!cgtest_fatal_failed) {
+ *             test_<name>(&state);
+ *         }
  *         teardown_<name>(&state);
  *     }
+ *
+ * cgtest_fatal_failed (set only by ASSERT_*, unlike cgtest_failed which
+ * both EXPECT_* and ASSERT_* set - see cgtest.h) is reset to 0 alongside
+ * cgtest_failed right before this block; if setup_<name> hit a fatal
+ * failure, *state may be only partially initialized, so test_<name> is
+ * skipped rather than run against it - matching GoogleTest's own
+ * SetUp()/TestBody() behavior. teardown_<name> still always runs.
  *
  * "<name>" is "test_<name>" with its "test_" prefix stripped. Callers
  * are expected to have already verified setup_<name>/teardown_<name>

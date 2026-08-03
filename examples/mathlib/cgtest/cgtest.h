@@ -36,6 +36,12 @@
  * decide pass/fail, resetting it to 0 first. */
 extern int cgtest_failed;
 
+/* Set only by ASSERT_* (never EXPECT_*). For a fixture test (see
+ * ch.6), the generated runner skips test_<name>(&state) when this
+ * is set after setup_<name>(&state) - matching GoogleTest's
+ * SetUp()/TestBody() behavior. */
+extern int cgtest_fatal_failed;
+
 /* Shortens __FILE__ to a path relative to the current working
  * directory (falls back to the full path if it isn't under it),
  * so FAIL messages stay short - jump-to-file in an editor's
@@ -137,6 +143,7 @@ static void cgtest_print_str_field(const char *prefix, const char *s)
         if (!(cond)) { \
             fprintf(stderr, "%s:%d: FAIL: ASSERT_TRUE(%s)\n", cgtest_relpath(__FILE__), __LINE__, #cond); \
             cgtest_failed = 1; \
+            cgtest_fatal_failed = 1; \
             return; \
         } \
     } while (0)
@@ -146,6 +153,7 @@ static void cgtest_print_str_field(const char *prefix, const char *s)
         if (cond) { \
             fprintf(stderr, "%s:%d: FAIL: ASSERT_FALSE(%s)\n", cgtest_relpath(__FILE__), __LINE__, #cond); \
             cgtest_failed = 1; \
+            cgtest_fatal_failed = 1; \
             return; \
         } \
     } while (0)
@@ -167,13 +175,13 @@ static void cgtest_print_str_field(const char *prefix, const char *s)
     CGTEST_CMP_INT_("EXPECT_EQ_INT", !=, "  expected: %ld\n  actual:   %ld\n", ((void)0), expected, actual)
 
 #define ASSERT_EQ_INT(expected, actual) \
-    CGTEST_CMP_INT_("ASSERT_EQ_INT", !=, "  expected: %ld\n  actual:   %ld\n", return, expected, actual)
+    CGTEST_CMP_INT_("ASSERT_EQ_INT", !=, "  expected: %ld\n  actual:   %ld\n", { cgtest_fatal_failed = 1; return; }, expected, actual)
 
 #define EXPECT_NE_INT(unexpected, actual) \
     CGTEST_CMP_INT_("EXPECT_NE_INT", ==, "  unexpected: %ld\n  actual:     %ld\n", ((void)0), unexpected, actual)
 
 #define ASSERT_NE_INT(unexpected, actual) \
-    CGTEST_CMP_INT_("ASSERT_NE_INT", ==, "  unexpected: %ld\n  actual:     %ld\n", return, unexpected, actual)
+    CGTEST_CMP_INT_("ASSERT_NE_INT", ==, "  unexpected: %ld\n  actual:     %ld\n", { cgtest_fatal_failed = 1; return; }, unexpected, actual)
 
 #define CGTEST_CMP_UINT_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \
     do { \
@@ -192,13 +200,13 @@ static void cgtest_print_str_field(const char *prefix, const char *s)
     CGTEST_CMP_UINT_("EXPECT_EQ_UINT", !=, "  expected: %lu\n  actual:   %lu\n", ((void)0), expected, actual)
 
 #define ASSERT_EQ_UINT(expected, actual) \
-    CGTEST_CMP_UINT_("ASSERT_EQ_UINT", !=, "  expected: %lu\n  actual:   %lu\n", return, expected, actual)
+    CGTEST_CMP_UINT_("ASSERT_EQ_UINT", !=, "  expected: %lu\n  actual:   %lu\n", { cgtest_fatal_failed = 1; return; }, expected, actual)
 
 #define EXPECT_NE_UINT(unexpected, actual) \
     CGTEST_CMP_UINT_("EXPECT_NE_UINT", ==, "  unexpected: %lu\n  actual:     %lu\n", ((void)0), unexpected, actual)
 
 #define ASSERT_NE_UINT(unexpected, actual) \
-    CGTEST_CMP_UINT_("ASSERT_NE_UINT", ==, "  unexpected: %lu\n  actual:     %lu\n", return, unexpected, actual)
+    CGTEST_CMP_UINT_("ASSERT_NE_UINT", ==, "  unexpected: %lu\n  actual:     %lu\n", { cgtest_fatal_failed = 1; return; }, unexpected, actual)
 
 #define CGTEST_APPROX_FLOAT_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \
     do { \
@@ -223,13 +231,13 @@ static void cgtest_print_str_field(const char *prefix, const char *s)
     CGTEST_APPROX_FLOAT_("EXPECT_EQ_FLOAT", >, "  expected: %g\n  actual:   %g\n  diff:     %g (max allowed: %g)\n", ((void)0), expected, actual)
 
 #define ASSERT_EQ_FLOAT(expected, actual) \
-    CGTEST_APPROX_FLOAT_("ASSERT_EQ_FLOAT", >, "  expected: %g\n  actual:   %g\n  diff:     %g (max allowed: %g)\n", return, expected, actual)
+    CGTEST_APPROX_FLOAT_("ASSERT_EQ_FLOAT", >, "  expected: %g\n  actual:   %g\n  diff:     %g (max allowed: %g)\n", { cgtest_fatal_failed = 1; return; }, expected, actual)
 
 #define EXPECT_NE_FLOAT(unexpected, actual) \
     CGTEST_APPROX_FLOAT_("EXPECT_NE_FLOAT", <=, "  unexpected: %g\n  actual:     %g\n  diff:     %g (must exceed: %g)\n", ((void)0), unexpected, actual)
 
 #define ASSERT_NE_FLOAT(unexpected, actual) \
-    CGTEST_APPROX_FLOAT_("ASSERT_NE_FLOAT", <=, "  unexpected: %g\n  actual:     %g\n  diff:     %g (must exceed: %g)\n", return, unexpected, actual)
+    CGTEST_APPROX_FLOAT_("ASSERT_NE_FLOAT", <=, "  unexpected: %g\n  actual:     %g\n  diff:     %g (must exceed: %g)\n", { cgtest_fatal_failed = 1; return; }, unexpected, actual)
 
 #define CGTEST_APPROX_DOUBLE_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \
     do { \
@@ -254,13 +262,13 @@ static void cgtest_print_str_field(const char *prefix, const char *s)
     CGTEST_APPROX_DOUBLE_("EXPECT_EQ_DOUBLE", >, "  expected: %g\n  actual:   %g\n  diff:     %g (max allowed: %g)\n", ((void)0), expected, actual)
 
 #define ASSERT_EQ_DOUBLE(expected, actual) \
-    CGTEST_APPROX_DOUBLE_("ASSERT_EQ_DOUBLE", >, "  expected: %g\n  actual:   %g\n  diff:     %g (max allowed: %g)\n", return, expected, actual)
+    CGTEST_APPROX_DOUBLE_("ASSERT_EQ_DOUBLE", >, "  expected: %g\n  actual:   %g\n  diff:     %g (max allowed: %g)\n", { cgtest_fatal_failed = 1; return; }, expected, actual)
 
 #define EXPECT_NE_DOUBLE(unexpected, actual) \
     CGTEST_APPROX_DOUBLE_("EXPECT_NE_DOUBLE", <=, "  unexpected: %g\n  actual:     %g\n  diff:     %g (must exceed: %g)\n", ((void)0), unexpected, actual)
 
 #define ASSERT_NE_DOUBLE(unexpected, actual) \
-    CGTEST_APPROX_DOUBLE_("ASSERT_NE_DOUBLE", <=, "  unexpected: %g\n  actual:     %g\n  diff:     %g (must exceed: %g)\n", return, unexpected, actual)
+    CGTEST_APPROX_DOUBLE_("ASSERT_NE_DOUBLE", <=, "  unexpected: %g\n  actual:     %g\n  diff:     %g (must exceed: %g)\n", { cgtest_fatal_failed = 1; return; }, unexpected, actual)
 
 #define CGTEST_NEAR_DOUBLE_(macro_name, on_fail, expected, actual, abs_error) \
     do { \
@@ -285,7 +293,7 @@ static void cgtest_print_str_field(const char *prefix, const char *s)
     CGTEST_NEAR_DOUBLE_("EXPECT_NEAR_DOUBLE", ((void)0), expected, actual, abs_error)
 
 #define ASSERT_NEAR_DOUBLE(expected, actual, abs_error) \
-    CGTEST_NEAR_DOUBLE_("ASSERT_NEAR_DOUBLE", return, expected, actual, abs_error)
+    CGTEST_NEAR_DOUBLE_("ASSERT_NEAR_DOUBLE", { cgtest_fatal_failed = 1; return; }, expected, actual, abs_error)
 
 #define CGTEST_CMP_FLOAT_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \
     do { \
@@ -317,97 +325,97 @@ static void cgtest_print_str_field(const char *prefix, const char *s)
     CGTEST_CMP_INT_("EXPECT_LT_INT", >=, "  val1: %ld\n  val2: %ld\n", ((void)0), val1, val2)
 
 #define ASSERT_LT_INT(val1, val2) \
-    CGTEST_CMP_INT_("ASSERT_LT_INT", >=, "  val1: %ld\n  val2: %ld\n", return, val1, val2)
+    CGTEST_CMP_INT_("ASSERT_LT_INT", >=, "  val1: %ld\n  val2: %ld\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define EXPECT_LE_INT(val1, val2) \
     CGTEST_CMP_INT_("EXPECT_LE_INT", >, "  val1: %ld\n  val2: %ld\n", ((void)0), val1, val2)
 
 #define ASSERT_LE_INT(val1, val2) \
-    CGTEST_CMP_INT_("ASSERT_LE_INT", >, "  val1: %ld\n  val2: %ld\n", return, val1, val2)
+    CGTEST_CMP_INT_("ASSERT_LE_INT", >, "  val1: %ld\n  val2: %ld\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define EXPECT_GT_INT(val1, val2) \
     CGTEST_CMP_INT_("EXPECT_GT_INT", <=, "  val1: %ld\n  val2: %ld\n", ((void)0), val1, val2)
 
 #define ASSERT_GT_INT(val1, val2) \
-    CGTEST_CMP_INT_("ASSERT_GT_INT", <=, "  val1: %ld\n  val2: %ld\n", return, val1, val2)
+    CGTEST_CMP_INT_("ASSERT_GT_INT", <=, "  val1: %ld\n  val2: %ld\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define EXPECT_GE_INT(val1, val2) \
     CGTEST_CMP_INT_("EXPECT_GE_INT", <, "  val1: %ld\n  val2: %ld\n", ((void)0), val1, val2)
 
 #define ASSERT_GE_INT(val1, val2) \
-    CGTEST_CMP_INT_("ASSERT_GE_INT", <, "  val1: %ld\n  val2: %ld\n", return, val1, val2)
+    CGTEST_CMP_INT_("ASSERT_GE_INT", <, "  val1: %ld\n  val2: %ld\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define EXPECT_LT_UINT(val1, val2) \
     CGTEST_CMP_UINT_("EXPECT_LT_UINT", >=, "  val1: %lu\n  val2: %lu\n", ((void)0), val1, val2)
 
 #define ASSERT_LT_UINT(val1, val2) \
-    CGTEST_CMP_UINT_("ASSERT_LT_UINT", >=, "  val1: %lu\n  val2: %lu\n", return, val1, val2)
+    CGTEST_CMP_UINT_("ASSERT_LT_UINT", >=, "  val1: %lu\n  val2: %lu\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define EXPECT_LE_UINT(val1, val2) \
     CGTEST_CMP_UINT_("EXPECT_LE_UINT", >, "  val1: %lu\n  val2: %lu\n", ((void)0), val1, val2)
 
 #define ASSERT_LE_UINT(val1, val2) \
-    CGTEST_CMP_UINT_("ASSERT_LE_UINT", >, "  val1: %lu\n  val2: %lu\n", return, val1, val2)
+    CGTEST_CMP_UINT_("ASSERT_LE_UINT", >, "  val1: %lu\n  val2: %lu\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define EXPECT_GT_UINT(val1, val2) \
     CGTEST_CMP_UINT_("EXPECT_GT_UINT", <=, "  val1: %lu\n  val2: %lu\n", ((void)0), val1, val2)
 
 #define ASSERT_GT_UINT(val1, val2) \
-    CGTEST_CMP_UINT_("ASSERT_GT_UINT", <=, "  val1: %lu\n  val2: %lu\n", return, val1, val2)
+    CGTEST_CMP_UINT_("ASSERT_GT_UINT", <=, "  val1: %lu\n  val2: %lu\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define EXPECT_GE_UINT(val1, val2) \
     CGTEST_CMP_UINT_("EXPECT_GE_UINT", <, "  val1: %lu\n  val2: %lu\n", ((void)0), val1, val2)
 
 #define ASSERT_GE_UINT(val1, val2) \
-    CGTEST_CMP_UINT_("ASSERT_GE_UINT", <, "  val1: %lu\n  val2: %lu\n", return, val1, val2)
+    CGTEST_CMP_UINT_("ASSERT_GE_UINT", <, "  val1: %lu\n  val2: %lu\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define EXPECT_LT_FLOAT(val1, val2) \
     CGTEST_CMP_FLOAT_("EXPECT_LT_FLOAT", >=, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
 
 #define ASSERT_LT_FLOAT(val1, val2) \
-    CGTEST_CMP_FLOAT_("ASSERT_LT_FLOAT", >=, "  val1: %g\n  val2: %g\n", return, val1, val2)
+    CGTEST_CMP_FLOAT_("ASSERT_LT_FLOAT", >=, "  val1: %g\n  val2: %g\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define EXPECT_LE_FLOAT(val1, val2) \
     CGTEST_CMP_FLOAT_("EXPECT_LE_FLOAT", >, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
 
 #define ASSERT_LE_FLOAT(val1, val2) \
-    CGTEST_CMP_FLOAT_("ASSERT_LE_FLOAT", >, "  val1: %g\n  val2: %g\n", return, val1, val2)
+    CGTEST_CMP_FLOAT_("ASSERT_LE_FLOAT", >, "  val1: %g\n  val2: %g\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define EXPECT_GT_FLOAT(val1, val2) \
     CGTEST_CMP_FLOAT_("EXPECT_GT_FLOAT", <=, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
 
 #define ASSERT_GT_FLOAT(val1, val2) \
-    CGTEST_CMP_FLOAT_("ASSERT_GT_FLOAT", <=, "  val1: %g\n  val2: %g\n", return, val1, val2)
+    CGTEST_CMP_FLOAT_("ASSERT_GT_FLOAT", <=, "  val1: %g\n  val2: %g\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define EXPECT_GE_FLOAT(val1, val2) \
     CGTEST_CMP_FLOAT_("EXPECT_GE_FLOAT", <, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
 
 #define ASSERT_GE_FLOAT(val1, val2) \
-    CGTEST_CMP_FLOAT_("ASSERT_GE_FLOAT", <, "  val1: %g\n  val2: %g\n", return, val1, val2)
+    CGTEST_CMP_FLOAT_("ASSERT_GE_FLOAT", <, "  val1: %g\n  val2: %g\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define EXPECT_LT_DOUBLE(val1, val2) \
     CGTEST_CMP_DOUBLE_("EXPECT_LT_DOUBLE", >=, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
 
 #define ASSERT_LT_DOUBLE(val1, val2) \
-    CGTEST_CMP_DOUBLE_("ASSERT_LT_DOUBLE", >=, "  val1: %g\n  val2: %g\n", return, val1, val2)
+    CGTEST_CMP_DOUBLE_("ASSERT_LT_DOUBLE", >=, "  val1: %g\n  val2: %g\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define EXPECT_LE_DOUBLE(val1, val2) \
     CGTEST_CMP_DOUBLE_("EXPECT_LE_DOUBLE", >, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
 
 #define ASSERT_LE_DOUBLE(val1, val2) \
-    CGTEST_CMP_DOUBLE_("ASSERT_LE_DOUBLE", >, "  val1: %g\n  val2: %g\n", return, val1, val2)
+    CGTEST_CMP_DOUBLE_("ASSERT_LE_DOUBLE", >, "  val1: %g\n  val2: %g\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define EXPECT_GT_DOUBLE(val1, val2) \
     CGTEST_CMP_DOUBLE_("EXPECT_GT_DOUBLE", <=, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
 
 #define ASSERT_GT_DOUBLE(val1, val2) \
-    CGTEST_CMP_DOUBLE_("ASSERT_GT_DOUBLE", <=, "  val1: %g\n  val2: %g\n", return, val1, val2)
+    CGTEST_CMP_DOUBLE_("ASSERT_GT_DOUBLE", <=, "  val1: %g\n  val2: %g\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define EXPECT_GE_DOUBLE(val1, val2) \
     CGTEST_CMP_DOUBLE_("EXPECT_GE_DOUBLE", <, "  val1: %g\n  val2: %g\n", ((void)0), val1, val2)
 
 #define ASSERT_GE_DOUBLE(val1, val2) \
-    CGTEST_CMP_DOUBLE_("ASSERT_GE_DOUBLE", <, "  val1: %g\n  val2: %g\n", return, val1, val2)
+    CGTEST_CMP_DOUBLE_("ASSERT_GE_DOUBLE", <, "  val1: %g\n  val2: %g\n", { cgtest_fatal_failed = 1; return; }, val1, val2)
 
 #define CGTEST_CMP_PTR_(macro_name, fail_op, fmt, on_fail, lhs, rhs) \
     do { \
@@ -426,13 +434,13 @@ static void cgtest_print_str_field(const char *prefix, const char *s)
     CGTEST_CMP_PTR_("EXPECT_EQ_PTR", !=, "  expected: %p\n  actual:   %p\n", ((void)0), expected, actual)
 
 #define ASSERT_EQ_PTR(expected, actual) \
-    CGTEST_CMP_PTR_("ASSERT_EQ_PTR", !=, "  expected: %p\n  actual:   %p\n", return, expected, actual)
+    CGTEST_CMP_PTR_("ASSERT_EQ_PTR", !=, "  expected: %p\n  actual:   %p\n", { cgtest_fatal_failed = 1; return; }, expected, actual)
 
 #define EXPECT_NE_PTR(unexpected, actual) \
     CGTEST_CMP_PTR_("EXPECT_NE_PTR", ==, "  unexpected: %p\n  actual:     %p\n", ((void)0), unexpected, actual)
 
 #define ASSERT_NE_PTR(unexpected, actual) \
-    CGTEST_CMP_PTR_("ASSERT_NE_PTR", ==, "  unexpected: %p\n  actual:     %p\n", return, unexpected, actual)
+    CGTEST_CMP_PTR_("ASSERT_NE_PTR", ==, "  unexpected: %p\n  actual:     %p\n", { cgtest_fatal_failed = 1; return; }, unexpected, actual)
 
 /* Byte-wise case-insensitive comparison, like strcasecmp() - not
  * used directly since strcasecmp() isn't standard C (POSIX only,
@@ -475,13 +483,13 @@ static int cgtest_strcasecmp(const char *a, const char *b)
     CGTEST_CMP_STR_("EXPECT_EQ_STR", !=, "  expected: ", "  actual:   ", ((void)0), expected, actual)
 
 #define ASSERT_EQ_STR(expected, actual) \
-    CGTEST_CMP_STR_("ASSERT_EQ_STR", !=, "  expected: ", "  actual:   ", return, expected, actual)
+    CGTEST_CMP_STR_("ASSERT_EQ_STR", !=, "  expected: ", "  actual:   ", { cgtest_fatal_failed = 1; return; }, expected, actual)
 
 #define EXPECT_NE_STR(unexpected, actual) \
     CGTEST_CMP_STR_("EXPECT_NE_STR", ==, "  unexpected: ", "  actual:     ", ((void)0), unexpected, actual)
 
 #define ASSERT_NE_STR(unexpected, actual) \
-    CGTEST_CMP_STR_("ASSERT_NE_STR", ==, "  unexpected: ", "  actual:     ", return, unexpected, actual)
+    CGTEST_CMP_STR_("ASSERT_NE_STR", ==, "  unexpected: ", "  actual:     ", { cgtest_fatal_failed = 1; return; }, unexpected, actual)
 
 #define CGTEST_CMP_STR_NOCASE_(macro_name, fail_op, lhs_label, rhs_label, on_fail, lhs, rhs) \
     do { \
@@ -501,12 +509,12 @@ static int cgtest_strcasecmp(const char *a, const char *b)
     CGTEST_CMP_STR_NOCASE_("EXPECT_EQ_STR_NOCASE", !=, "  expected: ", "  actual:   ", ((void)0), expected, actual)
 
 #define ASSERT_EQ_STR_NOCASE(expected, actual) \
-    CGTEST_CMP_STR_NOCASE_("ASSERT_EQ_STR_NOCASE", !=, "  expected: ", "  actual:   ", return, expected, actual)
+    CGTEST_CMP_STR_NOCASE_("ASSERT_EQ_STR_NOCASE", !=, "  expected: ", "  actual:   ", { cgtest_fatal_failed = 1; return; }, expected, actual)
 
 #define EXPECT_NE_STR_NOCASE(unexpected, actual) \
     CGTEST_CMP_STR_NOCASE_("EXPECT_NE_STR_NOCASE", ==, "  unexpected: ", "  actual:     ", ((void)0), unexpected, actual)
 
 #define ASSERT_NE_STR_NOCASE(unexpected, actual) \
-    CGTEST_CMP_STR_NOCASE_("ASSERT_NE_STR_NOCASE", ==, "  unexpected: ", "  actual:     ", return, unexpected, actual)
+    CGTEST_CMP_STR_NOCASE_("ASSERT_NE_STR_NOCASE", ==, "  unexpected: ", "  actual:     ", { cgtest_fatal_failed = 1; return; }, unexpected, actual)
 
 #endif /* CGTEST_H */

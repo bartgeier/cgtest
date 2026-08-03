@@ -148,6 +148,12 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
             "#endif\n"
             "\n"
             "int cgtest_failed = 0;\n"
+            /* Set only by ASSERT_* (never EXPECT_*) - see cgtest.h.
+             * Checked after setup_<name>(&state) below to decide
+             * whether test_<name>(&state) runs at all, matching
+             * GoogleTest's SetUp()/TestBody() behavior (specification.md
+             * ch.6). */
+            "int cgtest_fatal_failed = 0;\n"
             "\n")) {
         goto fail;
     }
@@ -215,7 +221,7 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
              * prints the test name after it in the default color. */
             if (!cgtest_runner_buf_append_cstr(&buf, "    printf(\"%s[ RUN      ]%s ") ||
                 !cgtest_runner_buf_append_cstr(&buf, name) ||
-                !cgtest_runner_buf_append_cstr(&buf, "\\n\", cgtest_green, cgtest_reset);\n    total++;\n    file_total++;\n    cgtest_failed = 0;\n")) {
+                !cgtest_runner_buf_append_cstr(&buf, "\\n\", cgtest_green, cgtest_reset);\n    total++;\n    file_total++;\n    cgtest_failed = 0;\n    cgtest_fatal_failed = 0;\n")) {
                 goto fail;
             }
 
@@ -232,15 +238,21 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
                  * (guaranteed present: ctestscanner_find() only ever
                  * reports functions matching "test_<name>"). "state" is
                  * declared on the stack, not heap-allocated - cgtest
-                 * never owns the fixture. */
+                 * never owns the fixture. test_<name>(&state) is
+                 * skipped when setup_<name> hit a fatal (ASSERT_*)
+                 * failure - *state may be only partially initialized in
+                 * that case, so running the test body against it isn't
+                 * safe (matches GoogleTest's SetUp()/TestBody()
+                 * behavior); teardown_<name>(&state) still always
+                 * runs. */
                 const char *suffix = name + 5;
                 if (!cgtest_runner_buf_append_cstr(&buf, "    {\n        ") ||
                     !cgtest_runner_buf_append_cstr(&buf, fixture_type) ||
                     !cgtest_runner_buf_append_cstr(&buf, " state;\n        setup_") ||
                     !cgtest_runner_buf_append_cstr(&buf, suffix) ||
-                    !cgtest_runner_buf_append_cstr(&buf, "(&state);\n        ") ||
+                    !cgtest_runner_buf_append_cstr(&buf, "(&state);\n        if (!cgtest_fatal_failed) {\n            ") ||
                     !cgtest_runner_buf_append_cstr(&buf, name) ||
-                    !cgtest_runner_buf_append_cstr(&buf, "(&state);\n        teardown_") ||
+                    !cgtest_runner_buf_append_cstr(&buf, "(&state);\n        }\n        teardown_") ||
                     !cgtest_runner_buf_append_cstr(&buf, suffix) ||
                     !cgtest_runner_buf_append_cstr(&buf, "(&state);\n    }\n")) {
                     goto fail;

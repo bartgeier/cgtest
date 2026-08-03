@@ -209,9 +209,9 @@ void setup_bar(State *state) { ... }
 void teardown_bar(State *state) { ... }
 ```
 
-Both return `void` - a failed setup is the test author's problem for now (e.g. it may
-itself call `EXPECT_*`/`ASSERT_*`, or leave `*state` partially initialized and let the
-test crash); cgtest does not interpret a setup outcome.
+Both return `void` - `setup_bar` reports a failure the same way any other test-adjacent
+code does, by calling `EXPECT_*`/`ASSERT_*` (see "Generated code" below for how a fatal
+one affects `test_bar`).
 
 ### Per-test, not per-file
 
@@ -231,10 +231,20 @@ that don't need a fixture.
 {
     State state;
     setup_bar(&state);
-    test_bar(&state);
+    if (!cgtest_fatal_failed) {
+        test_bar(&state);
+    }
     teardown_bar(&state);
 }
 ```
+
+`cgtest_fatal_failed` is a second flag alongside `cgtest_failed`, set only by `ASSERT_*`
+(never `EXPECT_*`) and reset to 0 by the runner right before `setup_bar` runs, same as
+`cgtest_failed`. If `setup_bar` hits a fatal (`ASSERT_*`) failure, `*state` may be only
+partially initialized, so `test_bar` is skipped rather than run against it - matching
+GoogleTest's own `SetUp()`/`TestBody()` behavior, where a fatal `SetUp()` failure skips
+`TestBody()` but a non-fatal `EXPECT_*` one does not. `teardown_bar` always runs
+regardless, same as GoogleTest's `TearDown()`.
 
 ### What ctestscanner.h needed
 

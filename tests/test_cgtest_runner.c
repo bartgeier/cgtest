@@ -229,6 +229,50 @@ void test_generates_setup_teardown_wrapper_for_fixture_function(void)
     free(source);
 }
 
+void test_fixture_test_call_is_guarded_by_fatal_failed_check(void)
+{
+    CTestFunction functions[1];
+    CGTestRunnerFile files[1];
+    char *source;
+    const char *setup_call;
+    const char *guard;
+    const char *test_call;
+    const char *teardown_call;
+
+    functions[0].name = "test_bar";
+    functions[0].fixture_type = "State";
+    functions[0].line = 3;
+
+    files[0].label = "test_widget.c";
+    files[0].functions = functions;
+    files[0].function_count = 1;
+
+    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    CHECK(source != NULL);
+
+    /* cgtest_fatal_failed (set only by ASSERT_*, see cgtest.h) is reset
+     * alongside cgtest_failed before setup_bar runs, then checked right
+     * after it - a fatal failure during setup_bar means test_bar is
+     * skipped, but teardown_bar still always runs (specification.md
+     * ch.6). */
+    CHECK(strstr(source, "cgtest_fatal_failed = 0;") != NULL);
+
+    setup_call = strstr(source, "setup_bar(&state);");
+    guard = strstr(source, "if (!cgtest_fatal_failed) {");
+    test_call = strstr(source, "test_bar(&state);");
+    teardown_call = strstr(source, "teardown_bar(&state);");
+
+    CHECK(setup_call != NULL);
+    CHECK(guard != NULL);
+    CHECK(test_call != NULL);
+    CHECK(teardown_call != NULL);
+    CHECK(setup_call < guard);
+    CHECK(guard < test_call);
+    CHECK(test_call < teardown_call);
+
+    free(source);
+}
+
 void test_fixture_wrapper_precedes_pass_fail_verdict(void)
 {
     CTestFunction functions[1];
@@ -456,6 +500,7 @@ int main(void)
         { "test_preserves_function_order_within_a_file", test_preserves_function_order_within_a_file },
         { "test_preserves_file_order_across_files", test_preserves_file_order_across_files },
         { "test_generates_setup_teardown_wrapper_for_fixture_function", test_generates_setup_teardown_wrapper_for_fixture_function },
+        { "test_fixture_test_call_is_guarded_by_fatal_failed_check", test_fixture_test_call_is_guarded_by_fatal_failed_check },
         { "test_fixture_wrapper_precedes_pass_fail_verdict", test_fixture_wrapper_precedes_pass_fail_verdict },
         { "test_build_compile_command_uses_gcc_flags_by_default", test_build_compile_command_uses_gcc_flags_by_default },
         { "test_build_compile_command_uses_msvc_flags_when_configured", test_build_compile_command_uses_msvc_flags_when_configured },
