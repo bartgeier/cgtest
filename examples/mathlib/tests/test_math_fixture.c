@@ -13,7 +13,7 @@ typedef struct {
 
 void setup_running_total(MathState *state)
 {
-    state->accumulator = 0;
+    state->accumulator = 11;
 }
 
 void teardown_running_total(MathState *state)
@@ -28,5 +28,5 @@ void test_running_total(MathState *state)
 {
     state->accumulator = mathlib_add(state->accumulator, 2);
     state->accumulator = mathlib_add(state->accumulator, 3);
-    EXPECT_EQ_INT(5, state->accumulator);
+    EXPECT_EQ_INT(16, state->accumulator);
 }
