@@ -48,8 +48,9 @@
  * inside it alongside the scaffold files themselves. */
 static const char *const CGTEST_PROJECT_TEMPLATE =
     "{\n"
-    "    \"compiler_command\": \"gcc -std=c99 -O3\",\n"
+    "    \"compiler_command\": \"gcc -std=c89 -O0\",\n"
     "    \"msvc\": false,\n"
+    "    \"single_translation_unit\": false,\n"
     "    \"include_paths\": [],\n"
     "    \"source_files\": [],\n"
     "    \"output_path\": \"../build\",\n"
@@ -89,18 +90,9 @@ static const char *const CGTEST_H_TEMPLATE_HEAD1C =
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_HEAD2 =
-    "#include <ctype.h>\n"
     "#include <float.h>\n"
     "#include <stdio.h>\n"
     "#include <string.h>\n"
-    "\n"
-    "#ifdef _WIN32\n"
-    "#include <direct.h>\n"
-    "#define CGTEST_GETCWD _getcwd\n"
-    "#else\n"
-    "#include <unistd.h>\n"
-    "#define CGTEST_GETCWD getcwd\n"
-    "#endif\n"
     "\n"
     "/* The generated runner reads this after calling each test to\n"
     " * decide pass/fail, resetting it to 0 first. */\n"
@@ -119,42 +111,35 @@ static const char *const CGTEST_H_TEMPLATE_FATAL_FAILED =
     "extern int cgtest_fatal_failed;\n"
     "\n";
 
+/* cgtest_relpath()/cgtest_print_str_field()/cgtest_strcasecmp() below
+ * are declared here but defined in the generated cgtest-runner.c (see
+ * cgtest_runner_generate_source()), the same "extern"-in-cgtest.h /
+ * defined-once-in-the-generated-runner split cgtest_failed/
+ * cgtest_fatal_failed above already use - not `static` bodies copied
+ * into every #include'ing test_*.c file. That split matters beyond
+ * just avoiding duplicated code: in separate-TU mode (cgtest_runner.h,
+ * the default), each test_*.c file is its own translation unit, so a
+ * `static` definition here would give every one of them its own
+ * private, potentially-uncalled copy - one that -Wunused-function
+ * flags in any file that doesn't happen to invoke the specific macro
+ * family relying on it (e.g. a file with no EXPECT_EQ_STR_NOCASE call
+ * still got its own unused cgtest_strcasecmp before this). A single
+ * non-`static` definition has external linkage instead, satisfied by
+ * the linker from every file that calls it - never "unused" from any
+ * one translation unit's point of view. */
 static const char *const CGTEST_H_TEMPLATE_RELPATH1 =
     "/* Shortens __FILE__ to a path relative to the current working\n"
     " * directory (falls back to the full path if it isn't under it),\n"
     " * so FAIL messages stay short - jump-to-file in an editor's\n"
     " * quickfix list still works as long as the editor's own cwd\n"
-    " * matches wherever the test binary was run from. */\n"
-    "static const char *cgtest_relpath(const char *file)\n"
-    "{\n"
-    "    static char cwd[4096];\n"
-    "    size_t i;\n"
-    "    size_t len;\n"
-    "\n"
-    "    if (CGTEST_GETCWD(cwd, sizeof(cwd)) == NULL) {\n"
-    "        return file;\n"
-    "    }\n"
+    " * matches wherever the test binary was run from. Implemented in\n"
+    " * the generated cgtest-runner.c, not here - see cgtest_runner.h. */\n"
+    "extern const char *cgtest_relpath(const char *file);\n"
     "\n";
 
-static const char *const CGTEST_H_TEMPLATE_RELPATH2 =
-    "    len = strlen(cwd);\n"
-    "    for (i = 0; i < len; i++) {\n"
-    "        char a = file[i];\n"
-    "        char b = cwd[i];\n"
-    "        if (a == '\\\\') a = '/';\n"
-    "        if (b == '\\\\') b = '/';\n"
-    "        if (a != b) {\n"
-    "            return file;\n"
-    "        }\n"
-    "    }\n"
-    "    if (file[len] != '/' && file[len] != '\\\\') {\n"
-    "        return file;\n"
-    "    }\n"
-    "    return file + len + 1;\n"
-    "}\n"
-    "\n";
-
-/* Prints one "  <prefix>\"...\"\n" line per '\n' found in "s" - used by
+/* Declared here, defined in the generated cgtest-runner.c - see the
+ * comment above CGTEST_H_TEMPLATE_RELPATH1. Prints one
+ * "  <prefix>\"...\"\n" line per '\n' found in "s" - used by
  * EXPECT_EQ_STR/ASSERT_EQ_STR so a real newline embedded in a tested
  * string can't visually merge with the FAIL block around it. Every
  * other non-printable byte - "\r", "\t", other named C escapes, and
@@ -165,60 +150,7 @@ static const char *const CGTEST_H_TEMPLATE_RELPATH2 =
  * line break either. Lines after the first are indented to line up
  * under the opening quote. */
 static const char *const CGTEST_H_TEMPLATE_STRFIELD1 =
-    "static void cgtest_print_str_field(const char *prefix, const char *s)\n"
-    "{\n"
-    "    size_t indent = strlen(prefix);\n"
-    "    int first = 1;\n"
-    "    size_t i;\n"
-    "    unsigned char c;\n"
-    "\n"
-    "    for (;;) {\n"
-    "        if (first) {\n"
-    "            fprintf(stderr, \"%s\\\"\", prefix);\n"
-    "            first = 0;\n"
-    "        } else {\n"
-    "            for (i = 0; i < indent; i++) {\n"
-    "                fputc(' ', stderr);\n"
-    "            }\n"
-    "            fputc('\"', stderr);\n"
-    "        }\n"
-    "\n";
-
-static const char *const CGTEST_H_TEMPLATE_STRFIELD2 =
-    "        for (;;) {\n"
-    "            c = (unsigned char)*s;\n"
-    "            if (c == '\\0') {\n"
-    "                fputs(\"\\\"\\n\", stderr);\n"
-    "                return;\n"
-    "            }\n"
-    "            if (c == '\\n') {\n"
-    "                fputs(\"\\\\n\\\"\\n\", stderr);\n"
-    "                s++;\n"
-    "                break;\n"
-    "            }\n"
-    "            switch (c) {\n"
-    "                case '\\r': fputs(\"\\\\r\", stderr); break;\n"
-    "                case '\\t': fputs(\"\\\\t\", stderr); break;\n";
-
-static const char *const CGTEST_H_TEMPLATE_STRFIELD3 =
-    "                case '\\a': fputs(\"\\\\a\", stderr); break;\n"
-    "                case '\\b': fputs(\"\\\\b\", stderr); break;\n"
-    "                case '\\v': fputs(\"\\\\v\", stderr); break;\n"
-    "                case '\\f': fputs(\"\\\\f\", stderr); break;\n";
-
-static const char *const CGTEST_H_TEMPLATE_STRFIELD4 =
-    "                default:\n"
-    "                    if (c < 0x20 || c >= 0x7f) {\n"
-    "                        fprintf(stderr, \"\\\\x%02x\", (unsigned int)c);\n"
-    "                    } else {\n"
-    "                        fputc((int)c, stderr);\n"
-    "                    }\n"
-    "                    break;\n"
-    "            }\n"
-    "            s++;\n"
-    "        }\n"
-    "    }\n"
-    "}\n"
+    "extern void cgtest_print_str_field(const char *prefix, const char *s);\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_EXPECT_TRUE =
@@ -731,31 +663,14 @@ static const char *const CGTEST_H_TEMPLATE_EQ_NE_STR2 =
     "    CGTEST_CMP_STR_(\"ASSERT_NE_STR\", ==, \"  unexpected: \", \"  actual:     \", { cgtest_fatal_failed = 1; return; }, unexpected, actual)\n"
     "\n";
 
+/* Declared here, defined in the generated cgtest-runner.c - see the
+ * comment above CGTEST_H_TEMPLATE_RELPATH1. Byte-wise case-insensitive
+ * comparison, like strcasecmp() - not used directly since strcasecmp()
+ * isn't standard C (POSIX only, and named _stricmp on MSVC); this
+ * stays portable to plain C89/C99. Returns 0 on a case-insensitive
+ * match, same convention as strcmp(). */
 static const char *const CGTEST_H_TEMPLATE_STRCASECMP1 =
-    "/* Byte-wise case-insensitive comparison, like strcasecmp() - not\n"
-    " * used directly since strcasecmp() isn't standard C (POSIX only,\n"
-    " * and named _stricmp on MSVC); this stays portable to plain\n"
-    " * C89/C99. Returns 0 on a case-insensitive match, same\n"
-    " * convention as strcmp(). */\n"
-    "static int cgtest_strcasecmp(const char *a, const char *b)\n"
-    "{\n"
-    "    unsigned char ca, cb;\n"
-    "\n";
-
-static const char *const CGTEST_H_TEMPLATE_STRCASECMP2 =
-    "    for (;;) {\n"
-    "        ca = (unsigned char)*a;\n"
-    "        cb = (unsigned char)*b;\n"
-    "        if (tolower(ca) != tolower(cb)) {\n"
-    "            return 1;\n"
-    "        }\n"
-    "        if (ca == '\\0') {\n"
-    "            return 0;\n"
-    "        }\n"
-    "        a++;\n"
-    "        b++;\n"
-    "    }\n"
-    "}\n"
+    "extern int cgtest_strcasecmp(const char *a, const char *b);\n"
     "\n";
 
 static const char *const CGTEST_H_TEMPLATE_CMP_STR_NOCASE1 =
@@ -1367,9 +1282,7 @@ CGTestCreateResult cgtest_create_run(const char *dir)
     if (!cgtest_create_write_file(header_path.data, error_buf, sizeof(error_buf),
                                    CGTEST_H_TEMPLATE_HEAD1, CGTEST_H_TEMPLATE_HEAD1B, CGTEST_H_TEMPLATE_HEAD1C,
                                    CGTEST_H_TEMPLATE_HEAD2, CGTEST_H_TEMPLATE_FATAL_FAILED,
-                                   CGTEST_H_TEMPLATE_RELPATH1, CGTEST_H_TEMPLATE_RELPATH2,
-                                   CGTEST_H_TEMPLATE_STRFIELD1, CGTEST_H_TEMPLATE_STRFIELD2,
-                                   CGTEST_H_TEMPLATE_STRFIELD3, CGTEST_H_TEMPLATE_STRFIELD4,
+                                   CGTEST_H_TEMPLATE_RELPATH1, CGTEST_H_TEMPLATE_STRFIELD1,
                                    CGTEST_H_TEMPLATE_EXPECT_TRUE, CGTEST_H_TEMPLATE_EXPECT_FALSE,
                                    CGTEST_H_TEMPLATE_ASSERT_TRUE, CGTEST_H_TEMPLATE_ASSERT_FALSE,
                                    CGTEST_H_TEMPLATE_CMP_INT1, CGTEST_H_TEMPLATE_CMP_INT2,
@@ -1396,7 +1309,7 @@ CGTestCreateResult cgtest_create_run(const char *dir)
                                    CGTEST_H_TEMPLATE_GT_DOUBLE, CGTEST_H_TEMPLATE_GE_DOUBLE,
                                    CGTEST_H_TEMPLATE_CMP_PTR1, CGTEST_H_TEMPLATE_CMP_PTR2,
                                    CGTEST_H_TEMPLATE_EQ_NE_PTR, CGTEST_H_TEMPLATE_EQ_NE_PTR2,
-                                   CGTEST_H_TEMPLATE_STRCASECMP1, CGTEST_H_TEMPLATE_STRCASECMP2,
+                                   CGTEST_H_TEMPLATE_STRCASECMP1,
                                    CGTEST_H_TEMPLATE_CMP_STR1, CGTEST_H_TEMPLATE_CMP_STR2,
                                    CGTEST_H_TEMPLATE_EQ_NE_STR, CGTEST_H_TEMPLATE_EQ_NE_STR2,
                                    CGTEST_H_TEMPLATE_CMP_STR_NOCASE1, CGTEST_H_TEMPLATE_CMP_STR_NOCASE2,

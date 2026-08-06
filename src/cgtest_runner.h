@@ -2,31 +2,58 @@
  * "-r --run" section): discovers test_*.c files across a
  * CGTestProject's test_directories, scans each for test_ functions
  * (ctestscanner.h), generates cgtest-runner.c, compiles it alongside
- * the project's own source_files and every discovered test_*.c file
- * (each as its own translation unit - see below), and executes the
- * result.
+ * the project's own source_files and every discovered test_*.c file,
+ * and executes the result.
  *
- * The generated runner never #includes a discovered test_*.c file -
- * it only "extern"-declares the functions it needs to call
- * (test_<name>, setup_<name>, and, if present, teardown_<name>), and
- * cgtest_runner_build_compile_command() passes every test file to the
- * compiler as its own separate source argument, alongside
- * cgtest-runner.c itself. This means a static helper or global defined
- * in one test file can no longer collide with a same-named one in
- * another - each file keeps its own translation unit's scope, the
- * normal C rule, rather than sharing one the way #include would force.
+ * The generated runner always "extern"-declares the functions it needs
+ * to call (test_<name>, setup_<name>, and, if present, teardown_<name>)
+ * rather than assuming their real definitions are already visible -
+ * how those definitions actually reach cgtest-runner.c is controlled by
+ * CGTestProject::single_translation_unit (cgtest-project.json's
+ * "single_translation_unit", optional, defaults to false):
+ *
+ *   - false (default, "separate TU" mode): cgtest-runner.c never
+ *     #includes a discovered test_*.c file. cgtest_runner_build_compile_
+ *     command() instead passes every test file to the compiler as its
+ *     own separate source argument, alongside cgtest-runner.c itself,
+ *     and the "extern" declarations above are satisfied by the linker.
+ *     This means a static helper or global defined in one test file
+ *     can't collide with a same-named one in another - each file keeps
+ *     its own translation unit's scope, the normal C rule, rather than
+ *     sharing one the way #include would force.
+ *   - true ("single TU" mode): cgtest_runner_generate_source() instead
+ *     appends one "#include "<absolute path>"" line per discovered test
+ *     file after the "extern" declarations, and cgtest_runner_build_
+ *     compile_command() passes only cgtest-runner.c to the compiler -
+ *     every test file's actual code arrives via that #include rather
+ *     than the linker. The optimizer then runs once over the combined
+ *     source instead of once per test file, which can be substantially
+ *     faster to compile at -O2/-O3 (the per-TU optimizer cost no longer
+ *     multiplies by file count) - at the cost of reintroducing the
+ *     static/global name collision this header just described "separate
+ *     TU" mode as fixing: two test files defining the same-named
+ *     "static int helper(void)" now share one translation unit again,
+ *     and the compiler rejects it as an ordinary redefinition error.
+ *     cgtest makes no attempt to detect or pre-empt that - it's an
+ *     accepted tradeoff of opting into this mode, not a bug.
+ *
  * A fixture's type (specification.md ch.6) still needs to be knowable
- * to cgtest-runner.c despite this - see cgtest_runner_generate_source()
- * for how that's resolved without ever needing the type's full
- * definition there.
+ * to cgtest-runner.c regardless of mode - see
+ * cgtest_runner_generate_source() for how that's resolved without ever
+ * needing the type's full definition there (in single-TU mode, the
+ * #include later in the same file happens to complete it too, but
+ * cgtest-runner.c itself still never relies on that).
  *
  * Two test files sharing a basename across different test_directories
- * is still rejected outright by cgtest_runner_run() (see its
- * duplicate-basename check) even though bare-filename #include
- * resolution is no longer the reason - MSVC's cl.exe otherwise names
- * each source file's object file after its own basename by default,
- * so two same-named files from different directories in one compile
- * invocation would silently collide.
+ * is rejected outright by cgtest_runner_run() (see its
+ * duplicate-basename check) in both modes - in separate-TU mode because
+ * MSVC's cl.exe otherwise names each source file's object file after
+ * its own basename by default, so two same-named files from different
+ * directories in one compile invocation would silently collide; kept as
+ * the same unconditional rule in single-TU mode too (where that
+ * specific MSVC collision can't occur, since only cgtest-runner.c is
+ * ever passed as a source argument) rather than making the rule's
+ * applicability depend on the mode.
  *
  * Like cgtest_project.h, the source-generation step is split out as a
  * pure function (cgtest_runner_generate_source()) so it's unit-
@@ -74,15 +101,26 @@ typedef struct {
  * PASS/FAIL per test and a final summary, exiting nonzero iff any test
  * failed.
  *
- * Every discovered test_*.c file is its own translation unit (see
- * cgtest_runner_build_compile_command()) - this function never
- * #includes one, it only declares what it needs from it:
+ * Regardless of "single_translation_unit", every discovered function is
+ * first declared the same way, only "extern" - this function never
+ * #includes a file just to make its functions visible:
  *
  *     extern void test_foo(void);                 // plain (void) test
  *
  *     extern void setup_bar(State **state);        // fixture test (see below)
  *     extern void test_bar(State *state);
  *     extern void teardown_bar(State *state);       // only if CTestFunction::has_teardown
+ *
+ * When "single_translation_unit" is 0 (the default), that's the whole
+ * story - each file compiles as its own translation unit (see
+ * cgtest_runner_build_compile_command()) and the "extern" declarations
+ * above are satisfied by the linker. When it's nonzero, one
+ * "#include "<files[i].label>"" line per file is appended right after
+ * every "extern" declaration above and before main() - see
+ * cgtest_runner.h's header comment for why (and its tradeoff).
+ * "files[i].label" is used there as-is (an absolute path, always
+ * '/'-separated regardless of platform - see cpath.h), not just its
+ * basename the way the "== <file> ==" header below does.
  *
  * A function whose CTestFunction::fixture_type is non-NULL (see
  * specification.md ch.6 "Fixtures") is called wrapped in its own
@@ -129,15 +167,22 @@ typedef struct {
  * NUL-terminated string the caller owns (free() it); returns NULL only
  * on allocation failure.
  */
-char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_count, const char *compile_command);
+char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_count, const char *compile_command,
+                                     int single_translation_unit);
 
 /* Builds the full compiler invocation for "project": project->compiler_command
  * verbatim, then an include flag for every include_paths and
- * test_directories entry, then every source_files entry, then every
+ * test_directories entry, then every source_files entry, then - only
+ * when project->single_translation_unit is 0, the default - every
  * files[i].label (each discovered test_*.c file, compiled as its own
  * translation unit - see cgtest_runner_generate_source()'s header
  * comment for why), then "runner_c_path" itself, then the flag(s)
- * naming "runner_bin_path" as the output. Two flag dialects, chosen by
+ * naming "runner_bin_path" as the output. When project->
+ * single_translation_unit is nonzero, "files"/"file_count" affect
+ * nothing here - every discovered file's code already reached
+ * cgtest-runner.c via the "#include" lines cgtest_runner_generate_source()
+ * emitted, so passing them as separate source arguments too would
+ * compile each one twice. Two flag dialects, chosen by
  * project->msvc: GCC/Clang's "-I\"path\"" and "-o \"path\"" (msvc == 0,
  * the default), or MSVC cl.exe's "/I\"path\"" and "/Fe:\"path\""
  * (msvc != 0) - cl.exe accepts neither "-I" nor "-o", so a plain

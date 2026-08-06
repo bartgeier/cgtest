@@ -16,11 +16,20 @@
  * them manually instead of via a generated cgtest-runner.
  */
 #include "cgtest_runner.h"
+#include "cpath.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#ifdef _WIN32
+#include <direct.h>
+#define CGTEST_TEST_GETCWD _getcwd
+#else
+#include <unistd.h>
+#define CGTEST_TEST_GETCWD getcwd
+#endif
 
 static int test_failed = 0;
 
@@ -35,7 +44,7 @@ static int test_failed = 0;
 
 void test_generates_valid_shell_with_no_files(void)
 {
-    char *source = cgtest_runner_generate_source(NULL, 0, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    char *source = cgtest_runner_generate_source(NULL, 0, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 0);
 
     CHECK(source != NULL);
     CHECK(strstr(source, "int main(void)") != NULL);
@@ -45,9 +54,33 @@ void test_generates_valid_shell_with_no_files(void)
     free(source);
 }
 
+void test_declares_and_defines_shared_helpers_in_generated_runner(void)
+{
+    /* Companion to test_header_declares_shared_helpers_extern_not_static
+     * in test_cgtest_create.c: cgtest.h only "extern"-declares
+     * cgtest_relpath()/cgtest_print_str_field()/cgtest_strcasecmp() -
+     * this is where their one, non-`static` definition actually lives,
+     * unconditionally, regardless of file_count (same as cgtest_failed/
+     * cgtest_fatal_failed just above them). Non-`static` is the whole
+     * point: an unused `static` definition is what -Wunused-function
+     * flags, and a plain external-linkage one never is, regardless of
+     * whether anything in this translation unit happens to call it. */
+    char *source = cgtest_runner_generate_source(NULL, 0, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 0);
+
+    CHECK(source != NULL);
+    CHECK(strstr(source, "const char *cgtest_relpath(const char *file)\n{") != NULL);
+    CHECK(strstr(source, "void cgtest_print_str_field(const char *prefix, const char *s)\n{") != NULL);
+    CHECK(strstr(source, "int cgtest_strcasecmp(const char *a, const char *b)\n{") != NULL);
+    CHECK(strstr(source, "static const char *cgtest_relpath") == NULL);
+    CHECK(strstr(source, "static void cgtest_print_str_field") == NULL);
+    CHECK(strstr(source, "static int cgtest_strcasecmp") == NULL);
+
+    free(source);
+}
+
 void test_embeds_the_compile_command_as_a_leading_comment(void)
 {
-    char *source = cgtest_runner_generate_source(NULL, 0, "gcc -std=c99 -I\"src\" -o cgtest-runner cgtest-runner.c");
+    char *source = cgtest_runner_generate_source(NULL, 0, "gcc -std=c99 -I\"src\" -o cgtest-runner cgtest-runner.c", 0);
     const char *comment;
     const char *includes;
 
@@ -75,7 +108,7 @@ void test_declares_extern_and_calls_its_function(void)
     files[0].functions = functions;
     files[0].function_count = 1;
 
-    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 0);
 
     CHECK(source != NULL);
     /* Never #include'd - each test file is its own translation unit
@@ -107,7 +140,7 @@ void test_header_uses_bare_basename_and_precedes_its_tests(void)
     files[0].functions = functions;
     files[0].function_count = 1;
 
-    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 0);
     CHECK(source != NULL);
 
     header = strstr(source, "== test_math.c ==");
@@ -128,7 +161,7 @@ void test_skips_the_header_for_a_file_with_no_test_functions(void)
     files[0].functions = NULL;
     files[0].function_count = 0;
 
-    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 0);
     CHECK(source != NULL);
 
     /* No functions discovered in it - nothing to "extern" and no
@@ -158,7 +191,7 @@ void test_preserves_function_order_within_a_file(void)
     files[0].functions = functions;
     files[0].function_count = 2;
 
-    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 0);
     CHECK(source != NULL);
 
     first_call = strstr(source, "test_setup()");
@@ -193,7 +226,7 @@ void test_preserves_file_order_across_files(void)
     files[1].functions = fn_b;
     files[1].function_count = 1;
 
-    source = cgtest_runner_generate_source(files, 2, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    source = cgtest_runner_generate_source(files, 2, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 0);
     CHECK(source != NULL);
 
     call_a = strstr(source, "test_from_a()");
@@ -220,7 +253,7 @@ void test_generates_setup_teardown_wrapper_for_fixture_function(void)
     files[0].functions = functions;
     files[0].function_count = 1;
 
-    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 0);
 
     CHECK(source != NULL);
     CHECK(strstr(source, "typedef struct State State;") != NULL);
@@ -268,7 +301,7 @@ void test_deduplicates_fixture_type_forward_declaration(void)
     files[1].functions = fn_b;
     files[1].function_count = 1;
 
-    source = cgtest_runner_generate_source(files, 2, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    source = cgtest_runner_generate_source(files, 2, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 0);
     CHECK(source != NULL);
 
     first = strstr(source, "typedef struct State State;");
@@ -302,7 +335,7 @@ void test_forward_declares_each_distinct_fixture_type_once(void)
     files[1].functions = fn_b;
     files[1].function_count = 1;
 
-    source = cgtest_runner_generate_source(files, 2, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    source = cgtest_runner_generate_source(files, 2, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 0);
     CHECK(source != NULL);
 
     CHECK(strstr(source, "typedef struct State State;") != NULL);
@@ -331,7 +364,7 @@ void test_omits_teardown_call_when_has_teardown_is_unset(void)
     files[0].functions = functions;
     files[0].function_count = 1;
 
-    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 0);
 
     CHECK(source != NULL);
     CHECK(strstr(source, "State *state = NULL;") != NULL);
@@ -361,7 +394,7 @@ void test_fixture_test_call_is_guarded_by_fatal_failed_check(void)
     files[0].functions = functions;
     files[0].function_count = 1;
 
-    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 0);
     CHECK(source != NULL);
 
     /* cgtest_fatal_failed (set only by ASSERT_*, see cgtest.h) is reset
@@ -404,7 +437,7 @@ void test_fixture_wrapper_precedes_pass_fail_verdict(void)
     files[0].functions = functions;
     files[0].function_count = 1;
 
-    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c");
+    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 0);
     CHECK(source != NULL);
 
     teardown_call = strstr(source, "teardown_bar(state);");
@@ -416,6 +449,112 @@ void test_fixture_wrapper_precedes_pass_fail_verdict(void)
     free(source);
 }
 
+void test_single_translation_unit_includes_each_file_before_its_extern_declarations(void)
+{
+    /* single_translation_unit=1 (specification.md ch.6 "Single-
+     * translation-unit mode") still emits the same "extern" declaration
+     * as the default mode, but the "#include" line for each file comes
+     * first, not after: extern-declaring a function ahead of its real
+     * (#include'd) definition is fine either order, but a fixture
+     * type's forward declare ahead of its real definition is not (see
+     * test_single_translation_unit_skips_fixture_forward_declare below)
+     * - #include has to come first so that block can be skipped
+     * entirely instead of reordered around. */
+    CTestFunction functions[1];
+    CGTestRunnerFile files[1];
+    char *source;
+    const char *extern_decl;
+    const char *include_line;
+    const char *main_fn;
+
+    functions[0].name = "test_math_add";
+    functions[0].fixture_type = NULL;
+    functions[0].line = 3;
+
+    files[0].label = "/abs/path/test_math.c";
+    files[0].functions = functions;
+    files[0].function_count = 1;
+
+    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 1);
+    CHECK(source != NULL);
+
+    extern_decl = strstr(source, "extern void test_math_add(void);");
+    include_line = strstr(source, "#include \"/abs/path/test_math.c\"");
+    main_fn = strstr(source, "int main(void)");
+    CHECK(extern_decl != NULL);
+    CHECK(include_line != NULL);
+    CHECK(main_fn != NULL);
+    CHECK(include_line < extern_decl);
+    CHECK(extern_decl < main_fn);
+
+    free(source);
+}
+
+void test_default_mode_never_includes_test_files(void)
+{
+    /* Companion to the test above: with single_translation_unit left at
+     * its default (0), no "#include" line for a discovered test file is
+     * emitted at all - only the "extern" declaration. */
+    CTestFunction functions[1];
+    CGTestRunnerFile files[1];
+    char *source;
+
+    functions[0].name = "test_math_add";
+    functions[0].fixture_type = NULL;
+    functions[0].line = 3;
+
+    files[0].label = "/abs/path/test_math.c";
+    files[0].functions = functions;
+    files[0].function_count = 1;
+
+    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 0);
+    CHECK(source != NULL);
+    CHECK(strstr(source, "#include \"/abs/path/test_math.c\"") == NULL);
+
+    free(source);
+}
+
+void test_single_translation_unit_skips_fixture_forward_declare(void)
+{
+    /* Regression test: single_translation_unit=1 must NOT also emit
+     * "typedef struct State State;" the way the default mode does (see
+     * test_generates_setup_teardown_wrapper_for_fixture_function) - by
+     * the time this line would be emitted, the #include block already
+     * provided State's real, complete definition (see
+     * test_single_translation_unit_includes_each_file_before_its_extern_
+     * declarations), and a second, incomplete forward declaration of the
+     * same typedef name in the same translation unit is a hard error
+     * under -pedantic-errors (found by actually compiling
+     * examples/mathlib with single_translation_unit=true - it has
+     * exactly this shape: a fixture type, discovered via a real
+     * "test_bar(State *state)" signature). The "extern" declarations
+     * for setup_bar/test_bar themselves are still expected, same as
+     * every other mode/fixture combination - only the forward declare is
+     * mode-specific. */
+    CTestFunction functions[1];
+    CGTestRunnerFile files[1];
+    char *source;
+
+    functions[0].name = "test_bar";
+    functions[0].fixture_type = "State";
+    functions[0].has_teardown = 0;
+    functions[0].line = 3;
+
+    files[0].label = "/abs/path/test_widget.c";
+    files[0].functions = functions;
+    files[0].function_count = 1;
+
+    source = cgtest_runner_generate_source(files, 1, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 1);
+    CHECK(source != NULL);
+
+    CHECK(strstr(source, "typedef struct State State;") == NULL);
+    CHECK(strstr(source, "#include \"/abs/path/test_widget.c\"") != NULL);
+    CHECK(strstr(source, "extern void setup_bar(State **state);") != NULL);
+    CHECK(strstr(source, "extern void test_bar(State *state);") != NULL);
+
+    free(source);
+}
+
 #define FIXTURE_DIR "build/cgtest_runner_fixture"
 
 static void write_file(const char *path, const char *content)
@@ -423,6 +562,25 @@ static void write_file(const char *path, const char *content)
     FILE *f = fopen(path, "wb");
     fputs(content, f);
     fclose(f);
+}
+
+/* Every other test_run_*() test below registers test_directories with a
+ * relative literal (e.g. FIXTURE_DIR) directly, which is fine in
+ * separate-TU mode: each discovered file is passed to the compiler as
+ * its own command-line source argument, resolved against the compiler
+ * process's own cwd regardless. single_translation_unit=1 instead
+ * "#include"s each file's label from inside cgtest-runner.c
+ * (cgtest_runner.h) - a relative label there resolves against
+ * cgtest-runner.c's own directory (the normal quoted-#include rule),
+ * not the invoking process's cwd, so it needs the same absolute-path
+ * guarantee cgtest_project_load() provides in real use. Only the two
+ * single-TU test_run_*() tests below need this; the rest keep using
+ * plain relative literals like every test above them. */
+static void register_absolute_test_directory(CPathList *test_directories, const char *relative_dir)
+{
+    char cwd[4096];
+    CGTEST_TEST_GETCWD(cwd, sizeof(cwd));
+    cpathlist_register(test_directories, cwd, relative_dir);
 }
 
 void test_build_compile_command_uses_gcc_flags_by_default(void)
@@ -513,6 +671,42 @@ void test_build_compile_command_with_no_test_files(void)
 
     CHECK(cmd != NULL);
     CHECK(strstr(cmd, "\"build/cgtest-runner.c\"") != NULL);
+
+    free(cmd);
+    cpathlist_free(&project.include_paths);
+    cpathlist_free(&project.source_files);
+    cpathlist_free(&project.test_directories);
+}
+
+void test_build_compile_command_omits_test_files_as_separate_sources_when_single_translation_unit(void)
+{
+    /* single_translation_unit=1 (specification.md ch.6): every
+     * discovered test file's code already reached cgtest-runner.c via
+     * the "#include" lines cgtest_runner_generate_source() emits, so
+     * this function must not also pass it as its own source argument -
+     * that would compile it twice. */
+    CGTestProject project;
+    CGTestRunnerFile files[1];
+    char *cmd;
+
+    memset(&project, 0, sizeof(project));
+    project.compiler_command = "gcc -std=c99";
+    project.single_translation_unit = 1;
+    cpathlist_init(&project.include_paths);
+    cpathlist_init(&project.source_files);
+    cpathlist_init(&project.test_directories);
+    cpathlist_register(&project.test_directories, "", "tests");
+
+    files[0].label = "tests/test_math.c";
+    files[0].functions = NULL;
+    files[0].function_count = 0;
+
+    cmd = cgtest_runner_build_compile_command(&project, files, 1, "build/cgtest-runner.c", "build/cgtest-runner");
+
+    CHECK(cmd != NULL);
+    CHECK(strstr(cmd, "\"tests/test_math.c\"") == NULL);
+    CHECK(strstr(cmd, "\"build/cgtest-runner.c\"") != NULL);
+    CHECK(strstr(cmd, "-I\"tests\"") != NULL);
 
     free(cmd);
     cpathlist_free(&project.include_paths);
@@ -774,6 +968,142 @@ void test_run_allows_same_named_static_helper_across_files(void)
     remove(FIXTURE_DIR);
 }
 
+void test_run_single_translation_unit_compiles_and_runs(void)
+{
+    /* End-to-end proof that single_translation_unit=1 (specification.md
+     * ch.6) actually produces a compiling, runnable cgtest-runner - not
+     * just a generated-source string containing the right "#include"
+     * lines (test_single_translation_unit_includes_each_file_before_its_
+     * extern_declarations already covers that in isolation). */
+    CGTestProject project;
+    CGTestRunResult result;
+
+    mkdir(FIXTURE_DIR, 0755);
+    mkdir(FIXTURE_DIR "/single_tu", 0755);
+    write_file(FIXTURE_DIR "/single_tu/test_widget.c", "void test_bar(void) { }\n");
+
+    memset(&project, 0, sizeof(project));
+    project.compiler_command = "gcc -std=c99";
+    project.output_path = FIXTURE_DIR "/single_tu/build";
+    project.single_translation_unit = 1;
+    cpathlist_init(&project.include_paths);
+    cpathlist_init(&project.source_files);
+    cpathlist_init(&project.test_directories);
+    register_absolute_test_directory(&project.test_directories, FIXTURE_DIR "/single_tu");
+
+    result = cgtest_runner_run(&project);
+
+    CHECK(result.ok);
+    CHECK(result.error == NULL);
+    CHECK(result.exit_code == 0);
+
+    cgtest_runner_free(&result);
+    cpathlist_free(&project.include_paths);
+    cpathlist_free(&project.source_files);
+    cpathlist_free(&project.test_directories);
+    remove(FIXTURE_DIR "/single_tu/test_widget.c");
+    remove(FIXTURE_DIR "/single_tu/build/cgtest-runner.c");
+    remove(FIXTURE_DIR "/single_tu/build/cgtest-runner");
+    remove(FIXTURE_DIR "/single_tu/build");
+    remove(FIXTURE_DIR "/single_tu");
+    remove(FIXTURE_DIR);
+}
+
+void test_run_single_translation_unit_compiles_fixture_test_under_pedantic_errors(void)
+{
+    /* Regression test for the bug test_single_translation_unit_skips_
+     * fixture_forward_declare guards at the generated-source level:
+     * this compiles a real fixture test end to end with
+     * "-pedantic-errors" (found by running examples/mathlib, which uses
+     * "-std=c89 -pedantic-errors", with single_translation_unit=true -
+     * it failed with "redefinition of typedef 'State'" before the fix
+     * that made the fixture forward-declare block single-TU-aware). */
+    CGTestProject project;
+    CGTestRunResult result;
+
+    mkdir(FIXTURE_DIR, 0755);
+    mkdir(FIXTURE_DIR "/single_tu_fixture", 0755);
+    write_file(FIXTURE_DIR "/single_tu_fixture/test_widget.c",
+        "#include <stdlib.h>\n"
+        "typedef struct State { int x; } State;\n"
+        "void setup_bar(State **state) { *state = calloc(1, sizeof(State)); }\n"
+        "void test_bar(State *state) { (void)state; }\n");
+
+    memset(&project, 0, sizeof(project));
+    project.compiler_command = "gcc -std=c99 -pedantic-errors";
+    project.output_path = FIXTURE_DIR "/single_tu_fixture/build";
+    project.single_translation_unit = 1;
+    cpathlist_init(&project.include_paths);
+    cpathlist_init(&project.source_files);
+    cpathlist_init(&project.test_directories);
+    register_absolute_test_directory(&project.test_directories, FIXTURE_DIR "/single_tu_fixture");
+
+    result = cgtest_runner_run(&project);
+
+    CHECK(result.ok);
+    CHECK(result.error == NULL);
+    CHECK(result.exit_code == 0);
+
+    cgtest_runner_free(&result);
+    cpathlist_free(&project.include_paths);
+    cpathlist_free(&project.source_files);
+    cpathlist_free(&project.test_directories);
+    remove(FIXTURE_DIR "/single_tu_fixture/test_widget.c");
+    remove(FIXTURE_DIR "/single_tu_fixture/build/cgtest-runner.c");
+    remove(FIXTURE_DIR "/single_tu_fixture/build/cgtest-runner");
+    remove(FIXTURE_DIR "/single_tu_fixture/build");
+    remove(FIXTURE_DIR "/single_tu_fixture");
+    remove(FIXTURE_DIR);
+}
+
+void test_run_single_translation_unit_fails_on_duplicate_static_helper(void)
+{
+    /* The known, accepted tradeoff of single_translation_unit=1
+     * (specification.md ch.6 "Single-translation-unit mode"): unlike
+     * test_run_allows_same_named_static_helper_across_files' default
+     * mode, two files defining the same-named "static int helper(void)"
+     * now share one translation unit and the compiler rejects it as a
+     * redefinition - cgtest does not detect or pre-empt this itself, so
+     * it must surface as an ordinary compile failure. */
+    CGTestProject project;
+    CGTestRunResult result;
+
+    mkdir(FIXTURE_DIR, 0755);
+    mkdir(FIXTURE_DIR "/single_tu_collision", 0755);
+    write_file(FIXTURE_DIR "/single_tu_collision/test_one.c",
+        "static int helper(void) { return 1; }\n"
+        "void test_one(void) { (void)helper(); }\n");
+    write_file(FIXTURE_DIR "/single_tu_collision/test_two.c",
+        "static int helper(void) { return 2; }\n"
+        "void test_two(void) { (void)helper(); }\n");
+
+    memset(&project, 0, sizeof(project));
+    project.compiler_command = "gcc -std=c99";
+    project.output_path = FIXTURE_DIR "/single_tu_collision/build";
+    project.single_translation_unit = 1;
+    cpathlist_init(&project.include_paths);
+    cpathlist_init(&project.source_files);
+    cpathlist_init(&project.test_directories);
+    register_absolute_test_directory(&project.test_directories, FIXTURE_DIR "/single_tu_collision");
+
+    result = cgtest_runner_run(&project);
+
+    CHECK(!result.ok);
+    CHECK(result.error != NULL);
+    CHECK(strstr(result.error, "compilation failed") != NULL);
+
+    cgtest_runner_free(&result);
+    cpathlist_free(&project.include_paths);
+    cpathlist_free(&project.source_files);
+    cpathlist_free(&project.test_directories);
+    remove(FIXTURE_DIR "/single_tu_collision/test_one.c");
+    remove(FIXTURE_DIR "/single_tu_collision/test_two.c");
+    remove(FIXTURE_DIR "/single_tu_collision/build/cgtest-runner.c");
+    remove(FIXTURE_DIR "/single_tu_collision/build");
+    remove(FIXTURE_DIR "/single_tu_collision");
+    remove(FIXTURE_DIR);
+}
+
 void test_run_populates_timing_fields(void)
 {
     /* Timing (CGTestRunResult::scan_ms/generate_ms/compile_ms/run_ms/
@@ -829,6 +1159,7 @@ int main(void)
 {
     static const TestCase cases[] = {
         { "test_generates_valid_shell_with_no_files", test_generates_valid_shell_with_no_files },
+        { "test_declares_and_defines_shared_helpers_in_generated_runner", test_declares_and_defines_shared_helpers_in_generated_runner },
         { "test_embeds_the_compile_command_as_a_leading_comment", test_embeds_the_compile_command_as_a_leading_comment },
         { "test_declares_extern_and_calls_its_function", test_declares_extern_and_calls_its_function },
         { "test_header_uses_bare_basename_and_precedes_its_tests", test_header_uses_bare_basename_and_precedes_its_tests },
@@ -841,14 +1172,21 @@ int main(void)
         { "test_omits_teardown_call_when_has_teardown_is_unset", test_omits_teardown_call_when_has_teardown_is_unset },
         { "test_fixture_test_call_is_guarded_by_fatal_failed_check", test_fixture_test_call_is_guarded_by_fatal_failed_check },
         { "test_fixture_wrapper_precedes_pass_fail_verdict", test_fixture_wrapper_precedes_pass_fail_verdict },
+        { "test_single_translation_unit_includes_each_file_before_its_extern_declarations", test_single_translation_unit_includes_each_file_before_its_extern_declarations },
+        { "test_default_mode_never_includes_test_files", test_default_mode_never_includes_test_files },
+        { "test_single_translation_unit_skips_fixture_forward_declare", test_single_translation_unit_skips_fixture_forward_declare },
         { "test_build_compile_command_uses_gcc_flags_by_default", test_build_compile_command_uses_gcc_flags_by_default },
         { "test_build_compile_command_uses_msvc_flags_when_configured", test_build_compile_command_uses_msvc_flags_when_configured },
         { "test_build_compile_command_with_no_test_files", test_build_compile_command_with_no_test_files },
+        { "test_build_compile_command_omits_test_files_as_separate_sources_when_single_translation_unit", test_build_compile_command_omits_test_files_as_separate_sources_when_single_translation_unit },
         { "test_run_rejects_duplicate_basenames_across_directories", test_run_rejects_duplicate_basenames_across_directories },
         { "test_run_rejects_fixture_test_missing_setup_function", test_run_rejects_fixture_test_missing_setup_function },
         { "test_run_succeeds_with_fixture_test_missing_teardown_function", test_run_succeeds_with_fixture_test_missing_teardown_function },
         { "test_run_still_calls_teardown_function_when_present", test_run_still_calls_teardown_function_when_present },
         { "test_run_allows_same_named_static_helper_across_files", test_run_allows_same_named_static_helper_across_files },
+        { "test_run_single_translation_unit_compiles_and_runs", test_run_single_translation_unit_compiles_and_runs },
+        { "test_run_single_translation_unit_compiles_fixture_test_under_pedantic_errors", test_run_single_translation_unit_compiles_fixture_test_under_pedantic_errors },
+        { "test_run_single_translation_unit_fails_on_duplicate_static_helper", test_run_single_translation_unit_fails_on_duplicate_static_helper },
         { "test_run_populates_timing_fields", test_run_populates_timing_fields }
     };
     size_t count = sizeof(cases) / sizeof(cases[0]);

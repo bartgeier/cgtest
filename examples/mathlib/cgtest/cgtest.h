@@ -19,18 +19,9 @@
  * (INT/UINT/FLOAT/DOUBLE, and their ASSERT_ counterparts) are
  * ordering comparisons - </<=/>/>=. */
 
-#include <ctype.h>
 #include <float.h>
 #include <stdio.h>
 #include <string.h>
-
-#ifdef _WIN32
-#include <direct.h>
-#define CGTEST_GETCWD _getcwd
-#else
-#include <unistd.h>
-#define CGTEST_GETCWD getcwd
-#endif
 
 /* The generated runner reads this after calling each test to
  * decide pass/fail, resetting it to 0 first. */
@@ -46,81 +37,11 @@ extern int cgtest_fatal_failed;
  * directory (falls back to the full path if it isn't under it),
  * so FAIL messages stay short - jump-to-file in an editor's
  * quickfix list still works as long as the editor's own cwd
- * matches wherever the test binary was run from. */
-static const char *cgtest_relpath(const char *file)
-{
-    static char cwd[4096];
-    size_t i;
-    size_t len;
+ * matches wherever the test binary was run from. Implemented in
+ * the generated cgtest-runner.c, not here - see cgtest_runner.h. */
+extern const char *cgtest_relpath(const char *file);
 
-    if (CGTEST_GETCWD(cwd, sizeof(cwd)) == NULL) {
-        return file;
-    }
-
-    len = strlen(cwd);
-    for (i = 0; i < len; i++) {
-        char a = file[i];
-        char b = cwd[i];
-        if (a == '\\') a = '/';
-        if (b == '\\') b = '/';
-        if (a != b) {
-            return file;
-        }
-    }
-    if (file[len] != '/' && file[len] != '\\') {
-        return file;
-    }
-    return file + len + 1;
-}
-
-static void cgtest_print_str_field(const char *prefix, const char *s)
-{
-    size_t indent = strlen(prefix);
-    int first = 1;
-    size_t i;
-    unsigned char c;
-
-    for (;;) {
-        if (first) {
-            fprintf(stderr, "%s\"", prefix);
-            first = 0;
-        } else {
-            for (i = 0; i < indent; i++) {
-                fputc(' ', stderr);
-            }
-            fputc('"', stderr);
-        }
-
-        for (;;) {
-            c = (unsigned char)*s;
-            if (c == '\0') {
-                fputs("\"\n", stderr);
-                return;
-            }
-            if (c == '\n') {
-                fputs("\\n\"\n", stderr);
-                s++;
-                break;
-            }
-            switch (c) {
-                case '\r': fputs("\\r", stderr); break;
-                case '\t': fputs("\\t", stderr); break;
-                case '\a': fputs("\\a", stderr); break;
-                case '\b': fputs("\\b", stderr); break;
-                case '\v': fputs("\\v", stderr); break;
-                case '\f': fputs("\\f", stderr); break;
-                default:
-                    if (c < 0x20 || c >= 0x7f) {
-                        fprintf(stderr, "\\x%02x", (unsigned int)c);
-                    } else {
-                        fputc((int)c, stderr);
-                    }
-                    break;
-            }
-            s++;
-        }
-    }
-}
+extern void cgtest_print_str_field(const char *prefix, const char *s);
 
 #define EXPECT_TRUE(cond) \
     do { \
@@ -442,28 +363,7 @@ static void cgtest_print_str_field(const char *prefix, const char *s)
 #define ASSERT_NE_PTR(unexpected, actual) \
     CGTEST_CMP_PTR_("ASSERT_NE_PTR", ==, "  unexpected: %p\n  actual:     %p\n", { cgtest_fatal_failed = 1; return; }, unexpected, actual)
 
-/* Byte-wise case-insensitive comparison, like strcasecmp() - not
- * used directly since strcasecmp() isn't standard C (POSIX only,
- * and named _stricmp on MSVC); this stays portable to plain
- * C89/C99. Returns 0 on a case-insensitive match, same
- * convention as strcmp(). */
-static int cgtest_strcasecmp(const char *a, const char *b)
-{
-    unsigned char ca, cb;
-
-    for (;;) {
-        ca = (unsigned char)*a;
-        cb = (unsigned char)*b;
-        if (tolower(ca) != tolower(cb)) {
-            return 1;
-        }
-        if (ca == '\0') {
-            return 0;
-        }
-        a++;
-        b++;
-    }
-}
+extern int cgtest_strcasecmp(const char *a, const char *b);
 
 #define CGTEST_CMP_STR_(macro_name, fail_op, lhs_label, rhs_label, on_fail, lhs, rhs) \
     do { \

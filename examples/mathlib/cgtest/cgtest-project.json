@@ -1,6 +1,7 @@
 {
-    "compiler_command": "gcc -std=c89 -pedantic-errors -O3",
+    "compiler_command": "gcc -std=c89 -Wall -Wextra -pedantic-errors -O0",
     "msvc": false,
+    "single_translation_unit": false,
     "include_paths": [
         "../src",
         ".."

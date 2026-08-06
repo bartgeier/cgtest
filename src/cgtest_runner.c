@@ -117,7 +117,8 @@ static const char *cgtest_runner_basename(const char *path)
     return slash != NULL ? slash + 1 : path;
 }
 
-char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_count, const char *compile_command)
+char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_count, const char *compile_command,
+                                     int single_translation_unit)
 {
     CGTestRunnerBuf buf;
     size_t i;
@@ -136,20 +137,26 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
         !cgtest_runner_buf_append_cstr(&buf, compile_command) ||
         !cgtest_runner_buf_append_cstr(&buf, " */\n") ||
         !cgtest_runner_buf_append_cstr(&buf,
+            "#include <ctype.h>\n"
             "#include <stdio.h>\n"
-            /* isatty() is POSIX, not ISO C, so it needs its own header
-             * per platform - used below to decide whether the
-             * [ RUN ]/[ OK ]/[ FAILED ] lines get ANSI color codes.
-             * Same reasoning as GoogleTest's own color detection: color
-             * codes are only meaningful on a real terminal, and would
+            "#include <string.h>\n"
+            /* isatty()/getcwd() are POSIX, not ISO C, so they need
+             * their own headers per platform - isatty() decides below
+             * whether the [ RUN ]/[ OK ]/[ FAILED ] lines get ANSI
+             * color codes (same reasoning as GoogleTest's own color
+             * detection: only meaningful on a real terminal, and would
              * otherwise pollute output piped into a log file or an
-             * editor's quickfix list. */
+             * editor's quickfix list); getcwd() backs cgtest_relpath()
+             * below. */
             "#ifdef _WIN32\n"
+            "#include <direct.h>\n"
             "#include <io.h>\n"
             "#define CGTEST_ISATTY(fd) _isatty(fd)\n"
+            "#define CGTEST_GETCWD _getcwd\n"
             "#else\n"
             "#include <unistd.h>\n"
             "#define CGTEST_ISATTY(fd) isatty(fd)\n"
+            "#define CGTEST_GETCWD getcwd\n"
             "#endif\n"
             "\n"
             "int cgtest_failed = 0;\n"
@@ -163,14 +170,162 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
         goto fail;
     }
 
-    /* Every discovered test_*.c file compiles as its own translation
-     * unit (see cgtest_runner_build_compile_command()) - cgtest-runner.c
-     * never #includes them, so their own static helpers/globals stay
-     * properly file-scoped instead of sharing a namespace with every
-     * other test file. What cgtest-runner.c needs from each file
-     * instead is declared here: a forward declaration of each distinct
-     * fixture type (see below), then an "extern" for every discovered
-     * function.
+    /* cgtest_relpath()/cgtest_print_str_field()/cgtest_strcasecmp()
+     * are declared "extern" in cgtest.h (see CGTEST_H_TEMPLATE_RELPATH1
+     * and friends in cgtest_create.c) but defined here, unconditionally,
+     * the one place they exist regardless of which macros any given
+     * test file actually uses - not `static` inside cgtest.h itself,
+     * which would give every #include'ing test_*.c file (in separate-TU
+     * mode - cgtest_runner.h) its own private, possibly-uncalled copy
+     * that -Wunused-function would flag. A single non-`static`
+     * definition has external linkage, satisfied by the linker from
+     * every file that calls it, never "unused" from any one
+     * translation unit's point of view. */
+    if (!cgtest_runner_buf_append_cstr(&buf,
+            "const char *cgtest_relpath(const char *file)\n"
+            "{\n"
+            "    static char cwd[4096];\n"
+            "    size_t i;\n"
+            "    size_t len;\n"
+            "\n"
+            "    if (CGTEST_GETCWD(cwd, sizeof(cwd)) == NULL) {\n"
+            "        return file;\n"
+            "    }\n"
+            "\n") ||
+        !cgtest_runner_buf_append_cstr(&buf,
+            "    len = strlen(cwd);\n"
+            "    for (i = 0; i < len; i++) {\n"
+            "        char a = file[i];\n"
+            "        char b = cwd[i];\n"
+            "        if (a == '\\\\') a = '/';\n"
+            "        if (b == '\\\\') b = '/';\n"
+            "        if (a != b) {\n"
+            "            return file;\n"
+            "        }\n"
+            "    }\n"
+            "    if (file[len] != '/' && file[len] != '\\\\') {\n"
+            "        return file;\n"
+            "    }\n"
+            "    return file + len + 1;\n"
+            "}\n"
+            "\n") ||
+        !cgtest_runner_buf_append_cstr(&buf,
+            "void cgtest_print_str_field(const char *prefix, const char *s)\n"
+            "{\n"
+            "    size_t indent = strlen(prefix);\n"
+            "    int first = 1;\n"
+            "    size_t i;\n"
+            "    unsigned char c;\n"
+            "\n"
+            "    for (;;) {\n"
+            "        if (first) {\n"
+            "            fprintf(stderr, \"%s\\\"\", prefix);\n"
+            "            first = 0;\n"
+            "        } else {\n"
+            "            for (i = 0; i < indent; i++) {\n"
+            "                fputc(' ', stderr);\n"
+            "            }\n"
+            "            fputc('\"', stderr);\n"
+            "        }\n"
+            "\n") ||
+        !cgtest_runner_buf_append_cstr(&buf,
+            "        for (;;) {\n"
+            "            c = (unsigned char)*s;\n"
+            "            if (c == '\\0') {\n"
+            "                fputs(\"\\\"\\n\", stderr);\n"
+            "                return;\n"
+            "            }\n"
+            "            if (c == '\\n') {\n"
+            "                fputs(\"\\\\n\\\"\\n\", stderr);\n"
+            "                s++;\n"
+            "                break;\n"
+            "            }\n"
+            "            switch (c) {\n"
+            "                case '\\r': fputs(\"\\\\r\", stderr); break;\n"
+            "                case '\\t': fputs(\"\\\\t\", stderr); break;\n") ||
+        !cgtest_runner_buf_append_cstr(&buf,
+            "                case '\\a': fputs(\"\\\\a\", stderr); break;\n"
+            "                case '\\b': fputs(\"\\\\b\", stderr); break;\n"
+            "                case '\\v': fputs(\"\\\\v\", stderr); break;\n"
+            "                case '\\f': fputs(\"\\\\f\", stderr); break;\n") ||
+        !cgtest_runner_buf_append_cstr(&buf,
+            "                default:\n"
+            "                    if (c < 0x20 || c >= 0x7f) {\n"
+            "                        fprintf(stderr, \"\\\\x%02x\", (unsigned int)c);\n"
+            "                    } else {\n"
+            "                        fputc((int)c, stderr);\n"
+            "                    }\n"
+            "                    break;\n"
+            "            }\n"
+            "            s++;\n"
+            "        }\n"
+            "    }\n"
+            "}\n"
+            "\n") ||
+        !cgtest_runner_buf_append_cstr(&buf,
+            "int cgtest_strcasecmp(const char *a, const char *b)\n"
+            "{\n"
+            "    unsigned char ca, cb;\n"
+            "\n"
+            "    for (;;) {\n"
+            "        ca = (unsigned char)*a;\n"
+            "        cb = (unsigned char)*b;\n"
+            "        if (tolower(ca) != tolower(cb)) {\n"
+            "            return 1;\n"
+            "        }\n"
+            "        if (ca == '\\0') {\n"
+            "            return 0;\n"
+            "        }\n"
+            "        a++;\n"
+            "        b++;\n"
+            "    }\n"
+            "}\n"
+            "\n")) {
+        goto fail;
+    }
+
+    /* single_translation_unit's "single TU" mode (see cgtest_runner.h):
+     * every discovered file's real code is #include'd here, before
+     * anything below that might otherwise need to know about it -
+     * cgtest_runner_build_compile_command() then passes only
+     * cgtest-runner.c to the compiler, not files[i].label separately.
+     * This has to happen before the fixture-forward-declare block right
+     * below, not after it: that block's whole purpose is declaring a
+     * fixture type before its real definition is available (see its own
+     * comment) - once single-TU mode's #include has already provided
+     * the real definition, forward-declaring it too would be a second,
+     * incompatible declaration of the same typedef name in one
+     * translation unit, a hard error under -pedantic-errors (same
+     * reasoning as that block's own dedup requirement, just violated a
+     * different way). This block is skipped entirely in that mode
+     * instead of being reordered around it. */
+    if (single_translation_unit) {
+        for (i = 0; i < file_count; i++) {
+            if (!cgtest_runner_buf_append_cstr(&buf, "#include \"") ||
+                !cgtest_runner_buf_append_cstr(&buf, files[i].label) ||
+                !cgtest_runner_buf_append_cstr(&buf, "\"\n")) {
+                goto fail;
+            }
+        }
+        if (file_count > 0 && !cgtest_runner_buf_append_cstr(&buf, "\n")) {
+            goto fail;
+        }
+    }
+
+    /* By default (single_translation_unit == 0), every discovered
+     * test_*.c file compiles as its own translation unit (see
+     * cgtest_runner_build_compile_command()) - cgtest-runner.c never
+     * #includes them, so their own static helpers/globals stay properly
+     * file-scoped instead of sharing a namespace with every other test
+     * file. What cgtest-runner.c needs from each file instead is
+     * declared here: a forward declaration of each distinct fixture
+     * type (see below), then an "extern" for every discovered function.
+     * In single-TU mode (see above), the fixture type is already fully
+     * defined by the #include block above by this point, so this whole
+     * forward-declare block is skipped - only the "extern" function
+     * declarations further below are still emitted in both modes
+     * (harmless in single-TU mode: an ordinary, matching redeclaration
+     * of an already-#include'd definition, not a second definition).
      *
      * Fixture types are forward-declared as incomplete ("typedef struct
      * T T;") rather than #include'd or copied in full - cgtest-runner.c
@@ -192,7 +347,7 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
      * is an ordinary, expected case (e.g. every test in one file using
      * the same fixture). */
     total_functions = 0;
-    for (i = 0; i < file_count; i++) {
+    for (i = 0; i < file_count && !single_translation_unit; i++) {
         total_functions += files[i].function_count;
     }
 
@@ -205,7 +360,7 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
     }
 
     seen_count = 0;
-    for (i = 0; i < file_count; i++) {
+    for (i = 0; i < file_count && !single_translation_unit; i++) {
         for (j = 0; j < files[i].function_count; j++) {
             const char *fixture_type = files[i].functions[j].fixture_type;
             int already_seen;
@@ -478,14 +633,20 @@ static char *cgtest_runner_read_file(const char *path, size_t *out_length)
     return buffer;
 }
 
-/* Every discovered test_*.c file (files[i].label) is passed as its own
+/* When project->single_translation_unit is 0 (the default), every
+ * discovered test_*.c file (files[i].label) is passed as its own
  * source argument, the same way project->source_files are - each
  * compiles as its own translation unit, matching what
- * cgtest_runner_generate_source() now assumes (an "extern" declaration
- * per function, not an #include). Every test_directories entry is
- * still added as its own include flag too - not for resolving the test
- * files themselves anymore, but so a test file's own #include of a
- * sibling header elsewhere in test_directories still keeps working. */
+ * cgtest_runner_generate_source() emits in that mode (an "extern"
+ * declaration per function, not an #include). When it's nonzero,
+ * "files"/"file_count" are not turned into source arguments here at all
+ * - every file's code already reached cgtest-runner.c via the
+ * "#include" lines cgtest_runner_generate_source() emitted, so it's the
+ * only source argument this function adds. Every test_directories
+ * entry is still added as its own include flag either way - not for
+ * resolving the test files themselves, but so a test file's own
+ * #include of a sibling header elsewhere in test_directories still
+ * keeps working. */
 char *cgtest_runner_build_compile_command(const CGTestProject *project, const CGTestRunnerFile *files, size_t file_count,
                                            const char *runner_c_path, const char *runner_bin_path)
 {
@@ -522,11 +683,13 @@ char *cgtest_runner_build_compile_command(const CGTestProject *project, const CG
             goto fail;
         }
     }
-    for (i = 0; i < file_count; i++) {
-        if (!cgtest_runner_buf_append_cstr(&buf, " \"") ||
-            !cgtest_runner_buf_append_cstr(&buf, files[i].label) ||
-            !cgtest_runner_buf_append_cstr(&buf, "\"")) {
-            goto fail;
+    if (!project->single_translation_unit) {
+        for (i = 0; i < file_count; i++) {
+            if (!cgtest_runner_buf_append_cstr(&buf, " \"") ||
+                !cgtest_runner_buf_append_cstr(&buf, files[i].label) ||
+                !cgtest_runner_buf_append_cstr(&buf, "\"")) {
+                goto fail;
+            }
         }
     }
     if (!cgtest_runner_buf_append_cstr(&buf, " \"") ||
@@ -763,16 +926,16 @@ CGTestRunResult cgtest_runner_run(const CGTestProject *project)
         goto cleanup;
     }
 
-    /* Every discovered file is passed to the compiler as its own
-     * source argument (see cgtest_runner_build_compile_command()), not
-     * resolved via an include search anymore - but two test files
-     * sharing a basename across different test_directories is still
-     * rejected outright: MSVC's cl.exe names each source file's object
-     * file after its own basename by default, so two same-named files
-     * from different directories in one compile invocation would
-     * silently collide (whichever compiles second overwrites the
-     * first's object file). Reject that up front rather than risk a
-     * silently-wrong build. */
+    /* Two test files sharing a basename across different test_directories
+     * is rejected outright regardless of project->single_translation_unit
+     * - see cgtest_runner.h for why this stays one unconditional rule
+     * rather than one whose applicability depends on the mode: in
+     * separate-TU mode (the default), MSVC's cl.exe names each source
+     * file's object file after its own basename by default, so two
+     * same-named files from different directories in one compile
+     * invocation would silently collide (whichever compiles second
+     * overwrites the first's object file). Reject that up front rather
+     * than risk a silently-wrong build. */
     for (i = 0; i < runner_file_count; i++) {
         size_t k;
         for (k = i + 1; k < runner_file_count; k++) {
@@ -823,7 +986,7 @@ CGTestRunResult cgtest_runner_run(const CGTestProject *project)
         goto cleanup;
     }
 
-    source = cgtest_runner_generate_source(runner_files, runner_file_count, compile_cmd);
+    source = cgtest_runner_generate_source(runner_files, runner_file_count, compile_cmd, project->single_translation_unit);
     if (source == NULL) {
         cgtest_runner_set_error(&result, "out of memory");
         goto cleanup;

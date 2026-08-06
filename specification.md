@@ -72,7 +72,7 @@ What the project should NOT do.
   * -h --help of cgtest
 
 ### cgtest-project.json
-  * set compiler command "gcc -std=c99 -O3" 
+  * set compiler command "gcc -std=c89 -O0" 
   * Include path list
   * Source file list
   * Output path to generate cgtest-runner.c and cgtest-runner.exe
@@ -81,6 +81,10 @@ What the project should NOT do.
     `compiler_command` from GCC/Clang style (`-I"path"`, `-o "path"`) to MSVC
     `cl.exe` style (`/I"path"`, `/Fe:"path"`) - `compiler_command` alone can't
     express this, since `cl.exe` doesn't accept `-I`/`-o` at all.
+  * `single_translation_unit` (optional, defaults to `false`): compiles every
+    discovered test file into cgtest-runner.c's own translation unit (via
+    `#include`) instead of passing each as its own separate source argument -
+    see ch.6 "Single-translation-unit mode" for the mechanism and its tradeoff.
 
 Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 * Search test directorys for files their nameing starts with test_...  
@@ -162,7 +166,16 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 * cgtest_project.c cgtest_project.h use for json parsing jsmn https://github.com/zserge/jsmn
   parses cgtest-project.json
 * cgtest_create.c cgtest_create.h implements -i/--init: writes a template cgtest-project.json, cgtest.h, and test_cgtest_macros.c into a "cgtest" child of a directory.
+  - cgtest.h only `extern`-declares its few shared helpers (`cgtest_relpath()`, `cgtest_print_str_field()`, `cgtest_strcasecmp()` - see ch.4's macro descriptions above), the same
+    `extern int cgtest_failed;` pattern used for the runner's own pass/fail flags - never `static`
+    definitions copied into the header itself. A `static` definition there would give every
+    `#include`'ing test_\*.c file its own private copy (its own translation unit in separate-TU
+    mode - ch.6/cgtest_runner.h), one `-Wunused-function` flags in any file that doesn't happen to
+    call the specific macro relying on it, even though some other file does.
 * cgtest_runner.c cgtest_runner.h implements -r/--run: generates cgtest-runner.c, compiles it, and executes it.
+  - cgtest-runner.c is where cgtest.h's `extern`-declared helpers above are actually defined -
+    unconditionally, once, with external (non-`static`) linkage, satisfied by the linker from
+    every file that calls them regardless of `single_translation_unit`.
 * clexer.c clexer.h a C23 lexer/tokenizer.
 * cpreprocessor.c cpreprocessor.h directive-aware layer on top of clexer.c/h (recognizes #include/#embed/__has_include/__has_embed enough to disambiguate header-name tokens).
 * ctestscanner.c ctestscanner.h for scanning and listing the test_function within the test_files, built on top of cpreprocessor.c/h.
@@ -315,6 +328,53 @@ skips `TestBody()` but a non-fatal `EXPECT_*` one does not. A present `teardown_
 always runs regardless of that check; when none was found (see "Validation before
 invoking the compiler" below), the call is omitted entirely rather than emitted against a
 function that doesn't exist.
+
+### Single-translation-unit mode
+
+`single_translation_unit` (cgtest-project.json, optional, defaults to `false` - see
+"cgtest-project.json" above) toggles how the code behind the `extern` declarations above
+actually reaches cgtest-runner.c, without changing the fixture technique itself (the same
+opaque `typedef struct State State;` forward-declare, the same `extern`-declared
+`setup_bar`/`test_bar`/`teardown_bar`, the same developer-owns-`malloc`/`free`
+`State`) - both modes generate that part of cgtest-runner.c identically.
+
+* `false` (default, "separate TU"): as described above - every discovered test file
+  compiles as its own translation unit and is passed to the compiler as its own source
+  argument (see `cgtest_runner_build_compile_command()`); the `extern` declarations are
+  satisfied by the linker.
+* `true` ("single TU"): `cgtest_runner_generate_source()` instead appends one
+  `#include "<absolute path>"` line per discovered test file right after the `extern`
+  declarations and before `main()`, and `cgtest_runner_build_compile_command()` passes
+  only cgtest-runner.c to the compiler - no test file is ever passed as its own source
+  argument in this mode. The `extern` declarations ahead of the `#include`s are harmless
+  (an ordinary declaration-before-definition, legal C), and since the `#include`d text
+  itself completes `State`'s forward declaration by the time `main()` runs, nothing about
+  the fixture mechanism needs to change for this mode either.
+
+The motivation is compile speed: a fixed per-translation-unit optimizer cost is paid once
+per discovered test file in separate-TU mode, but only once total in single-TU mode - at
+`-O2`/`-O3` (see "cgtest-project.json"'s `compiler_command`), where that cost dominates for
+many small test files, this can make single-TU mode substantially faster to compile while
+still exercising the optimizer for real (unlike dropping to `-O0`, which avoids the cost by
+skipping optimization entirely instead of amortizing it).
+
+The cost: single-TU mode reintroduces exactly what separate-TU mode's own design (see
+"Generated code" above) was built to avoid - two test files defining the same-named
+`static` helper or global now share one translation unit again, and the compiler rejects
+it as an ordinary redefinition error rather than the two files' `static` symbols simply
+staying distinct the way separate compilation guarantees. cgtest makes no attempt to
+detect or pre-empt this (no pre-flight duplicate-symbol scan) - it ships as a known,
+accepted tradeoff of opting into the flag, revisited only if it turns out to be a real
+problem in practice.
+
+The duplicate-basename-across-directories check (see "Validation before invoking the
+compiler" below) is unconditional across both modes even though its original motivation -
+MSVC's `cl.exe` naming each source file's object file after its own basename, so two
+same-named files from different directories passed as separate source arguments would
+silently collide - only actually applies in separate-TU mode (single-TU mode never passes
+a test file as its own source argument to begin with). It stays one rule regardless of
+mode rather than one whose applicability depends on it, trading a small amount of
+single-TU-mode strictness for not needing to explain a mode-dependent exception.
 
 ### Explicitly rejected: returning the fixture from setup_<name>
 
