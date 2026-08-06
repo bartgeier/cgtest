@@ -212,6 +212,36 @@ Use for json parser single header jsmn.h in c https://github.com/zserge/jsmn
 
 - Colorized terminal output
 
+### Amalgamated single-file build (cgtest.c)
+
+`amalgamate_cgtest.c` (repo root) is the entry point for the `amalgamate` CLI tool
+(https://github.com/rindeal/Amalgamate - not the vendored jsmn.h/arq.h, an external
+tool invoked at build time) - it `#include`s every src/\*.c file, and `amalgamate`
+recursively inlines each one's own `#include`d headers (including third_party/jsmn.h
+and third_party/arq.h) into a single generated `cgtest.c` at the repo root. The point:
+a downstream developer can grab exactly that one file, `gcc -std=c89 cgtest.c -o
+cgtest`, and have a working cgtest.exe - no Makefile, no src/ tree, no third_party/ to
+fetch separately.
+
+`make` (or `make cgtest.c` directly) regenerates it via `amalgamate -i src -i
+third_party amalgamate_cgtest.c cgtest.c`, then `check-amalgamate` compiles the result
+under the same strict `-std=c89 -Wall -Wextra -pedantic -Werror` flags cgtest.exe
+itself must pass (specification.md's own C89 requirement) and runs `--version` as a
+smoke test - part of `make test`, so a broken amalgamation (e.g. a genuine cross-file
+symbol collision once merged into one translation unit) fails the build the same way
+any other regression would, not silently. `cgtest.c` is checked into version control
+(not a build artifact under build/) since that one file is the actual deliverable this
+exists for - regenerated whenever src/ or third_party/ changes, never hand-edited,
+same "generated, don't touch it" convention as cgtest-runner.c.
+
+The include order inside amalgamate_cgtest.c doesn't affect correctness: each
+`#include`d .c file already pulls in its own prototypes via its own header (present
+throughout the merged translation unit regardless of where a given function is
+textually defined), and `amalgamate` inlines any given file only once no matter how
+many of the merged .c files `#include` it (e.g. third_party/jsmn.h, reachable only from
+cgtest_project.c's `#define JSMN_STATIC` / `#include "jsmn.h"` pair here, stays inlined
+exactly once even though the tool doesn't know that in advance).
+
 ---
 
 ## 5. CLI Interface

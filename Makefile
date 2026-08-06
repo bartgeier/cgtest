@@ -1,8 +1,13 @@
-CC      ?= gcc
-CFLAGS  ?= -std=c99 -Wall -Wextra -pedantic
-CFLAGS  += -Isrc -Ithird_party
+CC         ?= gcc
+CFLAGS     ?= -std=c99 -Wall -Wextra -pedantic
+CFLAGS     += -Isrc -Ithird_party
+AMALGAMATE ?= amalgamate
 
 BUILD_DIR := build
+
+AMALGAMATE_STUB  := amalgamate_cgtest.c
+AMALGAMATED_SRC  := cgtest.c
+CHECK_AMALGAMATE_BIN := $(BUILD_DIR)/check_amalgamate
 
 TEST_CTESTSCANNER_BIN  := $(BUILD_DIR)/test_ctestscanner
 TEST_CPREPROCESSOR_BIN := $(BUILD_DIR)/test_cpreprocessor
@@ -16,11 +21,11 @@ TEST_CGTEST_RUNNER_BIN := $(BUILD_DIR)/test_cgtest_runner
 TEST_CTIMER_BIN        := $(BUILD_DIR)/test_ctimer
 CGTEST_BIN             := $(BUILD_DIR)/cgtest
 
-.PHONY: all test check-c89 clean
+.PHONY: all test check-c89 check-amalgamate clean
 
-all: test $(CGTEST_BIN)
+all: test $(CGTEST_BIN) $(AMALGAMATED_SRC)
 
-test: check-c89 $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_BIN) $(TEST_CPATHLIST_BIN) $(TEST_CGTEST_PROJECT_BIN) $(TEST_CTESTFILES_BIN) $(TEST_CGTEST_ARQ_BIN) $(TEST_CGTEST_CREATE_BIN) $(TEST_CGTEST_RUNNER_BIN) $(TEST_CTIMER_BIN)
+test: check-c89 check-amalgamate $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_BIN) $(TEST_CPATHLIST_BIN) $(TEST_CGTEST_PROJECT_BIN) $(TEST_CTESTFILES_BIN) $(TEST_CGTEST_ARQ_BIN) $(TEST_CGTEST_CREATE_BIN) $(TEST_CGTEST_RUNNER_BIN) $(TEST_CTIMER_BIN)
 	@echo "== test_ctestscanner =="
 	@$(TEST_CTESTSCANNER_BIN)
 	@echo
@@ -94,6 +99,32 @@ $(BUILD_DIR):
 # in the .so too, which is harmless - it's just another symbol.
 check-c89: | $(BUILD_DIR)
 	$(CC) -std=c89 -Wall -Wextra -pedantic -Werror -fPIC -shared -Wl,--no-undefined -Ithird_party src/*.c -o $(BUILD_DIR)/libcgtest_src_check.so
+
+# cgtest.c - a single-file amalgamation of every src/*.c and the
+# third_party/ headers it needs (see amalgamate_cgtest.c), produced by
+# the `amalgamate` CLI (https://github.com/rindeal/Amalgamate) so a
+# downstream developer can grab exactly one file, compile it, and have
+# a working cgtest.exe - no Makefile, no src/ tree, no third_party/ to
+# fetch separately. Checked into version control (not a build
+# artifact under $(BUILD_DIR)) since that one file IS the deliverable
+# this target exists for - re-run `make cgtest.c` (or plain `make`)
+# after changing anything under src/ or third_party/ to keep it in
+# sync, the same way a generated cgtest-runner.c is regenerated, never
+# hand-edited.
+$(AMALGAMATED_SRC): $(AMALGAMATE_STUB) src/*.c src/*.h third_party/*.h
+	$(AMALGAMATE) -i src -i third_party $(AMALGAMATE_STUB) $(AMALGAMATED_SRC)
+
+# cgtest.c must compile standalone under the same strict flags
+# cgtest.exe itself does, and actually run - not just parse without
+# error - since a broken single-file build defeats the entire point of
+# shipping it. --version is enough of a smoke test to catch a botched
+# amalgamation (e.g. a genuine cross-file symbol collision, unlikely
+# given check-c89 already compiles every src/*.c file - see its own
+# comment - but that check compiles each as its own translation unit,
+# not merged into one the way amalgamation does).
+check-amalgamate: $(AMALGAMATED_SRC) | $(BUILD_DIR)
+	$(CC) -std=c89 -Wall -Wextra -pedantic -Werror $(AMALGAMATED_SRC) -o $(CHECK_AMALGAMATE_BIN)
+	$(CHECK_AMALGAMATE_BIN) --version
 
 clean:
 	rm -rf $(BUILD_DIR)
