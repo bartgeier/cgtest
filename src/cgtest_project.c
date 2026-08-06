@@ -1,6 +1,6 @@
 /* cgtest_project.c - see cgtest_project.h.
  *
- * Uses jsmn.h (vendored in third_party/, see specification.md) as a flat
+ * Uses jsmn.h (vendored in third_party/jsmn/, see specification.md) as a flat
  * JSON tokenizer - it does not build a tree, just an array of tokens the
  * caller walks manually. Since every unrecognized key is a hard error
  * (rather than being silently skipped) and none of our 5 known fields'
