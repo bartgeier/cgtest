@@ -1,10 +1,10 @@
-/* test_cgtest_macros.c - a fixture example, then one example per macro
- * from cgtest.h, alongside test_math.c and test_math_edge_cases.c. These
- * checks don't exercise mathlib at all; they exist purely to show each
- * macro's call shape (and, for the first one, the fixture shape - see
- * specification.md ch.6 "Fixtures").
- */
-#include "cgtest/cgtest.h"
+/* test_cgtest_macros.c - a fixture example, then one example per
+ * macro from cgtest.h. These checks do not do anything useful; they
+ * exist purely to show each macro's call shape (and, for the first
+ * one, the fixture shape - see specification.md ch.6 "Fixtures").
+ * Discovered and run automatically by "cgtest --run ." - "." is
+ * already in cgtest-project.json's test_directories by default. */
+#include "cgtest.h"
 #include <stdlib.h>
 
 typedef struct Counter {

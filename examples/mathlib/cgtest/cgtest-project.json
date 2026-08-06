@@ -11,6 +11,7 @@
     ],
     "output_path": "../build",
     "test_directories": [
+        ".",
         "../tests"
     ]
 }
