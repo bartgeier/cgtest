@@ -67,7 +67,15 @@ int main(int argc, char **argv)
             fprintf(stderr, "cgtest: %s\n", result.error);
             exit_code = 1;
         } else {
-            printf("created %s\n", result.dir);
+            /* Each of the three files is reported individually - see
+             * CGTestCreateResult::wrote_project/wrote_header/
+             * wrote_test_macros (cgtest_create.h) - since cgtest_create_run()
+             * leaves whichever ones already existed untouched instead of
+             * always (re)writing all three. */
+            printf("%s\n", result.dir);
+            printf("  cgtest-project.json: %s\n", result.wrote_project ? "created" : "already exists, left unchanged");
+            printf("  cgtest.h: %s\n", result.wrote_header ? "created" : "already exists, left unchanged");
+            printf("  test_cgtest_macros.c: %s\n", result.wrote_test_macros ? "created" : "already exists, left unchanged");
             exit_code = 0;
         }
         cgtest_create_free(&result);

@@ -26,14 +26,21 @@ extern "C" {
 #endif
 
 typedef struct {
-    int   ok;      /* 0 = failed; see "error" */
-    char *dir;     /* malloc'd absolute path to the created "cgtest" directory, non-NULL only if ok */
-    char *error;   /* malloc'd human-readable message, non-NULL only if !ok */
+    int   ok;                 /* 0 = failed; see "error" */
+    char *dir;                /* malloc'd absolute path to the "cgtest" directory, non-NULL only if ok */
+    char *error;              /* malloc'd human-readable message, non-NULL only if !ok */
+
+    /* Each is 1 if this call actually wrote that file, 0 if it already
+     * existed and was left untouched - see cgtest_create_run()'s header
+     * comment. Valid only if ok. */
+    int   wrote_project;      /* cgtest-project.json */
+    int   wrote_header;       /* cgtest.h */
+    int   wrote_test_macros;  /* test_cgtest_macros.c */
 } CGTestCreateResult;
 
-/* Creates a template cgtest-project.json, cgtest.h, and
- * test_cgtest_macros.c inside "dir"'s "cgtest" child directory - "dir"
- * is always a directory, never a file path (e.g. "." creates
+/* Ensures a template cgtest-project.json, cgtest.h, and
+ * test_cgtest_macros.c exist inside "dir"'s "cgtest" child directory -
+ * "dir" is always a directory, never a file path (e.g. "." creates
  * "./cgtest/cgtest-project.json", "./cgtest/cgtest.h", and
  * "./cgtest/test_cgtest_macros.c", never files directly in "."). This
  * nesting lets a project's own test files #include "cgtest/cgtest.h"
@@ -42,10 +49,23 @@ typedef struct {
  * headers at its root. Both "dir" and "dir/cgtest" are created if they
  * don't exist yet, along with any missing parent directories (like
  * "mkdir -p" - e.g. "cgtest --init foo/bar" works even if "foo"
- * doesn't exist yet either). Fails - without writing anything - if a
- * cgtest-project.json already exists in "dir/cgtest" ("If
- * cgtest-project.json already exist than error and exit cgtest.exe",
- * per specification.md).
+ * doesn't exist yet either).
+ *
+ * Each of the three files is checked and written independently: a
+ * missing one is created from the current template (the one baked
+ * into this binary - see CGTestCreateResult::wrote_project/
+ * wrote_header/wrote_test_macros to tell which), an already-existing
+ * one is left completely untouched, never overwritten - whether it's
+ * an unmodified older version or something the developer edited by
+ * hand. This makes cgtest_create_run() safe (and idempotent) to call
+ * again on an already-initialized "dir/cgtest": nothing errors just
+ * because cgtest-project.json is already there, unlike before this
+ * per-file check existed. In particular, deleting only cgtest.h (e.g.
+ * to pick up a fix from a newer cgtest.exe - it never carries per-
+ * project customization the way cgtest-project.json's compiler_command/
+ * include_paths/etc. do) and re-running cgtest_create_run() regenerates
+ * just that file, leaving cgtest-project.json and test_cgtest_macros.c
+ * exactly as they were.
  */
 CGTestCreateResult cgtest_create_run(const char *dir);
 

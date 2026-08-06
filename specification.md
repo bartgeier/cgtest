@@ -61,7 +61,16 @@ What the project should NOT do.
     directory itself (e.g. `--init ./unitest` writes into `./unitest/cgtest`), so a project's
     own test files can `#include "cgtest/cgtest.h"`; both directories are created if they
     don't exist yet.
-    If cgtest-project.json already exist in that directory than error and exit cgtest.exe with an appropriate message.
+    Each of the three files is checked and written independently: a missing one is created from
+    the template baked into this cgtest.exe; an already-existing one is left completely
+    untouched, never overwritten, whether it's an unmodified older version or something the
+    developer edited by hand - so `--init` is safe (and idempotent) to re-run on an
+    already-initialized directory, never an error just because e.g. cgtest-project.json is
+    already there. In particular, deleting only cgtest.h (it never carries per-project
+    customization the way cgtest-project.json's compiler_command/include_paths/etc. do - so
+    there's nothing project-specific to lose) and re-running `--init` regenerates just that
+    file, picking up a fix from a newer cgtest.exe without disturbing cgtest-project.json or
+    test_cgtest_macros.c.
   * -t --time a modifier, not an action of its own: combined with -r/--run, prints a
     scan/generate/compile/run wall-clock timing breakdown after the normal output
     (see ctimer.h for the portable timer and CGTestRunResult for the measured

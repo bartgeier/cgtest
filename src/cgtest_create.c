@@ -1130,6 +1130,9 @@ static CGTestCreateResult cgtest_create_fail(const char *message)
     result.ok = 0;
     result.dir = NULL;
     result.error = cmsg_dup(message, strlen(message));
+    result.wrote_project = 0;
+    result.wrote_header = 0;
+    result.wrote_test_macros = 0;
     return result;
 }
 
@@ -1265,21 +1268,28 @@ CGTestCreateResult cgtest_create_run(const char *dir)
     }
 
     project_path = cpath_join(project_scratch, sizeof(project_scratch), cgtest_dir.data, "cgtest-project.json");
-
-    if (stat(project_path.data, &st) == 0) {
-        cmsg_build(error_buf, sizeof(error_buf), "cgtest-project.json already exists: ",
-                   project_path.data, project_path.length, "");
-        return cgtest_create_fail(error_buf);
-    }
-
     header_path = cpath_join(header_scratch, sizeof(header_scratch), cgtest_dir.data, "cgtest.h");
     test_path = cpath_join(test_scratch, sizeof(test_scratch), cgtest_dir.data, "test_cgtest_macros.c");
 
-    if (!cgtest_create_write_file(project_path.data, error_buf, sizeof(error_buf),
+    /* Each of the three files is written only if it doesn't already
+     * exist - see cgtest_create_run()'s header comment for why (in
+     * short: an existing cgtest-project.json/cgtest.h/
+     * test_cgtest_macros.c is never overwritten, whether it's an
+     * unmodified older version or something hand-edited, but a
+     * missing one - e.g. a deleted cgtest.h, to pick up a newer
+     * cgtest.exe's fix - is still filled back in). */
+    if (stat(project_path.data, &st) == 0) {
+        result.wrote_project = 0;
+    } else if (!cgtest_create_write_file(project_path.data, error_buf, sizeof(error_buf),
                                    CGTEST_PROJECT_TEMPLATE, (const char *)NULL)) {
         return cgtest_create_fail(error_buf);
+    } else {
+        result.wrote_project = 1;
     }
-    if (!cgtest_create_write_file(header_path.data, error_buf, sizeof(error_buf),
+
+    if (stat(header_path.data, &st) == 0) {
+        result.wrote_header = 0;
+    } else if (!cgtest_create_write_file(header_path.data, error_buf, sizeof(error_buf),
                                    CGTEST_H_TEMPLATE_HEAD1, CGTEST_H_TEMPLATE_HEAD1B, CGTEST_H_TEMPLATE_HEAD1C,
                                    CGTEST_H_TEMPLATE_HEAD2, CGTEST_H_TEMPLATE_FATAL_FAILED,
                                    CGTEST_H_TEMPLATE_RELPATH1, CGTEST_H_TEMPLATE_STRFIELD1,
@@ -1317,8 +1327,13 @@ CGTestCreateResult cgtest_create_run(const char *dir)
                                    CGTEST_H_TEMPLATE_FOOTER,
                                    (const char *)NULL)) {
         return cgtest_create_fail(error_buf);
+    } else {
+        result.wrote_header = 1;
     }
-    if (!cgtest_create_write_file(test_path.data, error_buf, sizeof(error_buf),
+
+    if (stat(test_path.data, &st) == 0) {
+        result.wrote_test_macros = 0;
+    } else if (!cgtest_create_write_file(test_path.data, error_buf, sizeof(error_buf),
                                    CGTEST_TEST_MACROS_TEMPLATE1, CGTEST_TEST_MACROS_TEMPLATE2,
                                    CGTEST_TEST_MACROS_TEMPLATE3,
                                    CGTEST_TEST_MACROS_TEMPLATE4, CGTEST_TEST_MACROS_TEMPLATE5,
@@ -1329,6 +1344,8 @@ CGTestCreateResult cgtest_create_run(const char *dir)
                                    CGTEST_TEST_MACROS_TEMPLATE14,
                                    (const char *)NULL)) {
         return cgtest_create_fail(error_buf);
+    } else {
+        result.wrote_test_macros = 1;
     }
 
     result.ok = 1;

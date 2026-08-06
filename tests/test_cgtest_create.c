@@ -74,6 +74,9 @@ void test_creates_project_and_header_in_existing_directory(void)
     CHECK(result.error == NULL);
     CHECK(result.dir != NULL);
     CHECK(strstr(result.dir, "/cgtest") != NULL);
+    CHECK(result.wrote_project);
+    CHECK(result.wrote_header);
+    CHECK(result.wrote_test_macros);
     CHECK(read_whole_file(PROJECT_PATH, buf, sizeof(buf)) > 0);
     CHECK(read_whole_file(HEADER_PATH, buf, sizeof(buf)) > 0);
     CHECK(read_whole_file(TEST_MACROS_PATH, buf, sizeof(buf)) > 0);
@@ -186,8 +189,17 @@ void test_created_project_round_trips_through_parser(void)
     teardown_fixture();
 }
 
-void test_refuses_to_overwrite_existing_project(void)
+void test_leaves_existing_project_untouched_and_fills_in_missing_files(void)
 {
+    /* cgtest_create_run() used to refuse outright (writing nothing) the
+     * moment cgtest-project.json existed - this checks each of the
+     * three files independently instead (cgtest_create.h): an existing
+     * cgtest-project.json is left completely untouched, but cgtest.h
+     * and test_cgtest_macros.c, both missing here, are still filled in
+     * and the call succeeds - the scenario that matters is a developer
+     * re-running --init on an already-initialized project to pick up a
+     * newer cgtest.exe's cgtest.h fix without disturbing their already-
+     * customized cgtest-project.json. */
     CGTestCreateResult result;
     FILE *f;
     char buf[4096];
@@ -201,16 +213,96 @@ void test_refuses_to_overwrite_existing_project(void)
 
     result = cgtest_create_run(FIXTURE_DIR);
 
-    CHECK(!result.ok);
-    CHECK(result.dir == NULL);
-    CHECK(result.error != NULL);
-    CHECK(strstr(result.error, "already exists") != NULL);
+    CHECK(result.ok);
+    CHECK(result.error == NULL);
+    CHECK(result.dir != NULL);
+    CHECK(!result.wrote_project);
+    CHECK(result.wrote_header);
+    CHECK(result.wrote_test_macros);
 
     CHECK(read_whole_file(PROJECT_PATH, buf, sizeof(buf)) > 0);
     CHECK(strcmp(buf, "PREEXISTING") == 0);
+    CHECK(read_whole_file(HEADER_PATH, buf, sizeof(buf)) > 0);
+    CHECK(read_whole_file(TEST_MACROS_PATH, buf, sizeof(buf)) > 0);
 
     cgtest_create_free(&result);
-    remove(PROJECT_PATH);
+    teardown_fixture();
+}
+
+void test_rerunning_on_a_complete_project_is_an_idempotent_no_op(void)
+{
+    /* Companion to the test above: once all three files exist (a
+     * normal, complete --init already ran), calling cgtest_create_run()
+     * again must succeed without writing anything - not error, not
+     * silently overwrite. */
+    CGTestCreateResult first;
+    CGTestCreateResult second;
+    char before[4096];
+    char after[4096];
+
+    setup_fixture();
+    first = cgtest_create_run(FIXTURE_DIR);
+    CHECK(first.ok);
+    CHECK(read_whole_file(PROJECT_PATH, before, sizeof(before)) > 0);
+    cgtest_create_free(&first);
+
+    second = cgtest_create_run(FIXTURE_DIR);
+
+    CHECK(second.ok);
+    CHECK(second.error == NULL);
+    CHECK(!second.wrote_project);
+    CHECK(!second.wrote_header);
+    CHECK(!second.wrote_test_macros);
+    CHECK(read_whole_file(PROJECT_PATH, after, sizeof(after)) > 0);
+    CHECK(strcmp(before, after) == 0);
+
+    cgtest_create_free(&second);
+    teardown_fixture();
+}
+
+void test_regenerates_only_a_deleted_header(void)
+{
+    /* The exact upgrade scenario this per-file check exists for: a
+     * developer deletes cgtest.h alone (to pick up a fix from a newer
+     * cgtest.exe - cgtest.h never carries per-project customization the
+     * way cgtest-project.json's compiler_command/include_paths/etc. do)
+     * and re-runs --init. cgtest-project.json (customized here, like
+     * test_leaves_existing_project_untouched_and_fills_in_missing_files
+     * above) and test_cgtest_macros.c must stay exactly as they were;
+     * only cgtest.h comes back. */
+    CGTestCreateResult first;
+    CGTestCreateResult second;
+    char project_before[4096];
+    char project_after[4096];
+    char test_macros_before[4096];
+    char test_macros_after[4096];
+    char header_after[32768];
+
+    setup_fixture();
+    first = cgtest_create_run(FIXTURE_DIR);
+    CHECK(first.ok);
+    cgtest_create_free(&first);
+
+    CHECK(read_whole_file(PROJECT_PATH, project_before, sizeof(project_before)) > 0);
+    CHECK(read_whole_file(TEST_MACROS_PATH, test_macros_before, sizeof(test_macros_before)) > 0);
+    CHECK(remove(HEADER_PATH) == 0);
+
+    second = cgtest_create_run(FIXTURE_DIR);
+
+    CHECK(second.ok);
+    CHECK(second.error == NULL);
+    CHECK(!second.wrote_project);
+    CHECK(second.wrote_header);
+    CHECK(!second.wrote_test_macros);
+
+    CHECK(read_whole_file(PROJECT_PATH, project_after, sizeof(project_after)) > 0);
+    CHECK(strcmp(project_before, project_after) == 0);
+    CHECK(read_whole_file(TEST_MACROS_PATH, test_macros_after, sizeof(test_macros_after)) > 0);
+    CHECK(strcmp(test_macros_before, test_macros_after) == 0);
+    CHECK(read_whole_file(HEADER_PATH, header_after, sizeof(header_after)) > 0);
+    CHECK(strstr(header_after, "extern const char *cgtest_relpath(const char *file);") != NULL);
+
+    cgtest_create_free(&second);
     teardown_fixture();
 }
 
@@ -325,7 +417,9 @@ int main(void)
         { "test_test_macros_file_covers_the_whole_header", test_test_macros_file_covers_the_whole_header },
         { "test_header_declares_shared_helpers_extern_not_static", test_header_declares_shared_helpers_extern_not_static },
         { "test_created_project_round_trips_through_parser", test_created_project_round_trips_through_parser },
-        { "test_refuses_to_overwrite_existing_project", test_refuses_to_overwrite_existing_project },
+        { "test_leaves_existing_project_untouched_and_fills_in_missing_files", test_leaves_existing_project_untouched_and_fills_in_missing_files },
+        { "test_rerunning_on_a_complete_project_is_an_idempotent_no_op", test_rerunning_on_a_complete_project_is_an_idempotent_no_op },
+        { "test_regenerates_only_a_deleted_header", test_regenerates_only_a_deleted_header },
         { "test_path_that_is_a_regular_file_is_an_error", test_path_that_is_a_regular_file_is_an_error },
         { "test_creates_missing_parent_directories", test_creates_missing_parent_directories },
         { "test_parent_segment_that_is_a_regular_file_is_an_error", test_parent_segment_that_is_a_regular_file_is_an_error },
