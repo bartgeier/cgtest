@@ -71,9 +71,22 @@ int main(int argc, char **argv)
              * CGTestCreateResult::wrote_project/wrote_header/
              * wrote_test_macros (cgtest_create.h) - since cgtest_create_run()
              * leaves whichever ones already existed untouched instead of
-             * always (re)writing all three. */
+             * always (re)writing all three. cgtest-project.json has two
+             * further possible states beyond plain "left unchanged":
+             * patched_project (already existing, but missing an optional
+             * field a newer cgtest.exe added since it was written -
+             * filled in with its default value) and
+             * project_could_not_be_checked (already existing, but its
+             * shape couldn't be understood well enough to even check for
+             * a missing field - e.g. invalid JSON - so nothing was
+             * touched; reported distinctly from "left unchanged" so this
+             * isn't mistaken for "already up to date"). */
             printf("%s\n", result.dir);
-            printf("  cgtest-project.json: %s\n", result.wrote_project ? "created" : "already exists, left unchanged");
+            printf("  cgtest-project.json: %s\n",
+                   result.wrote_project ? "created" :
+                   result.patched_project ? "already exists, added missing field(s)" :
+                   result.project_could_not_be_checked ? "already exists, left unchanged (could not parse it to check for missing fields)" :
+                   "already exists, left unchanged");
             printf("  cgtest.h: %s\n", result.wrote_header ? "created" : "already exists, left unchanged");
             printf("  test_cgtest_macros.c: %s\n", result.wrote_test_macros ? "created" : "already exists, left unchanged");
             exit_code = 0;

@@ -36,6 +36,26 @@ typedef struct {
     int   wrote_project;      /* cgtest-project.json */
     int   wrote_header;       /* cgtest.h */
     int   wrote_test_macros;  /* test_cgtest_macros.c */
+
+    /* 1 if cgtest-project.json already existed (wrote_project == 0)
+     * but was missing one or more optional fields (msvc,
+     * single_translation_unit) that got patched in with their default
+     * value - see cgtest_create_run()'s header comment. Always 0 when
+     * wrote_project == 1 (nothing to patch into a file just written
+     * fresh from the current template) or when nothing was missing.
+     * Valid only if ok. */
+    int   patched_project;
+
+    /* 1 if cgtest-project.json already existed (wrote_project == 0)
+     * but couldn't be checked for missing optional fields at all -
+     * cgtest_project_scan_optional_fields() (cgtest_project.h)
+     * couldn't make sense of its shape (invalid JSON, an unrecognized
+     * key, etc.), so it was left completely untouched rather than
+     * patched - never both this and patched_project at once. Distinct
+     * from "nothing was missing" (patched_project == 0 with this also
+     * 0) specifically so a caller isn't left thinking a broken file is
+     * simply already up to date. Valid only if ok. */
+    int   project_could_not_be_checked;
 } CGTestCreateResult;
 
 /* Ensures a template cgtest-project.json, cgtest.h, and
@@ -66,6 +86,29 @@ typedef struct {
  * include_paths/etc. do) and re-running cgtest_create_run() regenerates
  * just that file, leaving cgtest-project.json and test_cgtest_macros.c
  * exactly as they were.
+ *
+ * An already-existing cgtest-project.json gets one more thing besides
+ * "left completely untouched" or "written fresh": if a newer
+ * cgtest.exe has grown an optional field (msvc, single_translation_unit)
+ * that predates the file (e.g. --init was originally run with an older
+ * cgtest.exe), that field is patched into the existing file with its
+ * default value - see CGTestCreateResult::patched_project and
+ * cgtest_project_scan_optional_fields() (cgtest_project.h) for the
+ * detection and specification.md's "--init" section for the full
+ * rationale. Every existing byte (values, formatting, field order) is
+ * left exactly as it was; the missing field(s) are appended just
+ * before the closing "}". Left alone entirely - not patched, not an
+ * error - if the file doesn't parse as valid JSON, since inserting
+ * into something whose shape isn't actually understood is worse than
+ * doing nothing; CGTestCreateResult::project_could_not_be_checked
+ * distinguishes that case from "nothing was missing" (both otherwise
+ * report wrote_project == 0, patched_project == 0), so a caller isn't
+ * left thinking a broken file is simply already up to date. This never
+ * applies to the required fields
+ * (compiler_command/include_paths/source_files/output_path/
+ * test_directories, still true after "cgtest-project.json" above) -
+ * none of them has a sensible project-agnostic default, unlike a
+ * boolean flag defaulting to its old, pre-flag behavior.
  */
 CGTestCreateResult cgtest_create_run(const char *dir);
 

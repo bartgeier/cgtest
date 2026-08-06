@@ -421,3 +421,122 @@ void cgtest_project_free(CGTestProject *project)
     project->compiler_command = NULL;
     project->output_path = NULL;
 }
+
+/* Returns 1 if the first non-whitespace byte in "json" at or after
+ * "pos" is "expected", 0 otherwise (including "pos" already at or past
+ * "length"). Used only to verify a comma/closing-bracket actually
+ * separates consecutive array elements or object pairs - jsmn's own
+ * tokenizer is more lenient than strict JSON about this (it happily
+ * tokenizes "[\"a\" \"b\"]" as two elements, comma or not), which is
+ * fine for cgtest_project_parse()'s own everyday leniency but not
+ * acceptable here: this function exists specifically to tell
+ * cgtest_create_run() whether it's safe to splice new text into the
+ * file, and a missing separator is exactly the kind of malformed input
+ * that must not be papered over first (found via examples/mathlib's
+ * own cgtest-project.json, which had exactly this typo). */
+static int cgtest_project_next_nonspace_is(const char *json, size_t length, size_t pos, char expected)
+{
+    while (pos < length && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == '\r' || json[pos] == '\n')) {
+        pos++;
+    }
+    return pos < length && json[pos] == expected;
+}
+
+/* jsmn's JSMN_STRING tokens end at their closing quote itself
+ * (excluded from the token's own start/end, which cover only its
+ * content) - every other token type this file uses (JSMN_PRIMITIVE,
+ * JSMN_ARRAY) already ends past its full representation (a primitive
+ * has no delimiter to exclude; an array's ".end" already covers its
+ * closing "]"). Callers that want "the byte position right after this
+ * token's complete text, quote included" - i.e. where a following
+ * comma/bracket/brace would appear - need this rather than the raw
+ * ".end" for a string. */
+static size_t cgtest_project_token_end(const jsmntok_t *token)
+{
+    return (size_t)token->end + (token->type == JSMN_STRING ? 1 : 0);
+}
+
+int cgtest_project_scan_optional_fields(const char *json, size_t length,
+                                         int *out_has_msvc, int *out_has_single_translation_unit)
+{
+    jsmn_parser parser;
+    jsmntok_t tokens[CGTEST_PROJECT_MAX_TOKENS];
+    int token_count;
+    int seen[CGTEST_FIELD_COUNT];
+    int idx;
+    int pair;
+    int i;
+
+    jsmn_init(&parser);
+    token_count = jsmn_parse(&parser, json, length, tokens, CGTEST_PROJECT_MAX_TOKENS);
+    if (token_count <= 0 || tokens[0].type != JSMN_OBJECT) {
+        return 0;
+    }
+
+    for (i = 0; i < CGTEST_FIELD_COUNT; i++) {
+        seen[i] = 0;
+    }
+
+    idx = 1;
+    for (pair = 0; pair < tokens[0].size; pair++) {
+        int field;
+        int value_idx;
+
+        if (idx >= token_count || tokens[idx].type != JSMN_STRING) {
+            return 0;
+        }
+        field = cgtest_project_match_field(json, &tokens[idx]);
+        if (field < 0 || seen[field]) {
+            return 0;
+        }
+        seen[field] = 1;
+        idx++;
+
+        if (idx >= token_count) {
+            return 0;
+        }
+        value_idx = idx;
+
+        /* Skip this field's value without inspecting it further - a
+         * string/primitive is exactly one token; an array is its own
+         * token plus one per element (see this function's own header
+         * comment in cgtest_project.h for why nothing deeper is
+         * needed). Anything else is a shape no field defined so far
+         * uses - bail out rather than guess how to skip it. Each
+         * array element's own separator is checked here too (see
+         * cgtest_project_next_nonspace_is()'s header comment) - jsmn
+         * itself doesn't require one between elements. */
+        if (tokens[value_idx].type == JSMN_ARRAY) {
+            int count = tokens[value_idx].size;
+            idx = value_idx + 1;
+            for (i = 0; i < count; i++) {
+                if (idx >= token_count) {
+                    return 0;
+                }
+                if (!cgtest_project_next_nonspace_is(json, length, cgtest_project_token_end(&tokens[idx]), i + 1 < count ? ',' : ']')) {
+                    return 0;
+                }
+                idx++;
+            }
+        } else if (tokens[value_idx].type == JSMN_STRING || tokens[value_idx].type == JSMN_PRIMITIVE) {
+            idx = value_idx + 1;
+        } else {
+            return 0;
+        }
+
+        /* Same check for the top-level object's own pairs - a comma
+         * before the next key, or the closing "}" after the last
+         * pair's value. "value_idx" (not the last-consumed token) is
+         * always right here - jsmn sets a compound token's (array's)
+         * own ".end" to cover its closing "]", the same as a scalar
+         * token's ".end" already covers its own value. */
+        if (!cgtest_project_next_nonspace_is(json, length, cgtest_project_token_end(&tokens[value_idx]),
+                                              pair + 1 < tokens[0].size ? ',' : '}')) {
+            return 0;
+        }
+    }
+
+    *out_has_msvc = seen[CGTEST_FIELD_MSVC];
+    *out_has_single_translation_unit = seen[CGTEST_FIELD_SINGLE_TRANSLATION_UNIT];
+    return 1;
+}

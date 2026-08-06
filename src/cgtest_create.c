@@ -9,6 +9,7 @@
  * like "mkdir -p" would.
  */
 #include "cgtest_create.h"
+#include "cgtest_project.h"
 #include "cpath.h"
 #include "cmsg.h"
 
@@ -1133,6 +1134,8 @@ static CGTestCreateResult cgtest_create_fail(const char *message)
     result.wrote_project = 0;
     result.wrote_header = 0;
     result.wrote_test_macros = 0;
+    result.patched_project = 0;
+    result.project_could_not_be_checked = 0;
     return result;
 }
 
@@ -1167,6 +1170,191 @@ static int cgtest_create_write_file(const char *path, char *error_buf, size_t er
     va_end(args);
 
     fclose(f);
+    return 1;
+}
+
+/* Reads "path" whole into a malloc'd, NUL-terminated buffer, setting
+ * *out_length to the byte count read (excluding the NUL). Returns NULL
+ * on any I/O or allocation failure. Same shape as
+ * cgtest_runner_read_file() (cgtest_runner.c) - each module that needs
+ * this keeps its own small copy rather than sharing one, matching this
+ * codebase's existing convention (e.g. CGTEST_GETCWD is likewise
+ * redefined per file, not shared via a common header). */
+static char *cgtest_create_read_file(const char *path, size_t *out_length)
+{
+    FILE *f;
+    long size;
+    char *buffer;
+    size_t read_count;
+
+    f = fopen(path, "rb");
+    if (f == NULL) {
+        return NULL;
+    }
+
+    if (fseek(f, 0, SEEK_END) != 0 || (size = ftell(f)) < 0 || fseek(f, 0, SEEK_SET) != 0) {
+        fclose(f);
+        return NULL;
+    }
+
+    buffer = (char *)malloc((size_t)size + 1);
+    if (buffer == NULL) {
+        fclose(f);
+        return NULL;
+    }
+
+    read_count = fread(buffer, 1, (size_t)size, f);
+    fclose(f);
+    if (read_count != (size_t)size) {
+        free(buffer);
+        return NULL;
+    }
+    buffer[size] = '\0';
+
+    *out_length = (size_t)size;
+    return buffer;
+}
+
+/* The exact text appended for each optional field missing from an
+ * already-existing cgtest-project.json (see
+ * cgtest_create_patch_missing_optional_fields() below) - same
+ * indentation/formatting as CGTEST_PROJECT_TEMPLATE's own "msvc"/
+ * "single_translation_unit" lines, minus the trailing comma (added
+ * separately, since whether one is needed depends on how many fields
+ * are being patched in together). */
+static const char *const CGTEST_CREATE_MSVC_DEFAULT_LINE = "    \"msvc\": false";
+static const char *const CGTEST_CREATE_SINGLE_TU_DEFAULT_LINE = "    \"single_translation_unit\": false";
+
+/* If "path" (an already-existing cgtest-project.json - see
+ * cgtest_create_run()'s header comment) is missing "msvc" and/or
+ * "single_translation_unit", appends whichever is missing - with its
+ * default value - just before the file's closing "}", leaving every
+ * other byte (existing values, formatting, field order) untouched.
+ * *out_patched is set to 1 if anything was actually appended.
+ * *out_could_not_check is set to 1 instead if the file couldn't be
+ * understood at all (see cgtest_project_scan_optional_fields()'s
+ * header comment for why that's left alone rather than guessed at) -
+ * distinct from "nothing was missing" (both out-params 0) so a caller
+ * isn't left thinking a broken file is simply already up to date.
+ * Returns 1 on success (regardless of which out-param ends up set), 0
+ * with "error_buf" filled in on an I/O failure. */
+static int cgtest_create_patch_missing_optional_fields(const char *path, char *error_buf, size_t error_buf_size,
+                                                         int *out_patched, int *out_could_not_check)
+{
+    char *content;
+    size_t length;
+    int has_msvc;
+    int has_single_translation_unit;
+    const char *missing[2];
+    size_t missing_count;
+    size_t content_end;
+    char *patched;
+    size_t offset;
+    size_t i;
+    size_t part_len;
+    FILE *f;
+
+    *out_patched = 0;
+    *out_could_not_check = 0;
+
+    content = cgtest_create_read_file(path, &length);
+    if (content == NULL) {
+        cmsg_build(error_buf, error_buf_size, "could not read ", path, strlen(path), "");
+        return 0;
+    }
+
+    if (!cgtest_project_scan_optional_fields(content, length, &has_msvc, &has_single_translation_unit)) {
+        free(content);
+        *out_could_not_check = 1;
+        return 1;
+    }
+
+    missing_count = 0;
+    if (!has_msvc) {
+        missing[missing_count++] = CGTEST_CREATE_MSVC_DEFAULT_LINE;
+    }
+    if (!has_single_translation_unit) {
+        missing[missing_count++] = CGTEST_CREATE_SINGLE_TU_DEFAULT_LINE;
+    }
+
+    if (missing_count == 0) {
+        free(content);
+        return 1;
+    }
+
+    /* cgtest-project.json's fields never nest a "{" (every value is a
+     * string, an array, or a boolean - see cgtest_project.c's own
+     * header comment), so the whole file is exactly one JSON object
+     * and its closing "}" is simply the last non-whitespace byte -
+     * find it by trimming trailing whitespace rather than re-parsing
+     * again. */
+    content_end = length;
+    while (content_end > 0 &&
+           (content[content_end - 1] == ' ' || content[content_end - 1] == '\t' ||
+            content[content_end - 1] == '\r' || content[content_end - 1] == '\n')) {
+        content_end--;
+    }
+    if (content_end == 0 || content[content_end - 1] != '}') {
+        /* Unreachable in practice - cgtest_project_scan_optional_fields()
+         * above already confirmed a top-level object - but never patch
+         * a file whose shape isn't exactly what was just assumed. */
+        free(content);
+        *out_could_not_check = 1;
+        return 1;
+    }
+    content_end--; /* now at the '}' itself */
+
+    /* Trim the whitespace before the "}" too, back to the real end of
+     * the previous field's value (e.g. the "]" closing
+     * test_directories) - that's where the new ",\n" belongs. */
+    while (content_end > 0 &&
+           (content[content_end - 1] == ' ' || content[content_end - 1] == '\t' ||
+            content[content_end - 1] == '\r' || content[content_end - 1] == '\n')) {
+        content_end--;
+    }
+
+    /* content_end bytes of the original file, plus ",\n" and the line
+     * itself per missing field, plus a closing "\n}\n" - comfortably
+     * bounded by content_end + 128 regardless of missing_count (at
+     * most 2 today). */
+    patched = (char *)malloc(content_end + 128);
+    if (patched == NULL) {
+        free(content);
+        cmsg_set(error_buf, error_buf_size, "out of memory");
+        return 0;
+    }
+
+    memcpy(patched, content, content_end);
+    offset = content_end;
+    for (i = 0; i < missing_count; i++) {
+        patched[offset++] = ',';
+        patched[offset++] = '\n';
+        part_len = strlen(missing[i]);
+        memcpy(patched + offset, missing[i], part_len);
+        offset += part_len;
+    }
+    patched[offset++] = '\n';
+    patched[offset++] = '}';
+    patched[offset++] = '\n';
+
+    free(content);
+
+    f = fopen(path, "wb");
+    if (f == NULL) {
+        free(patched);
+        cmsg_build(error_buf, error_buf_size, "could not create ", path, strlen(path), "");
+        return 0;
+    }
+    if (fwrite(patched, 1, offset, f) != offset) {
+        fclose(f);
+        free(patched);
+        cmsg_build(error_buf, error_buf_size, "could not write ", path, strlen(path), "");
+        return 0;
+    }
+    fclose(f);
+    free(patched);
+
+    *out_patched = 1;
     return 1;
 }
 
@@ -1280,11 +1468,17 @@ CGTestCreateResult cgtest_create_run(const char *dir)
      * cgtest.exe's fix - is still filled back in). */
     if (stat(project_path.data, &st) == 0) {
         result.wrote_project = 0;
+        if (!cgtest_create_patch_missing_optional_fields(project_path.data, error_buf, sizeof(error_buf),
+                                                          &result.patched_project, &result.project_could_not_be_checked)) {
+            return cgtest_create_fail(error_buf);
+        }
     } else if (!cgtest_create_write_file(project_path.data, error_buf, sizeof(error_buf),
                                    CGTEST_PROJECT_TEMPLATE, (const char *)NULL)) {
         return cgtest_create_fail(error_buf);
     } else {
         result.wrote_project = 1;
+        result.patched_project = 0;
+        result.project_could_not_be_checked = 0;
     }
 
     if (stat(header_path.data, &st) == 0) {

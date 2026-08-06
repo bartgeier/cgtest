@@ -13,5 +13,5 @@
     "test_directories": [
         ".",
         "../tests"
-    ]
+    ],
 }

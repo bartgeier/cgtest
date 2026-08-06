@@ -71,6 +71,20 @@ What the project should NOT do.
     there's nothing project-specific to lose) and re-running `--init` regenerates just that
     file, picking up a fix from a newer cgtest.exe without disturbing cgtest-project.json or
     test_cgtest_macros.c.
+    An already-existing cgtest-project.json gets one more kind of treatment: if it's missing an
+    optional field (`msvc`, `single_translation_unit`) that a newer cgtest.exe has grown since
+    the file was written, that field is patched in with its default value - every existing byte
+    (values, formatting, field order) stays exactly as it was, the missing field is just appended
+    before the closing `}`. Left alone entirely - not patched, not an error - if the file doesn't
+    parse as valid JSON, since guessing how to insert into a shape that isn't actually understood
+    is worse than doing nothing; `--init`'s own printed output says so explicitly ("left unchanged
+    (could not parse it to check for missing fields)") rather than reporting the same "left
+    unchanged" it would for a file that's already fully up to date - otherwise a developer fixing
+    a typo'd cgtest-project.json (e.g. a stray trailing comma) has no way to tell those two cases
+    apart from `--init`'s output alone. This never applies to the 5 required fields
+    (compiler_command/include_paths/source_files/output_path/test_directories) - none of them has
+    a sensible project-agnostic default the way a boolean flag defaulting to its old, pre-flag
+    behavior does.
   * -t --time a modifier, not an action of its own: combined with -r/--run, prints a
     scan/generate/compile/run wall-clock timing breakdown after the normal output
     (see ctimer.h for the portable timer and CGTestRunResult for the measured

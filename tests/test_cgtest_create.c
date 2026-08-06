@@ -306,6 +306,203 @@ void test_regenerates_only_a_deleted_header(void)
     teardown_fixture();
 }
 
+static void write_project_file(const char *content)
+{
+    FILE *f = fopen(PROJECT_PATH, "w");
+    CHECK(f != NULL);
+    fputs(content, f);
+    fclose(f);
+}
+
+void test_patches_missing_optional_fields_into_existing_project(void)
+{
+    /* The exact scenario this feature exists for: a cgtest-project.json
+     * written before "single_translation_unit" (or even "msvc")
+     * existed - the shape cgtest_project_scan_optional_fields()'s own
+     * test_scan_optional_fields_reports_both_absent covers. Every
+     * existing value (compiler_command customized here, to prove it
+     * survives) must stay exactly as written; only the two missing
+     * fields get appended. */
+    CGTestCreateResult result;
+    CGTestProject project;
+    char buf[4096];
+    long length;
+
+    setup_fixture();
+    mkdir(FIXTURE_CGTEST_DIR, 0755);
+    write_project_file(
+        "{\n"
+        "    \"compiler_command\": \"my-custom-cc -O2\",\n"
+        "    \"include_paths\": [],\n"
+        "    \"source_files\": [],\n"
+        "    \"output_path\": \"./build\",\n"
+        "    \"test_directories\": [\n"
+        "        \".\"\n"
+        "    ]\n"
+        "}\n");
+
+    result = cgtest_create_run(FIXTURE_DIR);
+
+    CHECK(result.ok);
+    CHECK(result.error == NULL);
+    CHECK(!result.wrote_project);
+    CHECK(result.patched_project);
+    CHECK(!result.project_could_not_be_checked);
+
+    length = read_whole_file(PROJECT_PATH, buf, sizeof(buf));
+    CHECK(length > 0);
+    CHECK(strstr(buf, "my-custom-cc -O2") != NULL);
+    CHECK(strstr(buf, "\"msvc\": false") != NULL);
+    CHECK(strstr(buf, "\"single_translation_unit\": false") != NULL);
+
+    /* Still valid, parseable JSON afterward, with the patched-in
+     * defaults actually taking effect. */
+    project = cgtest_project_parse(buf, (size_t)length, "/base");
+    CHECK(project.ok);
+    CHECK(project.msvc == 0);
+    CHECK(project.single_translation_unit == 0);
+    cgtest_project_free(&project);
+
+    cgtest_create_free(&result);
+    teardown_fixture();
+}
+
+void test_patches_only_the_one_missing_optional_field(void)
+{
+    /* Companion to the test above: an existing, non-default "msvc"
+     * value must survive being patched - only the genuinely missing
+     * "single_translation_unit" gets added, "msvc" is left exactly as
+     * written (true, not silently reset to its own default). */
+    CGTestCreateResult result;
+    CGTestProject project;
+    char buf[4096];
+    long length;
+
+    setup_fixture();
+    mkdir(FIXTURE_CGTEST_DIR, 0755);
+    write_project_file(
+        "{\n"
+        "    \"compiler_command\": \"cl /TC\",\n"
+        "    \"msvc\": true,\n"
+        "    \"include_paths\": [],\n"
+        "    \"source_files\": [],\n"
+        "    \"output_path\": \"./build\",\n"
+        "    \"test_directories\": [\n"
+        "        \".\"\n"
+        "    ]\n"
+        "}\n");
+
+    result = cgtest_create_run(FIXTURE_DIR);
+
+    CHECK(result.ok);
+    CHECK(!result.wrote_project);
+    CHECK(result.patched_project);
+    CHECK(!result.project_could_not_be_checked);
+
+    length = read_whole_file(PROJECT_PATH, buf, sizeof(buf));
+    CHECK(length > 0);
+    CHECK(strstr(buf, "\"single_translation_unit\": false") != NULL);
+
+    project = cgtest_project_parse(buf, (size_t)length, "/base");
+    CHECK(project.ok);
+    CHECK(project.msvc == 1);
+    CHECK(project.single_translation_unit == 0);
+    cgtest_project_free(&project);
+
+    cgtest_create_free(&result);
+    teardown_fixture();
+}
+
+void test_does_not_patch_when_no_optional_field_is_missing(void)
+{
+    /* When every optional field is already present, the file must
+     * come out byte-for-byte identical - not just "functionally
+     * unchanged" - and patched_project must report that nothing
+     * happened. */
+    CGTestCreateResult result;
+    char before[4096];
+    char after[4096];
+
+    setup_fixture();
+    mkdir(FIXTURE_CGTEST_DIR, 0755);
+    write_project_file(
+        "{\n"
+        "    \"compiler_command\": \"gcc\",\n"
+        "    \"msvc\": false,\n"
+        "    \"single_translation_unit\": true,\n"
+        "    \"include_paths\": [],\n"
+        "    \"source_files\": [],\n"
+        "    \"output_path\": \"./build\",\n"
+        "    \"test_directories\": [\n"
+        "        \".\"\n"
+        "    ]\n"
+        "}\n");
+    CHECK(read_whole_file(PROJECT_PATH, before, sizeof(before)) > 0);
+
+    result = cgtest_create_run(FIXTURE_DIR);
+
+    CHECK(result.ok);
+    CHECK(!result.wrote_project);
+    CHECK(!result.patched_project);
+    CHECK(!result.project_could_not_be_checked);
+    CHECK(read_whole_file(PROJECT_PATH, after, sizeof(after)) > 0);
+    CHECK(strcmp(before, after) == 0);
+
+    cgtest_create_free(&result);
+    teardown_fixture();
+}
+
+void test_does_not_patch_a_malformed_project_file(void)
+{
+    /* The bug found on examples/mathlib's own cgtest-project.json: a
+     * missing comma between array elements. cgtest's own jsmn-based
+     * parser tolerates it, but cgtest_project_scan_optional_fields()
+     * deliberately doesn't (see its own header comment) - inserting a
+     * field into a file whose shape isn't fully understood is worse
+     * than leaving it alone. The overall --init call still succeeds
+     * (cgtest.h/test_cgtest_macros.c are independent - see
+     * test_leaves_existing_project_untouched_and_fills_in_missing_files
+     * above), only cgtest-project.json itself is left untouched -
+     * reported via project_could_not_be_checked, distinct from
+     * "nothing was missing" (see
+     * test_does_not_patch_when_no_optional_field_is_missing above),
+     * so this doesn't get mistaken for "already up to date" the way a
+     * plain patched_project == 0 would leave ambiguous. */
+    CGTestCreateResult result;
+    char before[4096];
+    char after[4096];
+
+    setup_fixture();
+    mkdir(FIXTURE_CGTEST_DIR, 0755);
+    write_project_file(
+        "{\n"
+        "    \"compiler_command\": \"gcc\",\n"
+        "    \"include_paths\": [],\n"
+        "    \"source_files\": [],\n"
+        "    \"output_path\": \"./build\",\n"
+        "    \"test_directories\": [\n"
+        "        \".\"\n"
+        "        \"tests\"\n"
+        "    ]\n"
+        "}\n");
+    CHECK(read_whole_file(PROJECT_PATH, before, sizeof(before)) > 0);
+
+    result = cgtest_create_run(FIXTURE_DIR);
+
+    CHECK(result.ok);
+    CHECK(result.error == NULL);
+    CHECK(!result.wrote_project);
+    CHECK(!result.patched_project);
+    CHECK(result.project_could_not_be_checked);
+    CHECK(result.wrote_header);
+    CHECK(result.wrote_test_macros);
+    CHECK(read_whole_file(PROJECT_PATH, after, sizeof(after)) > 0);
+    CHECK(strcmp(before, after) == 0);
+
+    cgtest_create_free(&result);
+    teardown_fixture();
+}
+
 void test_path_that_is_a_regular_file_is_an_error(void)
 {
     CGTestCreateResult result;
@@ -420,6 +617,10 @@ int main(void)
         { "test_leaves_existing_project_untouched_and_fills_in_missing_files", test_leaves_existing_project_untouched_and_fills_in_missing_files },
         { "test_rerunning_on_a_complete_project_is_an_idempotent_no_op", test_rerunning_on_a_complete_project_is_an_idempotent_no_op },
         { "test_regenerates_only_a_deleted_header", test_regenerates_only_a_deleted_header },
+        { "test_patches_missing_optional_fields_into_existing_project", test_patches_missing_optional_fields_into_existing_project },
+        { "test_patches_only_the_one_missing_optional_field", test_patches_only_the_one_missing_optional_field },
+        { "test_does_not_patch_when_no_optional_field_is_missing", test_does_not_patch_when_no_optional_field_is_missing },
+        { "test_does_not_patch_a_malformed_project_file", test_does_not_patch_a_malformed_project_file },
         { "test_path_that_is_a_regular_file_is_an_error", test_path_that_is_a_regular_file_is_an_error },
         { "test_creates_missing_parent_directories", test_creates_missing_parent_directories },
         { "test_parent_segment_that_is_a_regular_file_is_an_error", test_parent_segment_that_is_a_regular_file_is_an_error },

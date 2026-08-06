@@ -60,6 +60,33 @@ CGTestProject cgtest_project_load(const char *project_path);
  * (ok == 0) project too. */
 void cgtest_project_free(CGTestProject *project);
 
+/* Scans "json" (a "length"-byte buffer, not necessarily NUL-terminated)
+ * for which of cgtest-project.json's optional fields ("msvc",
+ * "single_translation_unit") are present at its top level - without
+ * resolving paths, validating value types, or building a CGTestProject
+ * the way cgtest_project_parse() does. Used only by cgtest_create_run()
+ * (cgtest_create.h) to detect which optional fields are missing from
+ * an already-existing cgtest-project.json - e.g. one written by an
+ * older cgtest.exe, before "single_translation_unit" existed - so it
+ * can patch just those in with their default value rather than leaving
+ * the file permanently missing a newer optional field.
+ *
+ * Deliberately conservative, not lenient: invalid JSON, a non-object
+ * top level, an unrecognized key, a duplicate key, or a field value
+ * that isn't a string/array/primitive (every shape any field defined
+ * so far actually uses - same one-level-deep assumption as
+ * cgtest_project_parse(), see this module's own header comment) all
+ * return 0 with "out_has_msvc"/"out_has_single_translation_unit" left
+ * untouched - if this can't fully make sense of the file's shape, the
+ * safest thing its caller can do is leave the file alone entirely
+ * rather than risk inserting a field into something it doesn't
+ * actually understand.
+ *
+ * Returns 1 on success (both out-params set), 0 otherwise.
+ */
+int cgtest_project_scan_optional_fields(const char *json, size_t length,
+                                         int *out_has_msvc, int *out_has_single_translation_unit);
+
 #ifdef __cplusplus
 }
 #endif

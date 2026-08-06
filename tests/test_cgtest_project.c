@@ -404,6 +404,110 @@ void test_load_missing_project_in_existing_directory_is_an_error(void)
     remove(FIXTURE_DIR);
 }
 
+void test_scan_optional_fields_reports_both_present(void)
+{
+    const char *json =
+        "{"
+        "\"compiler_command\": \"gcc\","
+        "\"include_paths\": [],"
+        "\"source_files\": [],"
+        "\"output_path\": \"./build\","
+        "\"test_directories\": [\"tests\"],"
+        "\"msvc\": true,"
+        "\"single_translation_unit\": true"
+        "}";
+    int has_msvc = 0;
+    int has_stu = 0;
+
+    CHECK(cgtest_project_scan_optional_fields(json, strlen(json), &has_msvc, &has_stu));
+    CHECK(has_msvc);
+    CHECK(has_stu);
+}
+
+void test_scan_optional_fields_reports_both_absent(void)
+{
+    /* The exact shape of a cgtest-project.json written before "msvc"
+     * (let alone "single_translation_unit") existed - see
+     * cgtest_create_patch_missing_optional_fields() (cgtest_create.c),
+     * which relies on this to know what to patch in. */
+    const char *json =
+        "{"
+        "\"compiler_command\": \"gcc\","
+        "\"include_paths\": [],"
+        "\"source_files\": [],"
+        "\"output_path\": \"./build\","
+        "\"test_directories\": [\"tests\"]"
+        "}";
+    int has_msvc = 1;
+    int has_stu = 1;
+
+    CHECK(cgtest_project_scan_optional_fields(json, strlen(json), &has_msvc, &has_stu));
+    CHECK(!has_msvc);
+    CHECK(!has_stu);
+}
+
+void test_scan_optional_fields_reports_only_msvc_present(void)
+{
+    const char *json =
+        "{"
+        "\"compiler_command\": \"gcc\","
+        "\"include_paths\": [],"
+        "\"source_files\": [],"
+        "\"output_path\": \"./build\","
+        "\"test_directories\": [\"tests\"],"
+        "\"msvc\": false"
+        "}";
+    int has_msvc = 0;
+    int has_stu = 1;
+
+    CHECK(cgtest_project_scan_optional_fields(json, strlen(json), &has_msvc, &has_stu));
+    CHECK(has_msvc);
+    CHECK(!has_stu);
+}
+
+void test_scan_optional_fields_rejects_invalid_json(void)
+{
+    /* The exact bug found earlier: a missing comma between array
+     * elements - cgtest's own jsmn-based parser tolerates it (which is
+     * how it slipped in unnoticed), but this function must not, since
+     * it's the one deciding whether cgtest_create_run() is safe to
+     * patch a field into the file at all. */
+    const char *json =
+        "{"
+        "\"compiler_command\": \"gcc\","
+        "\"include_paths\": [],"
+        "\"source_files\": [],"
+        "\"output_path\": \"./build\","
+        "\"test_directories\": [\".\" \"tests\"]"
+        "}";
+    int has_msvc = 1;
+    int has_stu = 1;
+
+    CHECK(!cgtest_project_scan_optional_fields(json, strlen(json), &has_msvc, &has_stu));
+}
+
+void test_scan_optional_fields_rejects_unknown_key(void)
+{
+    const char *json =
+        "{"
+        "\"compiler_command\": \"gcc\","
+        "\"bogus_field\": true"
+        "}";
+    int has_msvc = 1;
+    int has_stu = 1;
+
+    CHECK(!cgtest_project_scan_optional_fields(json, strlen(json), &has_msvc, &has_stu));
+}
+
+void test_scan_optional_fields_rejects_non_object_top_level(void)
+{
+    const char *json = "[1, 2, 3]";
+    int has_msvc = 1;
+    int has_stu = 1;
+
+    CHECK(!cgtest_project_scan_optional_fields(json, strlen(json), &has_msvc, &has_stu));
+}
+
 typedef struct {
     const char *name;
     void (*fn)(void);
@@ -432,7 +536,13 @@ int main(void)
         { "test_free_on_failed_project_is_safe", test_free_on_failed_project_is_safe },
         { "test_load_accepts_the_project_file_directly", test_load_accepts_the_project_file_directly },
         { "test_load_accepts_the_containing_directory", test_load_accepts_the_containing_directory },
-        { "test_load_missing_project_in_existing_directory_is_an_error", test_load_missing_project_in_existing_directory_is_an_error }
+        { "test_load_missing_project_in_existing_directory_is_an_error", test_load_missing_project_in_existing_directory_is_an_error },
+        { "test_scan_optional_fields_reports_both_present", test_scan_optional_fields_reports_both_present },
+        { "test_scan_optional_fields_reports_both_absent", test_scan_optional_fields_reports_both_absent },
+        { "test_scan_optional_fields_reports_only_msvc_present", test_scan_optional_fields_reports_only_msvc_present },
+        { "test_scan_optional_fields_rejects_invalid_json", test_scan_optional_fields_rejects_invalid_json },
+        { "test_scan_optional_fields_rejects_unknown_key", test_scan_optional_fields_rejects_unknown_key },
+        { "test_scan_optional_fields_rejects_non_object_top_level", test_scan_optional_fields_rejects_non_object_top_level }
     };
     size_t count = sizeof(cases) / sizeof(cases[0]);
     size_t i;
