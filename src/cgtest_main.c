@@ -46,7 +46,7 @@ static void print_license(void)
     printf("\n");
     printf("Copyright (c) 2026 Bernhard Bertrand (https://github.com/bartgeier/cgtest)\n");
     printf("Copyright (c) 2010 Serge A. Zaitsev (https://github.com/zserge/jsmn)\n");
-    printf("Copyright (c) 2019 Bernhard Bertrand (https://github.com/bartgeier/arq)\n");
+    printf("Copyright (c) 2026 Bernhard Bertrand (https://github.com/bartgeier/arq)\n");
     printf("\n");
     printf("Permission is hereby granted, free of charge, to any person obtaining a copy\n");
     printf("of this software and associated documentation files (the \"Software\"), to deal\n");
