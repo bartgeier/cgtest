@@ -21,6 +21,7 @@
 typedef struct {
     int help;
     int version;
+    int license;
     char const *run_path;
     char const *init_path;
     int time;
@@ -38,6 +39,12 @@ static void fn_version(Arq_Queue *queue)
 {
     (void)queue;
     raw_m->version = 1;
+}
+
+static void fn_license(Arq_Queue *queue)
+{
+    (void)queue;
+    raw_m->license = 1;
 }
 
 static void fn_run(Arq_Queue *queue)
@@ -79,6 +86,7 @@ CGTestArgs cgtest_arq_parse(int argc, char **argv)
     Arq_Option options[] = {
         { 'h', "help",    fn_help,    "()" },
         { 'v', "version", fn_version, "()" },
+        { 'l', "license", fn_license, "()" },
         { 'r', "run",     fn_run,     "(cstr_t path)" },
         { 'i', "init",    fn_init,    "(cstr_t path = NULL)" },
         { 't', "time",    fn_time,    "()" }
@@ -86,6 +94,7 @@ CGTestArgs cgtest_arq_parse(int argc, char **argv)
 
     raw.help = 0;
     raw.version = 0;
+    raw.license = 0;
     raw.run_path = NULL;
     raw.init_path = NULL;
     raw.time = 0;
@@ -98,12 +107,12 @@ CGTestArgs cgtest_arq_parse(int argc, char **argv)
         return cgtest_arq_fail(arena);
     }
 
-    given = raw.help + raw.version + (raw.run_path != NULL) + (raw.init_path != NULL);
+    given = raw.help + raw.version + raw.license + (raw.run_path != NULL) + (raw.init_path != NULL);
     if (given == 0) {
-        return cgtest_arq_fail("no action given; use one of -r, -i, -v or -h");
+        return cgtest_arq_fail("no action given; use one of -r, -i, -v, -l or -h");
     }
     if (given > 1) {
-        return cgtest_arq_fail("-r, -i, -v and -h cannot be combined");
+        return cgtest_arq_fail("-r, -i, -v, -l and -h cannot be combined");
     }
 
     args.error = NULL;
@@ -114,6 +123,8 @@ CGTestArgs cgtest_arq_parse(int argc, char **argv)
         args.action = CGTEST_ARG_HELP;
     } else if (raw.version) {
         args.action = CGTEST_ARG_VERSION;
+    } else if (raw.license) {
+        args.action = CGTEST_ARG_LICENSE;
     } else if (raw.run_path != NULL) {
         args.action = CGTEST_ARG_RUN;
     } else {

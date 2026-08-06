@@ -70,6 +70,37 @@ void test_long_version_flag(void)
     cgtest_arq_free(&args);
 }
 
+void test_short_license_flag(void)
+{
+    char *argv[] = { "cgtest", "-l", NULL };
+    CGTestArgs args = parse(argv);
+
+    CHECK(args.action == CGTEST_ARG_LICENSE);
+
+    cgtest_arq_free(&args);
+}
+
+void test_long_license_flag(void)
+{
+    char *argv[] = { "cgtest", "--license", NULL };
+    CGTestArgs args = parse(argv);
+
+    CHECK(args.action == CGTEST_ARG_LICENSE);
+
+    cgtest_arq_free(&args);
+}
+
+void test_combining_run_and_license_is_an_error(void)
+{
+    char *argv[] = { "cgtest", "-r", "./cgtest-project.json", "-l", NULL };
+    CGTestArgs args = parse(argv);
+
+    CHECK(args.action == CGTEST_ARG_ERROR);
+    CHECK(args.error != NULL);
+
+    cgtest_arq_free(&args);
+}
+
 void test_short_run_flag_captures_path(void)
 {
     char *argv[] = { "cgtest", "-r", "./unittest/cgtest/cgtest-project.json", NULL };
@@ -260,6 +291,9 @@ int main(void)
         { "test_long_help_flag", test_long_help_flag },
         { "test_short_version_flag", test_short_version_flag },
         { "test_long_version_flag", test_long_version_flag },
+        { "test_short_license_flag", test_short_license_flag },
+        { "test_long_license_flag", test_long_license_flag },
+        { "test_combining_run_and_license_is_an_error", test_combining_run_and_license_is_an_error },
         { "test_short_run_flag_captures_path", test_short_run_flag_captures_path },
         { "test_long_run_flag_with_equals_captures_path", test_long_run_flag_with_equals_captures_path },
         { "test_short_init_flag_captures_path", test_short_init_flag_captures_path },

@@ -8,6 +8,7 @@ cgtest --init <dir>          create cgtest-project.json, cgtest.h, and an exampl
 cgtest --run <path>          generate, compile and run cgtest-runner.c
 cgtest --run <path> --time   also print a scan/generate/compile/run timing breakdown
 cgtest --version             print the cgtest version
+cgtest --license             print the cgtest license (MIT)
 cgtest --help                print this message
 ```
 

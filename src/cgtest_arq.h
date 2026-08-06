@@ -19,6 +19,7 @@ typedef enum {
     CGTEST_ARG_ERROR,    /* argv was invalid; see CGTestArgs::error */
     CGTEST_ARG_HELP,     /* -h/--help was given */
     CGTEST_ARG_VERSION,  /* -v/--version was given */
+    CGTEST_ARG_LICENSE,  /* -l/--license was given */
     CGTEST_ARG_RUN,      /* -r/--run <path> was given */
     CGTEST_ARG_INIT      /* -i/--init <path> was given */
 } CGTestArgAction;
@@ -33,8 +34,9 @@ typedef struct {
 
 /* Parses "argv" ("argc" entries, argv[0] the program name as usual)
  * per specification.md: -r/--run <path>, -i/--init <path>,
- * -v/--version, -h/--help. Exactly one of these must be given -
- * combining more than one, or giving none, is reported as an error.
+ * -v/--version, -h/--help, -l/--license. Exactly one of these must be
+ * given - combining more than one, or giving none, is reported as an
+ * error.
  *
  * -t/--time is a separate modifier flag (not an action of its own):
  * it prints a scan/generate/compile/run timing breakdown alongside

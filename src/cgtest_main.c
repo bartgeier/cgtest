@@ -24,9 +24,47 @@ static void print_help(void)
     printf("  cgtest --run <path> --time   also print a scan/generate/compile/run timing breakdown\n");
     printf("  cgtest --init <dir>      create cgtest-project.json, cgtest.h, and an example test inside <dir>/cgtest\n");
     printf("  cgtest --version         print the cgtest version\n");
+    printf("  cgtest --license         print the cgtest license (MIT)\n");
     printf("  cgtest --help            print this message\n");
     printf("\n");
     printf("https://github.com/bartgeier/cgtest\n");
+}
+
+/* Verbatim copy of this repo's own LICENSE file (MIT, covering cgtest
+ * itself plus the vendored third_party/arq and third_party/jsmn) - kept
+ * in sync by hand, not read from disk, since a downstream build (in
+ * particular the single-file cgtest.c amalgamation - see
+ * amalgamate_cgtest.c) has no LICENSE file sitting next to it at
+ * runtime to read. One printf() per line, matching print_help()'s own
+ * style, rather than one big string literal - keeps every individual
+ * literal trivially under ISO C90's 509-char limit without needing
+ * cgtest_create.c's multi-part template-splitting machinery for
+ * something this short. */
+static void print_license(void)
+{
+    printf("MIT License\n");
+    printf("\n");
+    printf("Copyright (c) 2026 Bernhard Bertrand (https://github.com/bartgeier/cgtest)\n");
+    printf("Copyright (c) 2010 Serge A. Zaitsev (https://github.com/zserge/jsmn)\n");
+    printf("Copyright (c) 2019 Bernhard Bertrand (https://github.com/bartgeier/arq)\n");
+    printf("\n");
+    printf("Permission is hereby granted, free of charge, to any person obtaining a copy\n");
+    printf("of this software and associated documentation files (the \"Software\"), to deal\n");
+    printf("in the Software without restriction, including without limitation the rights\n");
+    printf("to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n");
+    printf("copies of the Software, and to permit persons to whom the Software is\n");
+    printf("furnished to do so, subject to the following conditions:\n");
+    printf("\n");
+    printf("The above copyright notice and this permission notice shall be included in all\n");
+    printf("copies or substantial portions of the Software.\n");
+    printf("\n");
+    printf("THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n");
+    printf("IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n");
+    printf("FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n");
+    printf("AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n");
+    printf("LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n");
+    printf("OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n");
+    printf("SOFTWARE.\n");
 }
 
 /* Printed after --run's own output, only when -t/--time was given (see
@@ -58,6 +96,11 @@ int main(int argc, char **argv)
 
     case CGTEST_ARG_VERSION:
         printf("cgtest %s\n", CGTEST_VERSION);
+        exit_code = 0;
+        break;
+
+    case CGTEST_ARG_LICENSE:
+        print_license();
         exit_code = 0;
         break;
 

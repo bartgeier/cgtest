@@ -92,6 +92,10 @@ What the project should NOT do.
     to modify otherwise.
     ```cgtest.exe --run ./unitest/cgtest --time```
   * -v --version of cgtest
+  * -l --license prints this repo's own LICENSE file (MIT, covering cgtest itself plus the
+    vendored third_party/arq and third_party/jsmn) verbatim - kept as a baked-in copy in
+    cgtest_main.c rather than read from disk, since the single-file cgtest.c amalgamation (see
+    "Amalgamated single-file build" below) has no LICENSE file next to it at runtime.
   * -h --help of cgtest
 
 ### cgtest-project.json
