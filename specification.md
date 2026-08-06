@@ -72,7 +72,7 @@ What the project should NOT do.
   * -h --help of cgtest
 
 ### cgtest-project.json
-  * set compiler command "gcc -std=c89 -O0" 
+  * set compiler command "gcc -std=c89 -O0 -Wall -Wextra -pedantic-errors" 
   * Include path list
   * Source file list
   * Output path to generate cgtest-runner.c and cgtest-runner.exe

@@ -48,7 +48,7 @@
  * inside it alongside the scaffold files themselves. */
 static const char *const CGTEST_PROJECT_TEMPLATE =
     "{\n"
-    "    \"compiler_command\": \"gcc -std=c89 -O0\",\n"
+    "    \"compiler_command\": \"gcc -std=c89 -O0 -Wall -Wextra -pedantic-errors\",\n"
     "    \"msvc\": false,\n"
     "    \"single_translation_unit\": false,\n"
     "    \"include_paths\": [],\n"

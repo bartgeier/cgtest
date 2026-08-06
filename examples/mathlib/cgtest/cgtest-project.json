@@ -1,5 +1,5 @@
 {
-    "compiler_command": "gcc -std=c89 -Wall -Wextra -pedantic-errors -O0",
+    "compiler_command": "gcc -std=c89 -O0 -Wall -Wextra -pedantic-errors",
     "msvc": false,
     "single_translation_unit": false,
     "include_paths": [
