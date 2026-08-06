@@ -10,8 +10,9 @@
  * load error (see specification.md: "error and exit ... with an
  * appropriate message" - this module never terminates the process
  * itself, it just reports failure via CGTestProject::ok/error and
- * leaves acting on that to the caller). "msvc" is the one optional
- * field, defaulting to false when absent.
+ * leaves acting on that to the caller). "msvc" and
+ * "single_translation_unit" are the two optional fields, both
+ * defaulting to false when absent.
  */
 #ifndef CGTEST_PROJECT_H
 #define CGTEST_PROJECT_H
@@ -33,6 +34,7 @@ typedef struct {
     char      *output_path;       /* absolute dir; cgtest-runner.c/.exe get generated here */
     CPathList  test_directories;  /* absolute dirs scanned for test_*.c files */
     int        msvc;              /* optional, defaults to 0; see cgtest_runner.h */
+    int        single_translation_unit; /* optional, defaults to 0; see cgtest_runner.h */
 } CGTestProject;
 
 /* Parses "json" (a "length"-byte buffer, not necessarily NUL-terminated)

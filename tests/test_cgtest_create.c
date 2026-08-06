@@ -127,6 +127,42 @@ void test_test_macros_file_covers_the_whole_header(void)
     teardown_fixture();
 }
 
+void test_header_declares_shared_helpers_extern_not_static(void)
+{
+    /* Regression test: cgtest_relpath()/cgtest_print_str_field()/
+     * cgtest_strcasecmp() used to be `static` definitions copied
+     * directly into cgtest.h, which meant every #include'ing test_*.c
+     * file (its own translation unit in separate-TU mode - see
+     * cgtest_runner.h) got its own private, possibly-uncalled copy -
+     * one -Wunused-function flagged in any file that didn't happen to
+     * invoke the specific macro family relying on it (found by
+     * running examples/mathlib with "-Wall -Wextra -pedantic-errors").
+     * cgtest.h must instead only "extern"-declare them, the same
+     * pattern already used for cgtest_failed/cgtest_fatal_failed - see
+     * test_declares_and_defines_shared_helpers_in_generated_runner in
+     * test_cgtest_runner.c for where the actual definitions now live. */
+    CGTestCreateResult result;
+    char buf[32768];
+    long length;
+
+    setup_fixture();
+    result = cgtest_create_run(FIXTURE_DIR);
+    CHECK(result.ok);
+
+    length = read_whole_file(HEADER_PATH, buf, sizeof(buf));
+    CHECK(length > 0);
+
+    CHECK(strstr(buf, "extern const char *cgtest_relpath(const char *file);") != NULL);
+    CHECK(strstr(buf, "extern void cgtest_print_str_field(const char *prefix, const char *s);") != NULL);
+    CHECK(strstr(buf, "extern int cgtest_strcasecmp(const char *a, const char *b);") != NULL);
+    CHECK(strstr(buf, "static const char *cgtest_relpath") == NULL);
+    CHECK(strstr(buf, "static void cgtest_print_str_field") == NULL);
+    CHECK(strstr(buf, "static int cgtest_strcasecmp") == NULL);
+
+    cgtest_create_free(&result);
+    teardown_fixture();
+}
+
 void test_created_project_round_trips_through_parser(void)
 {
     CGTestCreateResult result;
@@ -287,6 +323,7 @@ int main(void)
         { "test_creates_project_and_header_in_existing_directory", test_creates_project_and_header_in_existing_directory },
         { "test_creates_directory_if_missing", test_creates_directory_if_missing },
         { "test_test_macros_file_covers_the_whole_header", test_test_macros_file_covers_the_whole_header },
+        { "test_header_declares_shared_helpers_extern_not_static", test_header_declares_shared_helpers_extern_not_static },
         { "test_created_project_round_trips_through_parser", test_created_project_round_trips_through_parser },
         { "test_refuses_to_overwrite_existing_project", test_refuses_to_overwrite_existing_project },
         { "test_path_that_is_a_regular_file_is_an_error", test_path_that_is_a_regular_file_is_an_error },

@@ -50,6 +50,7 @@ enum {
     CGTEST_FIELD_OUTPUT_PATH,
     CGTEST_FIELD_TEST_DIRECTORIES,
     CGTEST_FIELD_MSVC,  /* optional - skipped by the required-fields check below */
+    CGTEST_FIELD_SINGLE_TRANSLATION_UNIT,  /* optional - skipped by the required-fields check below */
     CGTEST_FIELD_COUNT
 };
 
@@ -59,7 +60,8 @@ static const char *const CGTEST_PROJECT_FIELD_NAMES[CGTEST_FIELD_COUNT] = {
     "source_files",
     "output_path",
     "test_directories",
-    "msvc"
+    "msvc",
+    "single_translation_unit"
 };
 
 /* Cleans up whatever "project" already holds (safe on partially-filled
@@ -188,14 +190,15 @@ static int cgtest_project_apply_field(CGTestProject *project, int field, const c
         return value_idx + 1;
     }
 
-    if (field == CGTEST_FIELD_MSVC) {
+    if (field == CGTEST_FIELD_MSVC || field == CGTEST_FIELD_SINGLE_TRANSLATION_UNIT) {
         const jsmntok_t *token = &tokens[value_idx];
         size_t token_len = (size_t)(token->end - token->start);
+        int *target = field == CGTEST_FIELD_MSVC ? &project->msvc : &project->single_translation_unit;
 
         if (token->type == JSMN_PRIMITIVE && token_len == 4 && memcmp(json + token->start, "true", 4) == 0) {
-            project->msvc = 1;
+            *target = 1;
         } else if (token->type == JSMN_PRIMITIVE && token_len == 5 && memcmp(json + token->start, "false", 5) == 0) {
-            project->msvc = 0;
+            *target = 0;
         } else {
             cmsg_build(error_buf, error_buf_size, "cgtest-project.json: field \"",
                 CGTEST_PROJECT_FIELD_NAMES[field], strlen(CGTEST_PROJECT_FIELD_NAMES[field]), "\" must be a boolean");
@@ -319,7 +322,7 @@ CGTestProject cgtest_project_parse(const char *json, size_t length, const char *
     }
 
     for (i = 0; i < CGTEST_FIELD_COUNT; i++) {
-        if (i == CGTEST_FIELD_MSVC) {
+        if (i == CGTEST_FIELD_MSVC || i == CGTEST_FIELD_SINGLE_TRANSLATION_UNIT) {
             continue;
         }
         if (!seen[i]) {
