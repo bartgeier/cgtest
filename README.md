@@ -34,9 +34,12 @@ cgtest --init examples/freshPorject
 ```
 cgtest --run examples/freshPorject/cgtest
 ```
-See in the examples/freshProject folder.
+**See how to use cgtest macors:**
 
-
+```
+examples/freshProject/cgtest/test_cgtest_macros.c
+```
+## cgtest-project.json
 
 ## Usage
 
