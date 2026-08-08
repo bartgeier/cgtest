@@ -14,6 +14,15 @@ C compiler resolves directly, with no templates and no virtual dispatch to insta
 In practice that makes cgtest noticeably faster to compile than an equivalent GoogleTest
 suite.
 
+## Download
+
+Download the amalgamated, single-file `cgtest.c` for a tagged release directly, by
+hand or from a build script:
+
+```
+curl -fL -o cgtest.c https://github.com/bartgeier/cgtest/raw/refs/tags/v0.1.0/cgtest.c
+```
+
 ## Usage
 
 ```
