@@ -1,5 +1,18 @@
 # cgtest
-A C unit test DSL compiler.
+A C unit test DSL compiler. You describe tests in plain C, and cgtest generates,
+compiles, and runs a test runner from them: `--init` scaffolds a project
+(`cgtest-project.json`, `cgtest.h`, and an example test), `--run` reads that project
+file, generates `cgtest-runner.c`, compiles it, and executes it. Written in C89 with
+no external dependencies, and available as a single amalgamated `cgtest.c` for a
+drop-in build.
+
+Inspired by GoogleTest's macro/assertion style (`EXPECT_EQ`, `ASSERT_TRUE`, etc.), but
+compiled as plain C89 rather than C++. GoogleTest's fixtures and matchers are template-
+and vtable-heavy, so every translation unit that includes `gtest.h` pays real C++
+template-instantiation cost; cgtest's generated runner is plain structs and functions a
+C compiler resolves directly, with no templates and no virtual dispatch to instantiate.
+In practice that makes cgtest noticeably faster to compile than an equivalent GoogleTest
+suite.
 
 ## Usage
 
