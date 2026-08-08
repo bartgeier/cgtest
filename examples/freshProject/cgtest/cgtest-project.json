@@ -1,0 +1,11 @@
+{
+    "compiler_command": "gcc -std=c89 -O0 -Wall -Wextra -pedantic-errors",
+    "msvc": false,
+    "single_translation_unit": false,
+    "include_paths": [],
+    "source_files": [],
+    "output_path": "../build",
+    "test_directories": [
+        "."
+    ]
+}
