@@ -89,7 +89,7 @@ if any are missing.
 When a new version of cgtest installed is then do this for updating you project: 
 1. delete examples/mathlib/cgtest.h  
 1. cgtest --init examples/mathlib  
-   * It never overrides an existing cgtest.h file
+   * It never overrides an existing cgtest.h file but creates a new one if missing.
    * updates the cgtest-runner.json if a new field is introduced.
 
 ## Usage
