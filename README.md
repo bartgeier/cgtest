@@ -40,6 +40,57 @@ cgtest --run examples/freshPorject/cgtest
 examples/freshProject/cgtest/test_cgtest_macros.c
 ```
 ## cgtest-project.json
+```
+examples/mahtlib/cgtest/cgtest-project.json
+```
+```
+examples/freshProject/cgtest/cgtest-project.json
+```
+
+```json
+{
+    "compiler_command": "gcc -std=c89 -O0 -Wall -Wextra -pedantic-errors",
+    "msvc": false,
+    "single_translation_unit": false,
+    "include_paths": [],
+    "source_files": [],
+    "output_path": "../build",
+    "test_directories": [
+        "."
+    ]
+}
+```
+
+* **compiler_command**  
+  used to compile `cgtest-runner.c`
+* **msvc**  
+  **false** GCC/Clang style (`-I"path"`, `-o "path"`) **default**  
+  **true** `cl.exe` MSVC style (`/I"path"`, `/Fe:"path"`)
+* **single_translation_unit**  
+  **false** every `test_*.c` has its own translation unit. Compiles slower. **default**  
+  **true**  every `test_*.c` file is in the same translation unit. Compiles faster.
+* **include_paths**  
+  list of directories added to the compile command
+* **source_files**  
+  list of the project's own `.c` files  
+  the generated test runner needs to link against.
+* **output_path**  
+  directory `cgtest-runner.c` and the compiled binary of the test-runner.exe
+* **test_directories**  
+  directories cgtest searches for `test_*.c` files.
+
+Of the five required fields (`compiler_command`, `include_paths`,
+`source_files`, `output_path`, `test_directories`), none has a
+project-agnostic default - `--init` always writes them, and `--run` errors out
+if any are missing.
+
+## Update cgtest
+
+When a new version of cgtest installed is then do this for updating you project: 
+1. delete examples/mathlib/cgtest.h  
+1. cgtest --init examples/mathlib  
+   * It never overrides an existing cgtest.h file
+   * updates the cgtest-runner.json if a new field is introduced.
 
 ## Usage
 
@@ -73,7 +124,4 @@ void test_bar(State *state) {
 }
 ```
 
-See specification.md chapter 6 for the full design.
-
-https://github.com/bartgeier/cgtest
-
+See specification.md chapter 6 for the full design.  
