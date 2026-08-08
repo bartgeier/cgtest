@@ -6883,7 +6883,7 @@ static bool has_dec_exponent(Arq_Lexer *l) {
         }
         return false;
 }
-
+#if 1
 static void dec_float(Arq_Lexer *l, Arq_Token *t) {
         if (l->cursor_idx < l->SIZE && ('.' == l->at[l->cursor_idx])) {
                 /* fractional part */
@@ -6906,7 +6906,34 @@ static void dec_float(Arq_Lexer *l, Arq_Token *t) {
         }
         return;
 }
-
+#else
+static void dec_float(Arq_Lexer *l, Arq_Token *t) {
+        if (l->cursor_idx < l->SIZE && ('.' == l->at[l->cursor_idx])) {
+                /* fractional part */
+                l->cursor_idx++;
+                t->size++;
+                if (l->cursor_idx < l->SIZE && isdigit(l->at[l->cursor_idx])) {
+                        t->id = ARQ_DEC_FLOAT;
+                }
+                l->cursor_idx++;
+                t->size++;
+                while (l->cursor_idx < l->SIZE && isdigit(l->at[l->cursor_idx])) {
+                        l->cursor_idx++;
+                        t->size++;
+                }
+        }
+        if (has_dec_exponent(l)) {
+                t->id = ARQ_DEC_FLOAT;
+                t->size = &l->at[l->cursor_idx] - t->at;
+                while (l->cursor_idx < l->SIZE && isdigit(l->at[l->cursor_idx])) {
+                        l->cursor_idx++;
+                        t->size++;
+                }
+                return;
+        }
+        return;
+}
+#endif
 static void skip_space(Arq_Lexer *l) {
     while (l->cursor_idx < l->SIZE && (l->at[l->cursor_idx] == 0 || isspace(l->at[l->cursor_idx]))) {
             l->cursor_idx++;
@@ -7076,11 +7103,13 @@ static Arq_Token next_token(Arq_Lexer *l, bool has_identifier) {
         }
 
         if (l->at[l->cursor_idx] ==  '.') {
-                dec_float(l, &t);
-                switch (t.id) {
-                case ARQ_DEC_FLOAT: return t;
-                default: break;
-                };
+                if (l->cursor_idx + 1 < l->SIZE && (isdigit(l->at[l->cursor_idx + 1]))) {
+                        dec_float(l, &t);
+                        switch (t.id) {
+                        case ARQ_DEC_FLOAT: return t;
+                        default: break;
+                        };
+                }
         }
 
         if (p_dec_start(l)) {
