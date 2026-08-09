@@ -53,13 +53,16 @@ gcc -std=c89 cgtest.c -o cgtest
 ```
 cgtest --init examples/freshPorject
 ```
+[examples/freshProject/cgtest/cgtest.h](examples/freshProject/cgtest/cgtest.h)  
+[examples/freshProject/cgtest/cgtest-project.json](examples/freshProject/cgtest/cgtest-project.json)  
+
+**See how to use cgtest macors:**  
+[examples/freshProject/cgtest/test_cgtest_macros.c](examples/freshProject/cgtest/test_cgtest_macros.c)  
+
 **Run test:**
 ```
 cgtest --run examples/freshPorject/cgtest
 ```
-**See how to use cgtest macors:**
-
-[examples/freshProject/cgtest/test_cgtest_macros.c](examples/freshProject/cgtest/test_cgtest_macros.c)  
 
 ## cgtest-project.json
 [examples/mathlib/cgtest/cgtest-project.json](examples/mathlib/cgtest/cgtest-project.json)  
@@ -103,11 +106,24 @@ if any are missing.
 
 ## Update cgtest
 
-When a new version of cgtest installed is then do this for updating you project: 
-1. delete examples/mathlib/cgtest.h  
-1. cgtest --init examples/mathlib  
-   * It never overrides an existing cgtest.h file but creates a new one if missing.
-   * updates the cgtest-runner.json if a new field is introduced.
+When a new version of cgtest is installed, update an existing project as follows:
+
+1. Delete the project's `cgtest.h`:
+
+   ```text
+   examples/mathlib/cgtest.h
+   ```
+
+2. Run:
+
+   ```text
+   cgtest --init examples/mathlib
+   ```
+
+`--init` is safe to run on an existing project:
+
+* It never overwrites an existing `cgtest.h`. If the file is missing, a new one is created.
+* It updates `cgtest-runner.json` when the new cgtest version introduces new configuration fields.
 
 ## Usage
 
@@ -119,26 +135,74 @@ cgtest --version             print the cgtest version
 cgtest --license             print the cgtest license (MIT)
 cgtest --help                print this message
 ```
+## Test discovery
+
+Test directories are registered in `cgtest-project.json`. When `cgtest --run` generates the test runner, it scans those directories for C source files matching:
+
+```text
+test_*.c
+```
+
+Within those files, cgtest looks for test functions with the following form:
+
+```c
+void test_name(void)
+{
+    /* test code */
+}
+```
+
+Each matching function is automatically added to the generated test runner.
+
+There is therefore no separate test registration call in the C source. The project configuration defines **where to look**, while the filename and function naming conventions define **what is a test**.
+
 
 ## Fixtures
 
-A test function opts into a fixture by taking one pointer parameter instead of
-`(void)`. `setup_<name>` allocates and initializes it before each call and is required;
-`teardown_<name>` cleans it up afterwards and is optional (skip it if there's nothing
-to release - the fixture is reclaimed when the process exits either way):
+A test function opts into a fixture by taking one pointer parameter instead of `(void)`.
+
+For a fixture named `bar`, cgtest expects a `State` type and corresponding `setup_bar` and optional `teardown_bar` functions. The setup function is called before each test and is **required**. The teardown function is called afterwards when provided.
+
+The fixture type needs a **struct tag matching its typedef name**. cgtest uses the type through a forward declaration when generating the test runner, so the tag is required for the type to be referenced before its full definition.
 
 ```c
-typedef struct State { int value; } State;   /* tag must match the typedef name */
+typedef struct State { int value; } State;  /* tag must match the typedef name */
 
-void setup_bar(State **state) {
+void setup_bar(State **state)
+{
     *state = calloc(1, sizeof(State));
     (*state)->value = 42;
 }
-void teardown_bar(State *state) { free(state); /* only if prompt cleanup matters */ }
 
-void test_bar(State *state) {
+void teardown_bar(State *state)
+{
+    free(state);
+}
+
+void test_bar(State *state)
+{
     EXPECT_EQ_INT(42, state->value);
 }
+```
+
+The fixture instance is created by `setup_bar` before each call to `test_bar`. If `teardown_bar` is provided, it is called after the test to release resources owned by the fixture. If there is nothing that requires explicit cleanup, `teardown_bar` can be omitted.
+
+### Using third-party types
+
+The matching tag is required for the **fixture type itself**, not for types used inside the fixture. This makes it possible to use third-party structs even when their type does not have a matching tag:
+
+```c
+typedef struct State {
+    ThirdPartyThing thing;
+} State;
+```
+
+A pointer can also be used when the third-party object needs to be allocated separately:
+
+```c
+typedef struct State {
+    ThirdPartyThing *thing;
+} State;
 ```
 
 See [specification.md](specification.md) chapter 6 for the full design.  
