@@ -1,18 +1,41 @@
-# cgtest
-A C unit test DSL compiler. You describe tests in plain C, and cgtest generates,
-compiles, and runs a test runner from them: `--init` scaffolds a project
-(`cgtest-project.json`, `cgtest.h`, and an example test), `--run` reads that project
-file, generates `cgtest-runner.c`, compiles it, and executes it. Written in C89 with
-no external dependencies, and available as a single amalgamated `cgtest.c` for a
-drop-in build.
 
-Inspired by GoogleTest's macro/assertion style (`EXPECT_EQ`, `ASSERT_TRUE`, etc.), but
-compiled as plain C89 rather than C++. GoogleTest's fixtures and matchers are template-
-and vtable-heavy, so every translation unit that includes `gtest.h` pays real C++
-template-instantiation cost; cgtest's generated runner is plain structs and functions a
-C compiler resolves directly, with no templates and no virtual dispatch to instantiate.
-In practice that makes cgtest noticeably faster to compile than an equivalent GoogleTest
-suite.
+# cgtest
+
+**cgtest is a C unit test DSL compiler.**
+
+This is my first Claude-assisted “vibe coding” project.  
+I wanted to explore what it would be like to build something from scratch while using Claude to help me understand the problem, experiment with designs, and turn ideas into working C code.
+
+The project also comes from a very specific habit I have with my DIY projects: **I tend to compile everything at once.** I don't normally maintain elaborate incremental build systems or carefully separated compilation units. For a small C project, I often just throw the sources together and compile the whole thing.
+
+That makes the usual C++ unit-testing approach, such as GoogleTest, feel unnecessarily heavy for the kind of projects I build.
+
+cgtest takes a different approach. You describe tests in plain C using a small DSL inspired by GoogleTest's assertion style (`EXPECT_EQ`, `ASSERT_TRUE`, etc.). It supports the usual building blocks you expect from a unit-testing framework, including **fixtures and assertions**, but keeps the implementation and generated test runner in plain C89.
+
+The workflow is deliberately simple:
+
+```text
+cgtest --run
+        ↓
+cgtest-runner.c
+        ↓
+C compiler
+        ↓
+test runner
+```
+
+There are no C++ templates, no virtual dispatch, and no external dependencies. The generated runner consists of ordinary C89 structs and functions that a C compiler can compile directly.
+
+This is particularly relevant to my “compile everything at once” workflow. GoogleTest is a powerful C++ testing framework with features such as fixtures and matchers, but its implementation relies heavily on C++ language facilities. A translation unit that includes `gtest.h` therefore brings a substantial amount of framework machinery into the compilation.
+
+cgtest takes the opposite approach: **keep the test authoring experience expressive, but make the generated implementation boring C.**
+
+Fixtures are represented as ordinary C data and setup/teardown functions. Assertions become straightforward C code. The test runner is generated rather than implemented as a large generic C++ framework.
+
+So cgtest isn't intended to replace GoogleTest. It's an experiment in seeing how far a small C-native testing DSL can go while keeping the implementation understandable, dependency-free, and friendly to a simple “compile the whole project” workflow.
+
+The entire compiler is written in C89 and can also be used as a single amalgamated `cgtest.c` file for a drop-in build.
+
 
 ## Download cgtest.c
 
@@ -36,17 +59,11 @@ cgtest --run examples/freshPorject/cgtest
 ```
 **See how to use cgtest macors:**
 
-```
-examples/freshProject/cgtest/test_cgtest_macros.c
-```
-## cgtest-project.json
-```
-examples/mahtlib/cgtest/cgtest-project.json
-```
-```
-examples/freshProject/cgtest/cgtest-project.json
-```
+[examples/freshProject/cgtest/test_cgtest_macros.c](examples/freshProject/cgtest/test_cgtest_macros.c)  
 
+## cgtest-project.json
+[examples/mahtlib/cgtest/cgtest-project.json](examples/mahtlib/cgtest/cgtest-project.json)  
+[examples/freshProject/cgtest/cgtest-project.json](examples/freshProject/cgtest/cgtest-project.json)
 ```json
 {
     "compiler_command": "gcc -std=c89 -O0 -Wall -Wextra -pedantic-errors",
@@ -124,4 +141,4 @@ void test_bar(State *state) {
 }
 ```
 
-See specification.md chapter 6 for the full design.  
+See [specification.md](specification.md) chapter 6 for the full design.  
