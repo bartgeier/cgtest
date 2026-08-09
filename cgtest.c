@@ -9014,12 +9014,12 @@ static void print_help(void)
 {
     printf("cgtest - a command-line C unit test DSL compiler\n");
     printf("\n");
-    printf("  cgtest --run <path>      generate, compile and run cgtest-runner.c\n");
-    printf("  cgtest --run <path> --time   also print a scan/generate/compile/run timing breakdown\n");
-    printf("  cgtest --init <dir>      create cgtest-project.json, cgtest.h, and an example test inside <dir>/cgtest\n");
-    printf("  cgtest --version         print the cgtest version\n");
-    printf("  cgtest --license         print the cgtest license (MIT)\n");
-    printf("  cgtest --help            print this message\n");
+    printf("  cgtest %-30s generate, compile and run cgtest-runner.c\n", "-r, --run <path>");
+    printf("  cgtest %-30s also print a scan/generate/compile/run timing breakdown\n", "-r, --run <path> -t, --time");
+    printf("  cgtest %-30s create cgtest-project.json, cgtest.h, and an example test inside <dir>/cgtest\n", "-i, --init <dir>");
+    printf("  cgtest %-30s print the cgtest version\n", "-v, --version");
+    printf("  cgtest %-30s print the cgtest license (MIT)\n", "-l, --license");
+    printf("  cgtest %-30s print this message\n", "-h, --help");
     printf("\n");
     printf("https://github.com/bartgeier/cgtest\n");
 }

@@ -128,12 +128,12 @@ When a new version of cgtest is installed, update an existing project as follows
 ## Usage
 
 ```
-cgtest --init <dir>          create cgtest-project.json, cgtest.h, and an example test inside <dir>/cgtest
-cgtest --run <path>          generate, compile and run cgtest-runner.c
-cgtest --run <path> --time   also print a scan/generate/compile/run timing breakdown
-cgtest --version             print the cgtest version
-cgtest --license             print the cgtest license (MIT)
-cgtest --help                print this message
+cgtest -i, --init <dir>               create cgtest-project.json, cgtest.h, and an example test inside <dir>/cgtest
+cgtest -r, --run <path>               generate, compile and run cgtest-runner.c
+cgtest -r, --run <path> -t, --time    also print a scan/generate/compile/run timing breakdown
+cgtest -v, --version                  print the cgtest version
+cgtest -l, --license                  print the cgtest license (MIT)
+cgtest -h, --help                     print this message
 ```
 ## Test discovery
 
