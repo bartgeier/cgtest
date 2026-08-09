@@ -40,7 +40,7 @@ The entire compiler is written in C89 and can also be used as a single amalgamat
 ## Download cgtest.c
 
 ```
-curl -fL -o cgtest.c https://github.com/bartgeier/cgtest/raw/refs/tags/v0.1.0/cgtest.c
+curl -fL -o cgtest.c https://github.com/bartgeier/cgtest/raw/refs/tags/v0.1.1/cgtest.c
 ```
 
 ## Building cgtest

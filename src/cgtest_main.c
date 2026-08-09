@@ -14,7 +14,7 @@
 
 #include <stdio.h>
 
-#define CGTEST_VERSION "0.1.0"
+#define CGTEST_VERSION "0.1.1"
 
 static void print_help(void)
 {
