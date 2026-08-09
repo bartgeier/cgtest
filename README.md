@@ -62,7 +62,7 @@ cgtest --run examples/freshPorject/cgtest
 [examples/freshProject/cgtest/test_cgtest_macros.c](examples/freshProject/cgtest/test_cgtest_macros.c)  
 
 ## cgtest-project.json
-[examples/mahtlib/cgtest/cgtest-project.json](examples/mahtlib/cgtest/cgtest-project.json)  
+[examples/mathlib/cgtest/cgtest-project.json](examples/mathlib/cgtest/cgtest-project.json)  
 [examples/freshProject/cgtest/cgtest-project.json](examples/freshProject/cgtest/cgtest-project.json)
 ```json
 {
