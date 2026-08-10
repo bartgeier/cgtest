@@ -481,8 +481,18 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
              * buffered until exit while stderr's FAIL: lines (from
              * EXPECT_TRUE/EXPECT_FALSE/ASSERT_TRUE/ASSERT_FALSE)
              * appear immediately, making failures print out of
-             * chronological order. */
-            "    setvbuf(stdout, NULL, _IOLBF, 0);\n"
+             * chronological order.
+             *
+             * The size argument must be nonzero: MSVC's CRT treats
+             * setvbuf(..., 0) as an invalid parameter and fast-fails the
+             * whole process (STATUS_STACK_BUFFER_OVERRUN) before main()
+             * gets any further - silently, with no output at all - even
+             * though a size of 0 alongside a NULL buffer is exactly what
+             * glibc/mingw's runtime expects, to mean "pick a default
+             * buffer size yourself". A concrete size keeps buf NULL (so
+             * every runtime still allocates its own buffer) while
+             * satisfying MSVC's stricter validation. */
+            "    setvbuf(stdout, NULL, _IOLBF, 1024);\n"
             "    cgtest_green = CGTEST_ISATTY(1) ? \"\\x1b[32m\" : \"\";\n"
             "    cgtest_red   = CGTEST_ISATTY(1) ? \"\\x1b[31m\" : \"\";\n"
             "    cgtest_reset = CGTEST_ISATTY(1) ? \"\\x1b[0m\"  : \"\";\n"
