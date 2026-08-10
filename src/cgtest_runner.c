@@ -31,6 +31,22 @@ static int cgtest_runner_decode_exit(int system_result)
 {
     return system_result;
 }
+/* cmd.exe (which system() shells out to) treats '/' as a switch
+ * character, not a path separator - unlike compilers/fopen()/stat(),
+ * which all accept forward slashes fine on Windows. Without this,
+ * "build/dir/cgtest-runner.exe" is parsed as the command "build" with
+ * "/dir/cgtest-runner.exe" read as a chain of switches, and cmd.exe
+ * reports "build" as not found. Only the binary actually invoked via
+ * system() (below) needs this; cpath_join()'s forward slashes are
+ * fine everywhere else, including as compiler arguments. */
+static void cgtest_runner_to_native_sep(char *s)
+{
+    for (; *s != '\0'; s++) {
+        if (*s == '/') {
+            *s = '\\';
+        }
+    }
+}
 #else
 #include <unistd.h>
 #include <sys/wait.h>
@@ -1029,6 +1045,9 @@ CGTestRunResult cgtest_runner_run(const CGTestProject *project)
 
     {
         char exec_cmd[CGTEST_RUNNER_PATH_SCRATCH + 4];
+#ifdef _WIN32
+        cgtest_runner_to_native_sep(runner_bin_path.data);
+#endif
         cmsg_build(exec_cmd, sizeof(exec_cmd), "\"", runner_bin_path.data, runner_bin_path.length, "\"");
         system_result = system(exec_cmd);
     }

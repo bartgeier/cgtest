@@ -1,4 +1,4 @@
-/* test_cgtest_arq.c - unit tests for cgtest_arq_parse(), the
+﻿/* test_cgtest_arq.c - unit tests for cgtest_arq_parse(), the
  * command-line argument parser built on arq.h. Written in cgtest's own
  * test convention (void test_<name>(void)); see test_ctestscanner.c's
  * header comment for why main() below dispatches them manually instead
@@ -324,6 +324,6 @@ int main(void)
         }
     }
 
-    printf("\n%zu/%zu passed\n", count - failed, count);
+    printf("\n%lu/%lu passed\n", (unsigned long)(count - failed), (unsigned long)count);
     return failed == 0 ? 0 : 1;
 }

@@ -1,4 +1,4 @@
-/* test_cgtest_project.c - unit tests for cgtest_project_parse(), the
+﻿/* test_cgtest_project.c - unit tests for cgtest_project_parse(), the
  * cgtest-project.json parser. Written in cgtest's own test convention
  * (void test_<name>(void)); see test_ctestscanner.c's header comment
  * for why main() below dispatches them manually instead of via a
@@ -9,6 +9,27 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#ifdef _WIN32
+#include <direct.h>
+#define TEST_MKDIR(path) _mkdir(path)
+#define TEST_RMDIR(path) _rmdir(path)
+#else
+#include <unistd.h>
+#define TEST_MKDIR(path) mkdir(path, 0755)
+#define TEST_RMDIR(path) rmdir(path)
+#endif
+
+/* Windows' CRT remove() only ever deletes files - unlike POSIX, it
+ * never falls back to rmdir() for a directory path, so a leftover
+ * empty fixture directory from a prior test would otherwise survive
+ * "teardown" and break the next test that expects a clean slate. */
+static void test_remove_path(const char *path)
+{
+    if (remove(path) != 0) {
+        TEST_RMDIR(path);
+    }
+}
 
 static int test_failed = 0;
 
@@ -41,7 +62,7 @@ static void write_fixture_project(void)
         "}\n";
     FILE *f;
 
-    mkdir(FIXTURE_DIR, 0755);
+    TEST_MKDIR(FIXTURE_DIR);
     f = fopen(PROJECT_PATH, "wb");
     fputs(json, f);
     fclose(f);
@@ -50,7 +71,7 @@ static void write_fixture_project(void)
 static void remove_fixture_project(void)
 {
     remove(PROJECT_PATH);
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_DIR);
 }
 
 void test_parses_a_complete_project(void)
@@ -393,7 +414,7 @@ void test_load_missing_project_in_existing_directory_is_an_error(void)
 {
     CGTestProject project;
 
-    mkdir(FIXTURE_DIR, 0755);
+    TEST_MKDIR(FIXTURE_DIR);
     project = cgtest_project_load(FIXTURE_DIR);
 
     CHECK(!project.ok);
@@ -401,7 +422,7 @@ void test_load_missing_project_in_existing_directory_is_an_error(void)
     CHECK(strstr(project.error, "cgtest-project.json not found") != NULL);
 
     cgtest_project_free(&project);
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_DIR);
 }
 
 void test_scan_optional_fields_reports_both_present(void)
@@ -557,6 +578,6 @@ int main(void)
         }
     }
 
-    printf("\n%zu/%zu passed\n", count - failed, count);
+    printf("\n%lu/%lu passed\n", (unsigned long)(count - failed), (unsigned long)count);
     return failed == 0 ? 0 : 1;
 }

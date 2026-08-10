@@ -1,4 +1,4 @@
-/* test_ctestfiles.c - unit tests for ctestfiles_scan(), the directory
+﻿/* test_ctestfiles.c - unit tests for ctestfiles_scan(), the directory
  * scanner that finds test_*.c files. Written in cgtest's own test
  * convention (void test_<name>(void)); see test_ctestscanner.c's
  * header comment for why main() below dispatches them manually
@@ -14,6 +14,27 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#ifdef _WIN32
+#include <direct.h>
+#define TEST_MKDIR(path) _mkdir(path)
+#define TEST_RMDIR(path) _rmdir(path)
+#else
+#include <unistd.h>
+#define TEST_MKDIR(path) mkdir(path, 0755)
+#define TEST_RMDIR(path) rmdir(path)
+#endif
+
+/* Windows' CRT remove() only ever deletes files - unlike POSIX, it
+ * never falls back to rmdir() for a directory path, so a leftover
+ * empty fixture directory from a prior test would otherwise survive
+ * "teardown" and break the next test that expects a clean slate. */
+static void test_remove_path(const char *path)
+{
+    if (remove(path) != 0) {
+        TEST_RMDIR(path);
+    }
+}
 
 static int test_failed = 0;
 
@@ -38,7 +59,7 @@ static void write_file(const char *path)
 
 static void setup_fixture(void)
 {
-    mkdir(FIXTURE_DIR, 0755);
+    TEST_MKDIR(FIXTURE_DIR);
     write_file(FIXTURE_DIR "/test_zulu.c");
     write_file(FIXTURE_DIR "/test_alpha.c");
     write_file(FIXTURE_DIR "/test_mike.c");
@@ -55,7 +76,7 @@ static void teardown_fixture(void)
     remove(FIXTURE_DIR "/not_a_test.c");
     remove(FIXTURE_DIR "/test_wrong_extension.h");
     remove(FIXTURE_DIR "/readme.txt");
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_DIR);
 }
 
 void test_finds_only_matching_files_sorted(void)
@@ -80,7 +101,7 @@ void test_empty_directory_yields_no_files_but_ok(void)
 {
     CTestFileScan scan;
 
-    mkdir(FIXTURE_DIR, 0755);
+    TEST_MKDIR(FIXTURE_DIR);
     scan = ctestfiles_scan(FIXTURE_DIR);
 
     CHECK(scan.ok);
@@ -88,7 +109,7 @@ void test_empty_directory_yields_no_files_but_ok(void)
     CHECK(scan.files.count == 0);
 
     ctestfiles_free(&scan);
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_DIR);
 }
 
 void test_nonexistent_directory_is_an_error(void)
@@ -135,6 +156,6 @@ int main(void)
         }
     }
 
-    printf("\n%zu/%zu passed\n", count - failed, count);
+    printf("\n%lu/%lu passed\n", (unsigned long)(count - failed), (unsigned long)count);
     return failed == 0 ? 0 : 1;
 }

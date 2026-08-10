@@ -1,4 +1,4 @@
-/* test_cpreprocessor.c - unit tests for CPreprocessor's directive-line
+﻿/* test_cpreprocessor.c - unit tests for CPreprocessor's directive-line
  * state tracking (cpreprocessor_next_token()): recognizing when a
  * CTOK_HEADER_NAME should be requested from the lexer after "# include",
  * "# embed" (C23), "__has_include(...)" and "__has_embed(...)" (C23),
@@ -346,6 +346,6 @@ int main(void)
         }
     }
 
-    printf("\n%zu/%zu passed\n", count - failed, count);
+    printf("\n%lu/%lu passed\n", (unsigned long)(count - failed), (unsigned long)count);
     return failed == 0 ? 0 : 1;
 }

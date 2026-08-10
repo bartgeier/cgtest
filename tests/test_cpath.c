@@ -1,4 +1,4 @@
-/* test_cpath.c - unit tests for cpath_join(), the lexical path-joining
+﻿/* test_cpath.c - unit tests for cpath_join(), the lexical path-joining
  * and normalization function.
  *
  * Written in cgtest's own test convention (void test_<name>(void)); see
@@ -261,6 +261,6 @@ int main(void)
         }
     }
 
-    printf("\n%zu/%zu passed\n", count - failed, count);
+    printf("\n%lu/%lu passed\n", (unsigned long)(count - failed), (unsigned long)count);
     return failed == 0 ? 0 : 1;
 }
