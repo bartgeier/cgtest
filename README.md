@@ -43,11 +43,12 @@ The entire compiler is written in C89 and can also be used as a single amalgamat
 curl -fL -o cgtest.c https://github.com/bartgeier/cgtest/raw/refs/tags/v0.1.1/cgtest.c
 ```
 
-## Building cgtest
+## Compile cgtest
 
 ```
 gcc -std=c89 cgtest.c -o cgtest
 ```
+[more Compiler examples](docs/compile_cgtest.c.md)
 
 ## Create a fresh project
 ```
@@ -80,6 +81,7 @@ cgtest --run examples/freshPorject/cgtest
     ]
 }
 ```
+[more cgtest-project.json examples](docs/cgtest-project.json.md)
 
 * **compiler_command**  
   used to compile `cgtest-runner.c`
