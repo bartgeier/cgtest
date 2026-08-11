@@ -1,4 +1,4 @@
-/* test_cpathlist.c - unit tests for cpathlist_register()/cpathlist_free(),
+﻿/* test_cpathlist.c - unit tests for cpathlist_register()/cpathlist_free(),
  * the growable list of resolved absolute paths built on cpath_join().
  *
  * Written in cgtest's own test convention (void test_<name>(void)); see
@@ -141,6 +141,6 @@ int main(void)
         }
     }
 
-    printf("\n%zu/%zu passed\n", count - failed, count);
+    printf("\n%lu/%lu passed\n", (unsigned long)(count - failed), (unsigned long)count);
     return failed == 0 ? 0 : 1;
 }

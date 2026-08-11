@@ -1,4 +1,4 @@
-/* test_cgtest_runner.c - unit tests for cgtest_runner_generate_source(),
+﻿/* test_cgtest_runner.c - unit tests for cgtest_runner_generate_source(),
  * the pure part of cgtest_runner.h that turns already-discovered test
  * functions into cgtest-runner.c's source text. Compiling and running
  * the generated result is exercised end to end via examples/mathlib
@@ -26,10 +26,27 @@
 #ifdef _WIN32
 #include <direct.h>
 #define CGTEST_TEST_GETCWD _getcwd
+#define TEST_MKDIR(path) _mkdir(path)
+#define TEST_RMDIR(path) _rmdir(path)
+#define TEST_EXE_SUFFIX ".exe"
 #else
 #include <unistd.h>
 #define CGTEST_TEST_GETCWD getcwd
+#define TEST_MKDIR(path) mkdir(path, 0755)
+#define TEST_RMDIR(path) rmdir(path)
+#define TEST_EXE_SUFFIX ""
 #endif
+
+/* Windows' CRT remove() only ever deletes files - unlike POSIX, it
+ * never falls back to rmdir() for a directory path, so a leftover
+ * empty fixture directory from a prior test would otherwise survive
+ * "teardown" and break the next test that expects a clean slate. */
+static void test_remove_path(const char *path)
+{
+    if (remove(path) != 0) {
+        TEST_RMDIR(path);
+    }
+}
 
 static int test_failed = 0;
 
@@ -719,9 +736,9 @@ void test_run_rejects_duplicate_basenames_across_directories(void)
     CGTestProject project;
     CGTestRunResult result;
 
-    mkdir(FIXTURE_DIR, 0755);
-    mkdir(FIXTURE_DIR "/dir_a", 0755);
-    mkdir(FIXTURE_DIR "/dir_b", 0755);
+    TEST_MKDIR(FIXTURE_DIR);
+    TEST_MKDIR(FIXTURE_DIR "/dir_a");
+    TEST_MKDIR(FIXTURE_DIR "/dir_b");
     write_file(FIXTURE_DIR "/dir_a/test_dup.c", "void test_from_a(void) { }\n");
     write_file(FIXTURE_DIR "/dir_b/test_dup.c", "void test_from_b(void) { }\n");
 
@@ -748,11 +765,11 @@ void test_run_rejects_duplicate_basenames_across_directories(void)
     cpathlist_free(&project.include_paths);
     cpathlist_free(&project.source_files);
     cpathlist_free(&project.test_directories);
-    remove(FIXTURE_DIR "/dir_a/test_dup.c");
-    remove(FIXTURE_DIR "/dir_b/test_dup.c");
-    remove(FIXTURE_DIR "/dir_a");
-    remove(FIXTURE_DIR "/dir_b");
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_DIR "/dir_a/test_dup.c");
+    test_remove_path(FIXTURE_DIR "/dir_b/test_dup.c");
+    test_remove_path(FIXTURE_DIR "/dir_a");
+    test_remove_path(FIXTURE_DIR "/dir_b");
+    test_remove_path(FIXTURE_DIR);
 }
 
 void test_run_rejects_fixture_test_missing_setup_function(void)
@@ -760,8 +777,8 @@ void test_run_rejects_fixture_test_missing_setup_function(void)
     CGTestProject project;
     CGTestRunResult result;
 
-    mkdir(FIXTURE_DIR, 0755);
-    mkdir(FIXTURE_DIR "/missing_setup", 0755);
+    TEST_MKDIR(FIXTURE_DIR);
+    TEST_MKDIR(FIXTURE_DIR "/missing_setup");
     write_file(FIXTURE_DIR "/missing_setup/test_widget.c",
         "typedef struct State { int x; } State;\n"
         "void teardown_bar(State *state) { (void)state; }\n"
@@ -786,9 +803,9 @@ void test_run_rejects_fixture_test_missing_setup_function(void)
     cpathlist_free(&project.include_paths);
     cpathlist_free(&project.source_files);
     cpathlist_free(&project.test_directories);
-    remove(FIXTURE_DIR "/missing_setup/test_widget.c");
-    remove(FIXTURE_DIR "/missing_setup");
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_DIR "/missing_setup/test_widget.c");
+    test_remove_path(FIXTURE_DIR "/missing_setup");
+    test_remove_path(FIXTURE_DIR);
 }
 
 void test_run_succeeds_with_fixture_test_missing_teardown_function(void)
@@ -810,8 +827,8 @@ void test_run_succeeds_with_fixture_test_missing_teardown_function(void)
     CGTestRunResult result;
     FILE *marker;
 
-    mkdir(FIXTURE_DIR, 0755);
-    mkdir(FIXTURE_DIR "/missing_teardown", 0755);
+    TEST_MKDIR(FIXTURE_DIR);
+    TEST_MKDIR(FIXTURE_DIR "/missing_teardown");
     write_file(FIXTURE_DIR "/missing_teardown/test_widget.c",
         "#include <stdio.h>\n"
         "#include <stdlib.h>\n"
@@ -851,13 +868,13 @@ void test_run_succeeds_with_fixture_test_missing_teardown_function(void)
     cpathlist_free(&project.include_paths);
     cpathlist_free(&project.source_files);
     cpathlist_free(&project.test_directories);
-    remove(FIXTURE_DIR "/missing_teardown/value_ok");
-    remove(FIXTURE_DIR "/missing_teardown/test_widget.c");
-    remove(FIXTURE_DIR "/missing_teardown/build/cgtest-runner.c");
-    remove(FIXTURE_DIR "/missing_teardown/build/cgtest-runner");
-    remove(FIXTURE_DIR "/missing_teardown/build");
-    remove(FIXTURE_DIR "/missing_teardown");
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_DIR "/missing_teardown/value_ok");
+    test_remove_path(FIXTURE_DIR "/missing_teardown/test_widget.c");
+    test_remove_path(FIXTURE_DIR "/missing_teardown/build/cgtest-runner.c");
+    test_remove_path(FIXTURE_DIR "/missing_teardown/build/cgtest-runner" TEST_EXE_SUFFIX);
+    test_remove_path(FIXTURE_DIR "/missing_teardown/build");
+    test_remove_path(FIXTURE_DIR "/missing_teardown");
+    test_remove_path(FIXTURE_DIR);
 }
 
 void test_run_still_calls_teardown_function_when_present(void)
@@ -875,8 +892,8 @@ void test_run_still_calls_teardown_function_when_present(void)
     CGTestRunResult result;
     FILE *marker;
 
-    mkdir(FIXTURE_DIR, 0755);
-    mkdir(FIXTURE_DIR "/present_teardown", 0755);
+    TEST_MKDIR(FIXTURE_DIR);
+    TEST_MKDIR(FIXTURE_DIR "/present_teardown");
     write_file(FIXTURE_DIR "/present_teardown/test_widget.c",
         "#include <stdio.h>\n"
         "#include <stdlib.h>\n"
@@ -912,13 +929,13 @@ void test_run_still_calls_teardown_function_when_present(void)
     cpathlist_free(&project.include_paths);
     cpathlist_free(&project.source_files);
     cpathlist_free(&project.test_directories);
-    remove(FIXTURE_DIR "/present_teardown/teardown_ran");
-    remove(FIXTURE_DIR "/present_teardown/test_widget.c");
-    remove(FIXTURE_DIR "/present_teardown/build/cgtest-runner.c");
-    remove(FIXTURE_DIR "/present_teardown/build/cgtest-runner");
-    remove(FIXTURE_DIR "/present_teardown/build");
-    remove(FIXTURE_DIR "/present_teardown");
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_DIR "/present_teardown/teardown_ran");
+    test_remove_path(FIXTURE_DIR "/present_teardown/test_widget.c");
+    test_remove_path(FIXTURE_DIR "/present_teardown/build/cgtest-runner.c");
+    test_remove_path(FIXTURE_DIR "/present_teardown/build/cgtest-runner" TEST_EXE_SUFFIX);
+    test_remove_path(FIXTURE_DIR "/present_teardown/build");
+    test_remove_path(FIXTURE_DIR "/present_teardown");
+    test_remove_path(FIXTURE_DIR);
 }
 
 void test_run_allows_same_named_static_helper_across_files(void)
@@ -932,8 +949,8 @@ void test_run_allows_same_named_static_helper_across_files(void)
     CGTestProject project;
     CGTestRunResult result;
 
-    mkdir(FIXTURE_DIR, 0755);
-    mkdir(FIXTURE_DIR "/same_helper", 0755);
+    TEST_MKDIR(FIXTURE_DIR);
+    TEST_MKDIR(FIXTURE_DIR "/same_helper");
     write_file(FIXTURE_DIR "/same_helper/test_one.c",
         "static int helper(void) { return 1; }\n"
         "void test_one(void) { (void)helper(); }\n");
@@ -959,13 +976,13 @@ void test_run_allows_same_named_static_helper_across_files(void)
     cpathlist_free(&project.include_paths);
     cpathlist_free(&project.source_files);
     cpathlist_free(&project.test_directories);
-    remove(FIXTURE_DIR "/same_helper/test_one.c");
-    remove(FIXTURE_DIR "/same_helper/test_two.c");
-    remove(FIXTURE_DIR "/same_helper/build/cgtest-runner.c");
-    remove(FIXTURE_DIR "/same_helper/build/cgtest-runner");
-    remove(FIXTURE_DIR "/same_helper/build");
-    remove(FIXTURE_DIR "/same_helper");
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_DIR "/same_helper/test_one.c");
+    test_remove_path(FIXTURE_DIR "/same_helper/test_two.c");
+    test_remove_path(FIXTURE_DIR "/same_helper/build/cgtest-runner.c");
+    test_remove_path(FIXTURE_DIR "/same_helper/build/cgtest-runner" TEST_EXE_SUFFIX);
+    test_remove_path(FIXTURE_DIR "/same_helper/build");
+    test_remove_path(FIXTURE_DIR "/same_helper");
+    test_remove_path(FIXTURE_DIR);
 }
 
 void test_run_single_translation_unit_compiles_and_runs(void)
@@ -978,8 +995,8 @@ void test_run_single_translation_unit_compiles_and_runs(void)
     CGTestProject project;
     CGTestRunResult result;
 
-    mkdir(FIXTURE_DIR, 0755);
-    mkdir(FIXTURE_DIR "/single_tu", 0755);
+    TEST_MKDIR(FIXTURE_DIR);
+    TEST_MKDIR(FIXTURE_DIR "/single_tu");
     write_file(FIXTURE_DIR "/single_tu/test_widget.c", "void test_bar(void) { }\n");
 
     memset(&project, 0, sizeof(project));
@@ -1001,12 +1018,12 @@ void test_run_single_translation_unit_compiles_and_runs(void)
     cpathlist_free(&project.include_paths);
     cpathlist_free(&project.source_files);
     cpathlist_free(&project.test_directories);
-    remove(FIXTURE_DIR "/single_tu/test_widget.c");
-    remove(FIXTURE_DIR "/single_tu/build/cgtest-runner.c");
-    remove(FIXTURE_DIR "/single_tu/build/cgtest-runner");
-    remove(FIXTURE_DIR "/single_tu/build");
-    remove(FIXTURE_DIR "/single_tu");
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_DIR "/single_tu/test_widget.c");
+    test_remove_path(FIXTURE_DIR "/single_tu/build/cgtest-runner.c");
+    test_remove_path(FIXTURE_DIR "/single_tu/build/cgtest-runner" TEST_EXE_SUFFIX);
+    test_remove_path(FIXTURE_DIR "/single_tu/build");
+    test_remove_path(FIXTURE_DIR "/single_tu");
+    test_remove_path(FIXTURE_DIR);
 }
 
 void test_run_single_translation_unit_compiles_fixture_test_under_pedantic_errors(void)
@@ -1021,8 +1038,8 @@ void test_run_single_translation_unit_compiles_fixture_test_under_pedantic_error
     CGTestProject project;
     CGTestRunResult result;
 
-    mkdir(FIXTURE_DIR, 0755);
-    mkdir(FIXTURE_DIR "/single_tu_fixture", 0755);
+    TEST_MKDIR(FIXTURE_DIR);
+    TEST_MKDIR(FIXTURE_DIR "/single_tu_fixture");
     write_file(FIXTURE_DIR "/single_tu_fixture/test_widget.c",
         "#include <stdlib.h>\n"
         "typedef struct State { int x; } State;\n"
@@ -1048,12 +1065,12 @@ void test_run_single_translation_unit_compiles_fixture_test_under_pedantic_error
     cpathlist_free(&project.include_paths);
     cpathlist_free(&project.source_files);
     cpathlist_free(&project.test_directories);
-    remove(FIXTURE_DIR "/single_tu_fixture/test_widget.c");
-    remove(FIXTURE_DIR "/single_tu_fixture/build/cgtest-runner.c");
-    remove(FIXTURE_DIR "/single_tu_fixture/build/cgtest-runner");
-    remove(FIXTURE_DIR "/single_tu_fixture/build");
-    remove(FIXTURE_DIR "/single_tu_fixture");
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_DIR "/single_tu_fixture/test_widget.c");
+    test_remove_path(FIXTURE_DIR "/single_tu_fixture/build/cgtest-runner.c");
+    test_remove_path(FIXTURE_DIR "/single_tu_fixture/build/cgtest-runner" TEST_EXE_SUFFIX);
+    test_remove_path(FIXTURE_DIR "/single_tu_fixture/build");
+    test_remove_path(FIXTURE_DIR "/single_tu_fixture");
+    test_remove_path(FIXTURE_DIR);
 }
 
 void test_run_single_translation_unit_fails_on_duplicate_static_helper(void)
@@ -1068,8 +1085,8 @@ void test_run_single_translation_unit_fails_on_duplicate_static_helper(void)
     CGTestProject project;
     CGTestRunResult result;
 
-    mkdir(FIXTURE_DIR, 0755);
-    mkdir(FIXTURE_DIR "/single_tu_collision", 0755);
+    TEST_MKDIR(FIXTURE_DIR);
+    TEST_MKDIR(FIXTURE_DIR "/single_tu_collision");
     write_file(FIXTURE_DIR "/single_tu_collision/test_one.c",
         "static int helper(void) { return 1; }\n"
         "void test_one(void) { (void)helper(); }\n");
@@ -1096,12 +1113,12 @@ void test_run_single_translation_unit_fails_on_duplicate_static_helper(void)
     cpathlist_free(&project.include_paths);
     cpathlist_free(&project.source_files);
     cpathlist_free(&project.test_directories);
-    remove(FIXTURE_DIR "/single_tu_collision/test_one.c");
-    remove(FIXTURE_DIR "/single_tu_collision/test_two.c");
-    remove(FIXTURE_DIR "/single_tu_collision/build/cgtest-runner.c");
-    remove(FIXTURE_DIR "/single_tu_collision/build");
-    remove(FIXTURE_DIR "/single_tu_collision");
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_DIR "/single_tu_collision/test_one.c");
+    test_remove_path(FIXTURE_DIR "/single_tu_collision/test_two.c");
+    test_remove_path(FIXTURE_DIR "/single_tu_collision/build/cgtest-runner.c");
+    test_remove_path(FIXTURE_DIR "/single_tu_collision/build");
+    test_remove_path(FIXTURE_DIR "/single_tu_collision");
+    test_remove_path(FIXTURE_DIR);
 }
 
 void test_run_populates_timing_fields(void)
@@ -1117,8 +1134,8 @@ void test_run_populates_timing_fields(void)
     CGTestProject project;
     CGTestRunResult result;
 
-    mkdir(FIXTURE_DIR, 0755);
-    mkdir(FIXTURE_DIR "/timing", 0755);
+    TEST_MKDIR(FIXTURE_DIR);
+    TEST_MKDIR(FIXTURE_DIR "/timing");
     write_file(FIXTURE_DIR "/timing/test_widget.c", "void test_bar(void) { }\n");
 
     memset(&project, 0, sizeof(project));
@@ -1142,12 +1159,12 @@ void test_run_populates_timing_fields(void)
     cpathlist_free(&project.include_paths);
     cpathlist_free(&project.source_files);
     cpathlist_free(&project.test_directories);
-    remove(FIXTURE_DIR "/timing/test_widget.c");
-    remove(FIXTURE_DIR "/timing/build/cgtest-runner.c");
-    remove(FIXTURE_DIR "/timing/build/cgtest-runner");
-    remove(FIXTURE_DIR "/timing/build");
-    remove(FIXTURE_DIR "/timing");
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_DIR "/timing/test_widget.c");
+    test_remove_path(FIXTURE_DIR "/timing/build/cgtest-runner.c");
+    test_remove_path(FIXTURE_DIR "/timing/build/cgtest-runner" TEST_EXE_SUFFIX);
+    test_remove_path(FIXTURE_DIR "/timing/build");
+    test_remove_path(FIXTURE_DIR "/timing");
+    test_remove_path(FIXTURE_DIR);
 }
 
 typedef struct {
@@ -1202,6 +1219,6 @@ int main(void)
         }
     }
 
-    printf("\n%zu/%zu passed\n", count - failed, count);
+    printf("\n%lu/%lu passed\n", (unsigned long)(count - failed), (unsigned long)count);
     return failed == 0 ? 0 : 1;
 }

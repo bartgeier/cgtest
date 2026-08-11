@@ -1,4 +1,4 @@
-/* test_ctestscanner.c - unit tests for ctestscanner_find(), the
+﻿/* test_ctestscanner.c - unit tests for ctestscanner_find(), the
  * scanner that locates "void test_<name>(void) { ... }" definitions in
  * a test_*.c source buffer.
  *
@@ -474,6 +474,6 @@ int main(void)
         }
     }
 
-    printf("\n%zu/%zu passed\n", count - failed, count);
+    printf("\n%lu/%lu passed\n", (unsigned long)(count - failed), (unsigned long)count);
     return failed == 0 ? 0 : 1;
 }

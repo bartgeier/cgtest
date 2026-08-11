@@ -1,4 +1,4 @@
-/* test_cgtest_create.c - unit tests for cgtest_create_run(), which
+﻿/* test_cgtest_create.c - unit tests for cgtest_create_run(), which
  * writes a template cgtest-project.json, cgtest.h, and
  * test_cgtest_macros.c inside a given directory's "cgtest" child
  * (creating both if they don't exist yet).
@@ -16,6 +16,27 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#ifdef _WIN32
+#include <direct.h>
+#define TEST_MKDIR(path) _mkdir(path)
+#define TEST_RMDIR(path) _rmdir(path)
+#else
+#include <unistd.h>
+#define TEST_MKDIR(path) mkdir(path, 0755)
+#define TEST_RMDIR(path) rmdir(path)
+#endif
+
+/* Windows' CRT remove() only ever deletes files - unlike POSIX, it
+ * never falls back to rmdir() for a directory path, so a leftover
+ * empty fixture directory from a prior test would otherwise survive
+ * "teardown" and break the next test that expects a clean slate. */
+static void test_remove_path(const char *path)
+{
+    if (remove(path) != 0) {
+        TEST_RMDIR(path);
+    }
+}
 
 static int test_failed = 0;
 
@@ -36,7 +57,7 @@ static int test_failed = 0;
 
 static void setup_fixture(void)
 {
-    mkdir(FIXTURE_DIR, 0755);
+    TEST_MKDIR(FIXTURE_DIR);
 }
 
 static void teardown_fixture(void)
@@ -44,8 +65,8 @@ static void teardown_fixture(void)
     remove(PROJECT_PATH);
     remove(HEADER_PATH);
     remove(TEST_MACROS_PATH);
-    remove(FIXTURE_CGTEST_DIR);
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_CGTEST_DIR);
+    test_remove_path(FIXTURE_DIR);
 }
 
 static long read_whole_file(const char *path, char *buf, size_t bufsize)
@@ -91,7 +112,7 @@ void test_creates_directory_if_missing(void)
     struct stat st;
     char buf[4096];
 
-    remove(FIXTURE_DIR); /* make sure it does NOT exist yet */
+    test_remove_path(FIXTURE_DIR); /* make sure it does NOT exist yet */
     result = cgtest_create_run(FIXTURE_DIR);
 
     CHECK(result.ok);
@@ -205,7 +226,7 @@ void test_leaves_existing_project_untouched_and_fills_in_missing_files(void)
     char buf[4096];
 
     setup_fixture();
-    mkdir(FIXTURE_CGTEST_DIR, 0755);
+    TEST_MKDIR(FIXTURE_CGTEST_DIR);
     f = fopen(PROJECT_PATH, "w");
     CHECK(f != NULL);
     fputs("PREEXISTING", f);
@@ -329,7 +350,7 @@ void test_patches_missing_optional_fields_into_existing_project(void)
     long length;
 
     setup_fixture();
-    mkdir(FIXTURE_CGTEST_DIR, 0755);
+    TEST_MKDIR(FIXTURE_CGTEST_DIR);
     write_project_file(
         "{\n"
         "    \"compiler_command\": \"my-custom-cc -O2\",\n"
@@ -379,7 +400,7 @@ void test_patches_only_the_one_missing_optional_field(void)
     long length;
 
     setup_fixture();
-    mkdir(FIXTURE_CGTEST_DIR, 0755);
+    TEST_MKDIR(FIXTURE_CGTEST_DIR);
     write_project_file(
         "{\n"
         "    \"compiler_command\": \"cl /TC\",\n"
@@ -424,7 +445,7 @@ void test_does_not_patch_when_no_optional_field_is_missing(void)
     char after[4096];
 
     setup_fixture();
-    mkdir(FIXTURE_CGTEST_DIR, 0755);
+    TEST_MKDIR(FIXTURE_CGTEST_DIR);
     write_project_file(
         "{\n"
         "    \"compiler_command\": \"gcc\",\n"
@@ -473,7 +494,7 @@ void test_does_not_patch_a_malformed_project_file(void)
     char after[4096];
 
     setup_fixture();
-    mkdir(FIXTURE_CGTEST_DIR, 0755);
+    TEST_MKDIR(FIXTURE_CGTEST_DIR);
     write_project_file(
         "{\n"
         "    \"compiler_command\": \"gcc\",\n"
@@ -508,7 +529,7 @@ void test_path_that_is_a_regular_file_is_an_error(void)
     CGTestCreateResult result;
     FILE *f;
 
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_DIR);
     f = fopen(FIXTURE_DIR, "w"); /* a plain file where a directory is expected */
     CHECK(f != NULL);
     fclose(f);
@@ -521,7 +542,7 @@ void test_path_that_is_a_regular_file_is_an_error(void)
     CHECK(strstr(result.error, "not a directory") != NULL);
 
     cgtest_create_free(&result);
-    remove(FIXTURE_DIR);
+    test_remove_path(FIXTURE_DIR);
 }
 
 #define NESTED_PARENT_DIR "build/cgtest_create_nested_fixture"
@@ -540,9 +561,9 @@ void test_creates_missing_parent_directories(void)
     remove(NESTED_PROJECT_PATH);
     remove(NESTED_HEADER_PATH);
     remove(NESTED_TEST_MACROS_PATH);
-    remove(NESTED_CGTEST_DIR);
-    remove(NESTED_DIR);
-    remove(NESTED_PARENT_DIR); /* make sure neither exists yet */
+    test_remove_path(NESTED_CGTEST_DIR);
+    test_remove_path(NESTED_DIR);
+    test_remove_path(NESTED_PARENT_DIR); /* make sure neither exists yet */
 
     result = cgtest_create_run(NESTED_DIR);
 
@@ -558,9 +579,9 @@ void test_creates_missing_parent_directories(void)
     remove(NESTED_PROJECT_PATH);
     remove(NESTED_HEADER_PATH);
     remove(NESTED_TEST_MACROS_PATH);
-    remove(NESTED_CGTEST_DIR);
-    remove(NESTED_DIR);
-    remove(NESTED_PARENT_DIR);
+    test_remove_path(NESTED_CGTEST_DIR);
+    test_remove_path(NESTED_DIR);
+    test_remove_path(NESTED_PARENT_DIR);
 }
 
 #define OBSTRUCTION_FILE "build/cgtest_create_obstruction_file"
@@ -639,6 +660,6 @@ int main(void)
         }
     }
 
-    printf("\n%zu/%zu passed\n", count - failed, count);
+    printf("\n%lu/%lu passed\n", (unsigned long)(count - failed), (unsigned long)count);
     return failed == 0 ? 0 : 1;
 }

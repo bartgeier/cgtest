@@ -1,4 +1,4 @@
-/* test_ctimer.c - unit tests for ctimer_now_ms(), the portable
+﻿/* test_ctimer.c - unit tests for ctimer_now_ms(), the portable
  * wall-clock timer used by cgtest_runner.c's -t/--time phase
  * breakdown.
  *
@@ -77,6 +77,6 @@ int main(void)
         }
     }
 
-    printf("\n%zu/%zu passed\n", count - failed, count);
+    printf("\n%lu/%lu passed\n", (unsigned long)(count - failed), (unsigned long)count);
     return failed == 0 ? 0 : 1;
 }

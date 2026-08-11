@@ -1,4 +1,4 @@
-CC         ?= gcc
+CC         = gcc
 CFLAGS     ?= -std=c99 -Wall -Wextra -pedantic
 CFLAGS     += -Isrc -Ithird_party/arq -Ithird_party/jsmn
 AMALGAMATE ?= amalgamate
