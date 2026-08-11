@@ -1,6 +1,6 @@
 # Compile `cgtest.c`
 
-## Linux GCC
+## Linux
 ```
 gcc -std=c89 cgtest.c -o cgtest
 ```
