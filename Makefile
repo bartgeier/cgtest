@@ -25,36 +25,41 @@ CGTEST_BIN             := $(BUILD_DIR)/cgtest
 
 all: test $(CGTEST_BIN) $(AMALGAMATED_SRC)
 
+# Binary paths below are quoted: unquoted, cmd.exe (mingw32-make's
+# fallback SHELL when no POSIX shell is on PATH) stops parsing the
+# command at the first unquoted "/", treating it as a switch character
+# rather than a path separator - e.g. "build/test_ctestscanner" gets
+# read as the command "build". Quoting is a no-op under a POSIX shell.
 test: check-c89 check-amalgamate $(TEST_CTESTSCANNER_BIN) $(TEST_CPREPROCESSOR_BIN) $(TEST_CPATH_BIN) $(TEST_CPATHLIST_BIN) $(TEST_CGTEST_PROJECT_BIN) $(TEST_CTESTFILES_BIN) $(TEST_CGTEST_ARQ_BIN) $(TEST_CGTEST_CREATE_BIN) $(TEST_CGTEST_RUNNER_BIN) $(TEST_CTIMER_BIN)
 	@echo "== test_ctestscanner =="
-	@$(TEST_CTESTSCANNER_BIN)
+	@"$(TEST_CTESTSCANNER_BIN)"
 	@echo
 	@echo "== test_cpreprocessor =="
-	@$(TEST_CPREPROCESSOR_BIN)
+	@"$(TEST_CPREPROCESSOR_BIN)"
 	@echo
 	@echo "== test_cpath =="
-	@$(TEST_CPATH_BIN)
+	@"$(TEST_CPATH_BIN)"
 	@echo
 	@echo "== test_cpathlist =="
-	@$(TEST_CPATHLIST_BIN)
+	@"$(TEST_CPATHLIST_BIN)"
 	@echo
 	@echo "== test_cgtest_project =="
-	@$(TEST_CGTEST_PROJECT_BIN)
+	@"$(TEST_CGTEST_PROJECT_BIN)"
 	@echo
 	@echo "== test_ctestfiles =="
-	@$(TEST_CTESTFILES_BIN)
+	@"$(TEST_CTESTFILES_BIN)"
 	@echo
 	@echo "== test_cgtest_arq =="
-	@$(TEST_CGTEST_ARQ_BIN)
+	@"$(TEST_CGTEST_ARQ_BIN)"
 	@echo
 	@echo "== test_cgtest_create =="
-	@$(TEST_CGTEST_CREATE_BIN)
+	@"$(TEST_CGTEST_CREATE_BIN)"
 	@echo
 	@echo "== test_cgtest_runner =="
-	@$(TEST_CGTEST_RUNNER_BIN)
+	@"$(TEST_CGTEST_RUNNER_BIN)"
 	@echo
 	@echo "== test_ctimer =="
-	@$(TEST_CTIMER_BIN)
+	@"$(TEST_CTIMER_BIN)"
 
 $(TEST_CTESTSCANNER_BIN): tests/test_ctestscanner.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/ctestscanner.h src/cpreprocessor.h src/clexer.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_ctestscanner.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c -o $@
@@ -89,8 +94,23 @@ $(TEST_CTIMER_BIN): tests/test_ctimer.c src/ctimer.c src/ctimer.h | $(BUILD_DIR)
 $(CGTEST_BIN): src/cgtest_main.c src/cgtest_arq.c src/cgtest_create.c src/cgtest_project.c src/cgtest_runner.c src/ctestfiles.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/cpathlist.c src/cpath.c src/cmsg.c src/ctimer.c | $(BUILD_DIR)
 	$(CC) -std=c89 -Wall -Wextra -pedantic -Ithird_party/arq -Ithird_party/jsmn src/cgtest_main.c src/cgtest_arq.c src/cgtest_create.c src/cgtest_project.c src/cgtest_runner.c src/ctestfiles.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/cpathlist.c src/cpath.c src/cmsg.c src/ctimer.c -o $@
 
+# mkdir -p / rm -rf below assume a POSIX shell. mingw32-make picks its
+# SHELL by probing for sh.exe on PATH, which is unreliable on Windows -
+# plain cmd.exe has no `rm` at all, and its own `mkdir` doesn't support
+# -p (it creates a literal "-p" directory instead). Force cmd.exe with
+# native commands for just these two targets on Windows so behavior
+# doesn't depend on whether a POSIX shell happens to be on PATH.
+ifeq ($(OS),Windows_NT)
+$(BUILD_DIR): SHELL := cmd.exe
+clean: SHELL := cmd.exe
+endif
+
 $(BUILD_DIR):
+ifeq ($(OS),Windows_NT)
+	if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
+else
 	mkdir -p $(BUILD_DIR)
+endif
 
 # cgtest.exe itself must stay strict C89 (see specification.md). This
 # compiles and links every src/*.c together as a shared library purely
@@ -124,7 +144,11 @@ $(AMALGAMATED_SRC): $(AMALGAMATE_STUB) src/*.c src/*.h third_party/arq/*.h third
 # not merged into one the way amalgamation does).
 check-amalgamate: $(AMALGAMATED_SRC) | $(BUILD_DIR)
 	$(CC) -std=c89 -Wall -Wextra -pedantic -Werror $(AMALGAMATED_SRC) -o $(CHECK_AMALGAMATE_BIN)
-	$(CHECK_AMALGAMATE_BIN) --version
+	"$(CHECK_AMALGAMATE_BIN)" --version
 
 clean:
+ifeq ($(OS),Windows_NT)
+	if exist $(BUILD_DIR) rmdir /s /q $(BUILD_DIR)
+else
 	rm -rf $(BUILD_DIR)
+endif
