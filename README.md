@@ -52,7 +52,7 @@ gcc -std=c89 cgtest.c -o cgtest
 
 ## Create a fresh project
 ```
-cgtest --init examples/freshPorject
+cgtest --init examples/freshProject
 ```
 [examples/freshProject/cgtest/cgtest.h](examples/freshProject/cgtest/cgtest.h)  
 [examples/freshProject/cgtest/cgtest-project.json](examples/freshProject/cgtest/cgtest-project.json)  
@@ -62,7 +62,7 @@ cgtest --init examples/freshPorject
 
 **Run test:**
 ```
-cgtest --run examples/freshPorject/cgtest
+cgtest --run examples/freshProject/cgtest
 ```
 
 ## cgtest-project.json
@@ -125,7 +125,7 @@ When a new version of cgtest is installed, update an existing project as follows
 `--init` is safe to run on an existing project:
 
 * It never overwrites an existing `cgtest.h`. If the file is missing, a new one is created.
-* It updates `cgtest-runner.json` when the new cgtest version introduces new configuration fields.
+* It updates `cgtest-project.json` when the new cgtest version introduces new configuration fields.
 
 ## Usage
 

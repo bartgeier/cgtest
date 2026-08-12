@@ -315,7 +315,7 @@ Neither cgtest nor `teardown_<name>` is required to free it: the runner process 
 shortly after the last test regardless, so an unfreed `*state` is reclaimed by the OS
 either way. `teardown_<name>` freeing it anyway is the recommended pattern when prompt
 cleanup matters (e.g. a fixture holding a real OS resource, not just memory) - see
-examples/mathlib/tests/test_cgtest_macros.c's `teardown_counter` for the pattern.
+examples/mathlib/cgtest/test_cgtest_macros.c's `teardown_counter` for the pattern.
 
 ### Per-test, not per-file
 
