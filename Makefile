@@ -1,4 +1,8 @@
-CC         = gcc
+ifeq ($(OS),Windows_NT)
+    CC := gcc
+else
+    CC ?= cc
+endif
 CFLAGS     ?= -std=c99 -Wall -Wextra -pedantic
 CFLAGS     += -Isrc -Ithird_party/arq -Ithird_party/jsmn
 AMALGAMATE ?= amalgamate
