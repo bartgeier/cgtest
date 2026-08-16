@@ -5971,80 +5971,93 @@ void cgtest_arq_free(CGTestArgs *args);
 
 /*** Start of inlined file: arq.h ***/
 /*** Start of inlined file: arq_int.h ***/
-#ifndef ARQ_STDINT_H
-#define ARQ_STDINT_H
+#ifndef ARQ_TYPES_H
+#define ARQ_TYPES_H
 
-#include <stddef.h>  /* for size_t, ptrdiff_t */
+#include <stddef.h> /* size_t, ptrdiff_t */
 
-#if defined(_MSC_VER)
-    #include <stdint.h>
-#elif defined(__cplusplus) || defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-    /* C++ C99 */
-    #include <stdint.h>
-    #if defined(_WIN64) || defined(__x86_64__) || defined(__ppc64__) || defined(__aarch64__)
-        #define ARQ64
-    #else
-        #define ARQ32
-    #endif
+/* -------------------------------------------------------------
+ * Architecture detection
+ * ------------------------------------------------------------- */
+
+#if defined(_WIN64) || defined(__x86_64__) || \
+    defined(__aarch64__) || defined(__ppc64__)
+    #define ARQ64
 #else
-    /* C89 */
-    typedef signed char        int8_t;
-    typedef unsigned char      uint8_t;
+    #define ARQ32
+#endif
 
-    typedef short              int16_t;
-    typedef unsigned short     uint16_t;
+/* -------------------------------------------------------------
+ * Fixed-width integer types
+ * ------------------------------------------------------------- */
 
-    typedef int                int32_t;
-    typedef unsigned int       uint32_t;
+#if defined(_MSC_VER) || \
+    defined(__cplusplus) || \
+   (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L))
 
-    typedef int8_t   int_least8_t;
-    typedef int16_t  int_least16_t;
-    typedef int32_t  int_least32_t;
+    #include <stdint.h>
 
-    typedef uint8_t  uint_least8_t;
-    typedef uint16_t uint_least16_t;
-    typedef uint32_t uint_least32_t;
+    typedef int8_t     arq_int8_t;
+    typedef uint8_t    arq_uint8_t;
+    typedef int16_t    arq_int16_t;
+    typedef uint16_t   arq_uint16_t;
+    typedef int32_t    arq_int32_t;
+    typedef uint32_t   arq_uint32_t;
 
-    #define INT8_MIN   (-128)
-    #define INT8_MAX   127
-    #define UINT8_MAX  255
-
-    #define INT16_MIN  (-32768)
-    #define INT16_MAX  32767
-    #define UINT16_MAX 65535
-
-    #define INT32_MIN  (-2147483647 - 1)
-    #define INT32_MAX  2147483647
-    #define UINT32_MAX 4294967295U
-
-    /* ----------------- 32-bit vs 64-bit detection ----------------- */
-    #if defined(_WIN64) || defined(__x86_64__) || defined(__ppc64__) || defined(__aarch64__)
-        #define ARQ64
-        #ifndef UINT64_T_DEFINED
-            typedef size_t     uint64_t;
-            typedef ptrdiff_t  int64_t;
-            #define UINT64_T_DEFINED
-        #endif
-        #define UINT64_MAX ((size_t)-1)
-        #define INT64_MAX  ((ptrdiff_t)(UINT64_MAX >> 1))
-        #define INT64_MIN  (-INT64_MAX - 1)
-    #else
-        #define ARQ32
+    #ifdef ARQ64
+        typedef int64_t    arq_int64_t;
+        typedef uint64_t   arq_uint64_t;
     #endif
 
-    /* ----------------- Pointer-sized integer ----------------- */
-    #ifndef UINTPTR_T_DEFINED
-        #if defined(_MSC_VER)
-            typedef unsigned __int64 uintptr_t;  /* MSVC 64-bit safe */
-        #else
-            typedef size_t uintptr_t;            /* GCC/Clang: pointer size */
-        #endif
-        #define UINTPTR_T_DEFINED
+#else /* C89 */
+
+    typedef signed char        arq_int8_t;
+    typedef unsigned char      arq_uint8_t;
+
+    typedef short              arq_int16_t;
+    typedef unsigned short     arq_uint16_t;
+
+    typedef int                arq_int32_t;
+    typedef unsigned int       arq_uint32_t;
+
+    #ifdef ARQ64
+        /* LP64: macOS/Linux | LLP64: size_t/ptrdiff_t are still 64-bit */
+        typedef ptrdiff_t      arq_int64_t;
+        typedef size_t         arq_uint64_t;
     #endif
 
 #endif
 
-#endif /* ARQ_STDINT_H */
+/* -------------------------------------------------------------
+ * Pointer-sized integer types
+ * ------------------------------------------------------------- */
+
+typedef ptrdiff_t  arq_intptr_t;
+typedef size_t     arq_uintptr_t;
+
+/* -------------------------------------------------------------
+ * Integer limits
+ * ------------------------------------------------------------- */
+
+#define ARQ_INT8_MIN      (-128)
+#define ARQ_INT8_MAX      127
+#define ARQ_UINT8_MAX     255U
+
+#define ARQ_INT16_MIN     (-32768)
+#define ARQ_INT16_MAX     32767
+#define ARQ_UINT16_MAX    65535U
+
+#define ARQ_INT32_MIN     (-2147483647 - 1)
+#define ARQ_INT32_MAX     2147483647
+#define ARQ_UINT32_MAX    4294967295U
+
+#ifdef ARQ64
+    #define ARQ_UINT64_MAX ((arq_uint64_t)-1)
+    #define ARQ_INT64_MAX  ((arq_int64_t)(ARQ_UINT64_MAX >> 1))
+    #define ARQ_INT64_MIN  (-ARQ_INT64_MAX - 1)
+#endif
+
+#endif /* ARQ_TYPES_H */
 
 /*** End of inlined file: arq_int.h ***/
 
@@ -6066,21 +6079,21 @@ typedef struct {
 extern "C" {
 #endif
 
-uint32_t arq_verify(
-        char *arena_buffer, uint32_t const buffer_size,
-        Arq_Option const *options, uint32_t const num_of_options
+arq_uint32_t arq_verify(
+        char *arena_buffer, arq_uint32_t const buffer_size,
+        Arq_Option const *options, arq_uint32_t const num_of_options
 );
 
-uint32_t arq_fn(
+arq_uint32_t arq_fn(
         int argc, char **argv,
-        char *arena_buffer, uint32_t const buffer_size,
-        Arq_Option const *options, uint32_t const num_of_options
+        char *arena_buffer, arq_uint32_t const buffer_size,
+        Arq_Option const *options, arq_uint32_t const num_of_options
 );
 
 void arq_unused(Arq_Queue *queue);
-uint32_t arq_uint(Arq_Queue *queue);
-uint32_t arq_array_size(Arq_Queue *queue);
-int32_t arq_int(Arq_Queue *queue);
+arq_uint32_t arq_uint(Arq_Queue *queue);
+arq_uint32_t arq_array_size(Arq_Queue *queue);
+arq_int32_t arq_int(Arq_Queue *queue);
 double arq_float(Arq_Queue *queue);
 char const *arq_cstr_t(Arq_Queue *queue);
 
@@ -6098,8 +6111,8 @@ char const *arq_cstr_t(Arq_Queue *queue);
 #define ARQ_TOKEN_H
 
 typedef struct {
-        uint32_t id;
-        uint32_t size;
+        arq_uint32_t id;
+        arq_uint32_t size;
         char const *at;
 } Arq_Token;
 
@@ -6167,8 +6180,8 @@ char const *symbol_names[] = {
 #define ARQ_MSG_H
 
 typedef struct {
-        uint32_t SIZE; /* sizeof(error_buffer), */
-        uint32_t size;
+        arq_uint32_t SIZE; /* sizeof(error_buffer), */
+        arq_uint32_t size;
         char *at;
 } Arq_msg;
 
@@ -6181,14 +6194,14 @@ void arq_msg_format(Arq_msg *m);
 
 void arq_msg_append_lf(Arq_msg *m);
 void arq_msg_append_chr(Arq_msg *m, char const chr);
-void arq_msg_append_nchr(Arq_msg *m, char const chr, uint32_t const num_of_chr);
+void arq_msg_append_nchr(Arq_msg *m, char const chr, arq_uint32_t const num_of_chr);
 void arq_msg_append_cstr(Arq_msg *m, char const *cstr);
-void arq_msg_append_str(Arq_msg *m, char const *str, uint32_t const size);
+void arq_msg_append_str(Arq_msg *m, char const *str, arq_uint32_t const size);
 
 void arq_msg_set_cstr(Arq_msg *m, char const *cstr);
 
-void arq_msg_insert_line_str(Arq_msg *m, uint32_t line_number, char const *str, uint32_t const size);
-void arq_msg_insert_line_cstr(Arq_msg *m, uint32_t line_number, char const *cstr);
+void arq_msg_insert_line_str(Arq_msg *m, arq_uint32_t line_number, char const *str, arq_uint32_t const size);
+void arq_msg_insert_line_cstr(Arq_msg *m, arq_uint32_t line_number, char const *cstr);
 
 #ifdef __cplusplus
 }
@@ -6206,18 +6219,18 @@ void arq_msg_clear(Arq_msg *m) {
 }
 
 void arq_msg_format(Arq_msg *m) {
-        uint32_t i;
-        uint32_t number_of_lf = 0;
+        arq_uint32_t i;
+        arq_uint32_t number_of_lf = 0;
         for (i = 0; i < m->size; i++) {
-                uint32_t const last = m->size - 1;
+                arq_uint32_t const last = m->size - 1;
                 if (m->at[i] == '\n' && i < last) {
                         number_of_lf++;
                 }
         }
         {
-                uint32_t j;
-                uint32_t const INDENT_SIZE = 4;
-                uint32_t const shift_right = number_of_lf * INDENT_SIZE;
+                arq_uint32_t j;
+                arq_uint32_t const INDENT_SIZE = 4;
+                arq_uint32_t const shift_right = number_of_lf * INDENT_SIZE;
                 assert(m->size + shift_right < m->SIZE);
                 for (i = 0; i < m->size; i++) {
                         m->at[m->size - 1 - i + shift_right] = m->at[m->size - 1 - i];
@@ -6241,8 +6254,8 @@ void arq_msg_append_chr(Arq_msg *m, char const chr) {
         m->at[m->size] = 0; /* thats wy m->size has to be smaller than m->SIZE */
 }
 
-void arq_msg_append_nchr(Arq_msg *m, char const chr, uint32_t const num_of_chr) {
-        uint32_t i;
+void arq_msg_append_nchr(Arq_msg *m, char const chr, arq_uint32_t const num_of_chr) {
+        arq_uint32_t i;
         for (i = 0; i < num_of_chr; i++) {
                 arq_msg_append_chr(m, chr);
         }
@@ -6253,23 +6266,23 @@ void arq_msg_append_lf(Arq_msg *m) {
 }
 
 void arq_msg_append_cstr(Arq_msg *m, char const *cstr) {
-        uint32_t const STRLEN = strlen(cstr);
-        uint32_t i;
+        arq_uint32_t const STRLEN = strlen(cstr);
+        arq_uint32_t i;
         for (i = 0; i < STRLEN; i++) {
                 arq_msg_append_chr(m, cstr[i]);
         }
 }
 
-void arq_msg_append_str(Arq_msg *m, char const *str, uint32_t const size) {
-        uint32_t i;
+void arq_msg_append_str(Arq_msg *m, char const *str, arq_uint32_t const size) {
+        arq_uint32_t i;
         for (i = 0; i < size; i++) {
                 arq_msg_append_chr(m, str[i]);
         }
 }
 
-void arq_msg_insert_line_str(Arq_msg *m, uint32_t line_number, char const *str, uint32_t const size) {
-        uint32_t A, B, C;
-        uint32_t line_counter = 0;
+void arq_msg_insert_line_str(Arq_msg *m, arq_uint32_t line_number, char const *str, arq_uint32_t const size) {
+        arq_uint32_t A, B, C;
+        arq_uint32_t line_counter = 0;
         assert(m->size + size <= m->SIZE);
         for (A = 0; A < m->size; A++) {
                 /* find start idx A */
@@ -6293,7 +6306,7 @@ void arq_msg_set_cstr(Arq_msg *m, char const *cstr) {
         arq_msg_append_cstr(m, cstr);
 }
 
-void arq_msg_insert_line_cstr(Arq_msg *m, uint32_t line_number, char const *cstr) {
+void arq_msg_insert_line_cstr(Arq_msg *m, arq_uint32_t line_number, char const *cstr) {
         arq_msg_insert_line_str(m, line_number, cstr, strlen(cstr));
 }
 
@@ -6308,12 +6321,14 @@ void arq_msg_insert_line_cstr(Arq_msg *m, uint32_t line_number, char const *cstr
 #elif defined(__cplusplus) || defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
     /* C++, >= C99 */
     #include <stdbool.h>
+    typedef bool arq_bool_t;
 #else
     /* C89 */
-    typedef int bool;
-    #define true 1
-    #define false 0
+    typedef int arq_bool_t;
 #endif
+
+#define ARQ_TRUE  ((arq_bool_t)1)
+#define ARQ_FALSE ((arq_bool_t)0)
 
 #endif
 
@@ -6324,17 +6339,17 @@ void arq_msg_insert_line_cstr(Arq_msg *m, uint32_t line_number, char const *cstr
 #define ARQ_TOK_H
 
 typedef struct {
-        bool error;
-        uint32_t u;
+        arq_bool_t error;
+        arq_uint32_t u;
 } uint_o;
 
 typedef struct {
-        bool error;
-        int32_t i;
+        arq_bool_t error;
+        arq_int32_t i;
 } int_o;
 
 typedef struct {
-        bool error;
+        arq_bool_t error;
         double f;
 } float_o;
 
@@ -6348,7 +6363,7 @@ typedef union {
 extern "C" {
 #endif
 
-bool token_long_option_eq(Arq_Token const *token, char const *cstr);
+arq_bool_t token_long_option_eq(Arq_Token const *token, char const *cstr);
 
 uint_o arq_tok_pDec_to_uint(Arq_Token const *token, Arq_msg *error_msg, char const *cstr);
 int_o arq_tok_sDec_to_int(Arq_Token const *token, Arq_msg *error_msg, char const *cstr);
@@ -6365,6 +6380,48 @@ float_o arq_tok_hexFloat_to_float(Arq_Token const *token);
 /*** End of inlined file: arq_conversion.h ***/
 
 /*** Start of inlined file: arq_inttypes.h ***/
+#if 1
+#ifndef ARQ_INTTYPES_H
+#define ARQ_INTTYPES_H
+
+#if defined(_MSC_VER) || \
+    defined(__cplusplus) || \
+   (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L))
+
+    #include <inttypes.h>
+
+    #define ARQ_PRId8   PRId8
+    #define ARQ_PRIu8   PRIu8
+    #define ARQ_PRId16  PRId16
+    #define ARQ_PRIu16  PRIu16
+    #define ARQ_PRId32  PRId32
+    #define ARQ_PRIu32  PRIu32
+
+    #ifdef ARQ64
+        #define ARQ_PRId64 PRId64
+        #define ARQ_PRIu64 PRIu64
+    #endif
+
+#else /* C89 */
+
+    #define ARQ_PRId8   "d"
+    #define ARQ_PRIu8   "u"
+
+    #define ARQ_PRId16  "d"
+    #define ARQ_PRIu16  "u"
+
+    #define ARQ_PRId32  "d"
+    #define ARQ_PRIu32  "u"
+
+    #ifdef ARQ64
+        #define ARQ_PRId64 "ld"
+        #define ARQ_PRIu64 "lu"
+    #endif
+
+#endif
+
+#endif /* ARQ_INTTYPES_H */
+#else
 #ifndef ARQ_INTTYPES_H
 #define ARQ_INTTYPES_H
 
@@ -6386,32 +6443,102 @@ float_o arq_tok_hexFloat_to_float(Arq_Token const *token);
 #endif
 
 #endif /* ARQ_INTTYPES_H */
+#endif
 
 /*** End of inlined file: arq_inttypes.h ***/
 
 /*** Start of inlined file: arq_conversion.c ***/
+
+/*** Start of inlined file: arq_inttypes.h ***/
+#if 1
+#ifndef ARQ_INTTYPES_H
+#define ARQ_INTTYPES_H
+
+#if defined(_MSC_VER) || \
+    defined(__cplusplus) || \
+   (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L))
+
+    #include <inttypes.h>
+
+    #define ARQ_PRId8   PRId8
+    #define ARQ_PRIu8   PRIu8
+    #define ARQ_PRId16  PRId16
+    #define ARQ_PRIu16  PRIu16
+    #define ARQ_PRId32  PRId32
+    #define ARQ_PRIu32  PRIu32
+
+    #ifdef ARQ64
+        #define ARQ_PRId64 PRId64
+        #define ARQ_PRIu64 PRIu64
+    #endif
+
+#else /* C89 */
+
+    #define ARQ_PRId8   "d"
+    #define ARQ_PRIu8   "u"
+
+    #define ARQ_PRId16  "d"
+    #define ARQ_PRIu16  "u"
+
+    #define ARQ_PRId32  "d"
+    #define ARQ_PRIu32  "u"
+
+    #ifdef ARQ64
+        #define ARQ_PRId64 "ld"
+        #define ARQ_PRIu64 "lu"
+    #endif
+
+#endif
+
+#endif /* ARQ_INTTYPES_H */
+#else
+#ifndef ARQ_INTTYPES_H
+#define ARQ_INTTYPES_H
+
+#if defined(_MSC_VER)
+    #include <inttypes.h>
+#elif defined(__cplusplus) || defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    /* C++, >= C99 */
+    #include <inttypes.h>
+#else
+    /* C89 */
+    #define PRId8  "d"
+    #define PRId16 "d"
+    #define PRId32 "d"
+    #define PRIu8  "u"
+    #define PRIu16 "u"
+    #define PRIu32 "u"
+    #define PRId64 "ld"
+    #define PRIu64 "lu"
+#endif
+
+#endif /* ARQ_INTTYPES_H */
+#endif
+
+/*** End of inlined file: arq_inttypes.h ***/
+
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
 
-bool token_long_option_eq(Arq_Token const *token, char const *cstr) {
-        uint32_t i;
+arq_bool_t token_long_option_eq(Arq_Token const *token, char const *cstr) {
+        arq_uint32_t i;
         if (strlen(cstr) != token->size - 2) {
-                return false;
+                return ARQ_FALSE;
 
         }
         for (i = 2; i < token->size; i++) {
                 if (cstr[i - 2] != token->at[i]) {
-                        return false;
+                        return ARQ_FALSE;
                 }
         }
-        return true;
+        return ARQ_TRUE;
 }
 
 uint_o arq_tok_pDec_to_uint(Arq_Token const *token, Arq_msg *error_msg, char const *cstr) {
         uint_o result = {0};
-        uint32_t i;
+        arq_uint32_t i;
         assert(token->id == ARQ_P_DEC);
         if (token->at[0] == '+') {
                 i = 1;
@@ -6419,12 +6546,12 @@ uint_o arq_tok_pDec_to_uint(Arq_Token const *token, Arq_msg *error_msg, char con
                 i = 0;
         }
         for (; i < token->size; i++) {
-                uint32_t digit = token->at[i] - '0';
-                if (result.u > (UINT32_MAX - digit) / 10) {
+                arq_uint32_t digit = token->at[i] - '0';
+                if (result.u > (ARQ_UINT32_MAX - digit) / 10) {
                         if (error_msg != NULL) {
                                 Arq_Token tok = *token;
                                 char buffer[12];
-                                sprintf(buffer, "%" PRIu32, UINT32_MAX);
+                                sprintf(buffer, "%" ARQ_PRIu32, ARQ_UINT32_MAX);
                                 arq_msg_clear(error_msg);
                                 arq_msg_append_cstr(error_msg, cstr);
                                 /*arq_msg_append_cstr(error_msg, "Token '");*/
@@ -6433,7 +6560,7 @@ uint_o arq_tok_pDec_to_uint(Arq_Token const *token, Arq_msg *error_msg, char con
                                 arq_msg_append_cstr(error_msg, buffer);
                                 arq_msg_append_lf(error_msg);
                         }
-                        result.error = true;
+                        result.error = ARQ_TRUE;
                         return result;
                 }
                 result.u = result.u * 10 + digit;
@@ -6443,8 +6570,8 @@ uint_o arq_tok_pDec_to_uint(Arq_Token const *token, Arq_msg *error_msg, char con
 
 int_o arq_tok_sDec_to_int(Arq_Token const *token, Arq_msg *error_msg, char const *cstr) {
         int_o result = {0};
-        int32_t SIGN;
-        uint32_t i;
+        arq_int32_t SIGN;
+        arq_uint32_t i;
         assert(token->id == ARQ_P_DEC || token->id == ARQ_N_DEC);
 
         if (token->at[0] == '-') {
@@ -6461,15 +6588,15 @@ int_o arq_tok_sDec_to_int(Arq_Token const *token, Arq_msg *error_msg, char const
 
         for (; i < token->size; i++) {
                 char const ch = token->at[i];
-                int32_t const digit = ch - '0';
+                arq_int32_t const digit = ch - '0';
 
                 if (SIGN > 0) {
-                        if (result.i > (INT32_MAX - digit) / 10) {
-                                result.error = true;
+                        if (result.i > (ARQ_INT32_MAX - digit) / 10) {
+                                result.error = ARQ_TRUE;
                                 if (error_msg != NULL) {
                                         Arq_Token tok = *token;
                                         char buffer[12];
-                                        sprintf(buffer, "%" PRId32, INT32_MAX);
+                                        sprintf(buffer, "%" ARQ_PRId32, ARQ_INT32_MAX);
                                         arq_msg_clear(error_msg);
                                         arq_msg_append_cstr(error_msg, cstr);
                                         arq_msg_append_str(error_msg, tok.at, tok.size);
@@ -6481,12 +6608,12 @@ int_o arq_tok_sDec_to_int(Arq_Token const *token, Arq_msg *error_msg, char const
                         }
                         result.i = result.i * 10 + digit;
                 } else {
-                        if (result.i < (INT32_MIN + digit) / 10) {
-                                result.error = true;
+                        if (result.i < (ARQ_INT32_MIN + digit) / 10) {
+                                result.error = ARQ_TRUE;
                                 if (error_msg != NULL) {
                                         Arq_Token tok = *token;
                                         char buffer[12];
-                                        sprintf(buffer, "%" PRId32, INT32_MIN);
+                                        sprintf(buffer, "%" ARQ_PRId32, ARQ_INT32_MIN);
                                         arq_msg_clear(error_msg);
                                         arq_msg_append_cstr(error_msg, cstr);
                                         arq_msg_append_str(error_msg, tok.at, tok.size);
@@ -6515,14 +6642,14 @@ static int decval(char c) {
 
 uint_o arq_tok_hex_to_uint(Arq_Token const *token, Arq_msg *error_msg, char const *cstr) {
         uint_o result = {0};
-        uint32_t i;
+        arq_uint32_t i;
         assert(token->id == ARQ_HEX);
         for (i = 2; i < token->size; i++) {
                 char const ch = token->at[i];
                 int const digit = hexval(ch);
                 assert(digit >= 0);
-                if (result.u > (UINT32_MAX - digit) / 10) {
-                        result.error = true;
+                if (result.u > (ARQ_UINT32_MAX - digit) / 10) {
+                        result.error = ARQ_TRUE;
                         if (error_msg != NULL) {
                                 Arq_Token tok = *token;
                                 arq_msg_clear(error_msg);
@@ -6568,7 +6695,7 @@ float_o arq_tok_decFloat_to_float(Arq_Token const *token) {
         int exp10 = 0;
         int exp_sign = 1;
 
-        uint32_t i = 0;
+        arq_uint32_t i = 0;
 
         assert(token->id == ARQ_DEC_FLOAT);
 
@@ -6632,12 +6759,12 @@ float_o arq_tok_decFloat_to_float(Arq_Token const *token) {
                 }
                 if (exp_sign > 0 && exp10 > 1200) {
                         result.f = HUGE_VAL; /* INFINITY */
-                        result.error = false;
+                        result.error = ARQ_FALSE;
                         return result;
                 }
                 if (exp_sign < 0 && exp10 > 1200) {
                         result.f = 0.0;
-                        result.error = false;
+                        result.error = ARQ_FALSE;
                         return result;
                 }
         }
@@ -6645,7 +6772,7 @@ float_o arq_tok_decFloat_to_float(Arq_Token const *token) {
         /* scale by value * 10^exp10 */
         {
                 result.f = value * arq_pow(10.0, (double)(exp_sign * exp10));
-                result.error = false;
+                result.error = ARQ_FALSE;
                 return result;
         }
 }
@@ -6657,7 +6784,7 @@ float_o arq_tok_hexFloat_to_float(Arq_Token const *token) {
         int exp_sign = 1;
         int frac_sign;
 
-        uint32_t i = 0;
+        arq_uint32_t i = 0;
 
         if (token->at[i] == '-') {
                 frac_sign = -1;
@@ -6719,12 +6846,12 @@ float_o arq_tok_hexFloat_to_float(Arq_Token const *token) {
                 }
                 if (exp_sign > 0 && exp10 > 1200) {
                         result.f = HUGE_VAL; /* INFINITY */
-                        result.error = false;
+                        result.error = ARQ_FALSE;
                         return result;
                 }
                 if (exp_sign < 0 && exp10 > 1200) {
                         result.f = 0.0;
-                        result.error = false;
+                        result.error = ARQ_FALSE;
                         return result;
                 }
         }
@@ -6733,7 +6860,7 @@ float_o arq_tok_hexFloat_to_float(Arq_Token const *token) {
         {
                 int final_exp = exp_sign * exp10;
                 result.f = frac_sign * ldexp(value, final_exp);
-                result.error = false;
+                result.error = ARQ_FALSE;
                 return result;
         }
 }
@@ -6745,20 +6872,20 @@ float_o arq_tok_hexFloat_to_float(Arq_Token const *token) {
 #define ARQ_LEXER_H
 
 typedef struct {
-        uint32_t cursor_idx;
-        uint32_t SIZE;
+        arq_uint32_t cursor_idx;
+        arq_uint32_t SIZE;
         char const *at;
         Arq_Token token;
 } Arq_Lexer;
 
 typedef struct {
         Arq_Lexer lexer;
-        uint32_t idx;
+        arq_uint32_t idx;
 } Arq_LexerOpt;
 
 typedef struct {
         Arq_Lexer lexer;
-        uint32_t state;
+        arq_uint32_t state;
         int argc;
         char **argv;
         int argIdx;
@@ -6791,7 +6918,7 @@ void arq_lexer_next_cmd_token(Arq_LexerCmd *l);
 #include <stdio.h>
 
 typedef struct {
-    uint32_t id;
+    arq_uint32_t id;
     char const *at;
 } KeyWord;
 
@@ -6803,114 +6930,114 @@ static KeyWord const key_words[] = {
         {  ARQ_TYPE_FLOAT,    "float" },
 };
 
-static bool str_eq_keyword(char const *str, uint32_t const str_size, KeyWord const *cstr) {
-        uint32_t i;
+static arq_bool_t str_eq_keyword(char const *str, arq_uint32_t const str_size, KeyWord const *cstr) {
+        arq_uint32_t i;
         if (str_size != strlen(cstr->at)) {
-                return false;
+                return ARQ_FALSE;
         }
         for (i = 0; i < str_size; i++) {
                 if (str[i] != cstr->at[i]) {
-                        return false;
+                        return ARQ_FALSE;
                 }
         }
-        return true;
+        return ARQ_TRUE;
 }
 
-static bool is_identifier(char const chr) {
+static arq_bool_t is_identifier(char const chr) {
         return isalnum(chr) || chr == '_';
 }
 
-static bool identifier_start(Arq_Lexer *l) {
-        uint32_t const idx = l->cursor_idx;
+static arq_bool_t identifier_start(Arq_Lexer *l) {
+        arq_uint32_t const idx = l->cursor_idx;
         if (isalpha(l->at[idx]) || l->at[idx] == '_') {
                 l->cursor_idx += 1;
-                return true;
+                return ARQ_TRUE;
         }
-        return false;
+        return ARQ_FALSE;
 }
 
-static bool array_start(Arq_Lexer *l) {
-        uint32_t const idx = l->cursor_idx;
+static arq_bool_t array_start(Arq_Lexer *l) {
+        arq_uint32_t const idx = l->cursor_idx;
         if ((idx + 1 < l->SIZE)
         && (l->at[idx] == '[')
         && (l->at[idx + 1] == ']')) {
                 l->cursor_idx += 2;
-                return true;
+                return ARQ_TRUE;
         }
-        return false;
+        return ARQ_FALSE;
 }
 
-static bool hex_start(Arq_Lexer *l) {
-        uint32_t idx = l->cursor_idx;
+static arq_bool_t hex_start(Arq_Lexer *l) {
+        arq_uint32_t idx = l->cursor_idx;
         if (l->at[idx] == '+' || l->at[idx] == '-') {
                 if (idx + 1 == l->SIZE) {
-                        return false;
+                        return ARQ_FALSE;
                 }
                 idx++;
         }
         if (l->at[idx] != '0') {
-                return false;
+                return ARQ_FALSE;
         }
         if (idx + 1 == l->SIZE) {
-                return false;
+                return ARQ_FALSE;
         }
         idx++;
         if (l->at[idx] != 'x' && l->at[idx + 1] != 'X') {
-                return false;
+                return ARQ_FALSE;
         }
         if (idx + 1 == l->SIZE) {
-                return false;
+                return ARQ_FALSE;
         }
         idx++;
         if (!isxdigit(l->at[idx])) {
-                return false;
+                return ARQ_FALSE;
         }
         l->cursor_idx = idx + 1;
-        return true;
+        return ARQ_TRUE;
 }
 
-static bool has_hex_exponent(char const s) {
+static arq_bool_t has_hex_exponent(char const s) {
     return (s == 'p') || (s == 'P');
 }
 
-static bool p_dec_start(Arq_Lexer *l) {
-        uint32_t const idx = l->cursor_idx;
+static arq_bool_t p_dec_start(Arq_Lexer *l) {
+        arq_uint32_t const idx = l->cursor_idx;
         if (isdigit(l->at[idx])) {
                 l->cursor_idx += 1;
-                return true;
+                return ARQ_TRUE;
         } else if (idx + 1 < l->SIZE
         && l->at[idx] == '+'
         && isdigit(l->at[idx + 1])) {
                 l->cursor_idx += 2;
-                return true;
+                return ARQ_TRUE;
         }
-        return false;
+        return ARQ_FALSE;
 }
 
-static bool n_dec_start(Arq_Lexer *l) {
-        uint32_t const idx = l->cursor_idx;
+static arq_bool_t n_dec_start(Arq_Lexer *l) {
+        arq_uint32_t const idx = l->cursor_idx;
         if (idx + 1 < l->SIZE
         && l->at[idx] == '-'
         && isdigit(l->at[idx + 1])) {
                 l->cursor_idx += 2;
-                return true;
+                return ARQ_TRUE;
         }
-        return false;
+        return ARQ_FALSE;
 }
 
-static bool has_dec_exponent(Arq_Lexer *l) {
+static arq_bool_t has_dec_exponent(Arq_Lexer *l) {
         if (l->cursor_idx + 1 < l->SIZE) {
-                uint32_t const idx = l->cursor_idx;
+                arq_uint32_t const idx = l->cursor_idx;
                 char const chr = l->at[l->cursor_idx];
-                bool isExp = (chr == 'e') || (chr == 'E');
+                arq_bool_t isExp = (chr == 'e') || (chr == 'E');
                 l->cursor_idx++;
                 isExp &= p_dec_start(l) || n_dec_start(l);
                 if (isExp) {
-                        return true;
+                        return ARQ_TRUE;
                 }
                 l->cursor_idx = idx;
         }
-        return false;
+        return ARQ_FALSE;
 }
 #if 1
 static void dec_float(Arq_Lexer *l, Arq_Token *t) {
@@ -6973,44 +7100,44 @@ static void skip_space(Arq_Lexer *l) {
 /******************************************************************************/
 /******************************************************************************/
 /* cmd_ */
-static bool is_long_identifier(char chr) {
+static arq_bool_t is_long_identifier(char chr) {
         return isalnum(chr) || chr == '-' || chr == '_';
 }
 
-static bool is_short_identifier(char chr) {
+static arq_bool_t is_short_identifier(char chr) {
         return isalpha(chr) || chr == '?';
 }
 
-static bool start_short_identifier(Arq_Lexer *l) {
+static arq_bool_t start_short_identifier(Arq_Lexer *l) {
         if (l->at[l->cursor_idx] == '-'
         && is_short_identifier(l->at[l->cursor_idx + 1])) {
                 l->cursor_idx += 2;
-                return true;
+                return ARQ_TRUE;
         }
-        return false;
+        return ARQ_FALSE;
 }
 
-static bool start_long_identifier(Arq_Lexer *l) {
+static arq_bool_t start_long_identifier(Arq_Lexer *l) {
         if (l->at[l->cursor_idx] == '-'
         && l->at[l->cursor_idx + 1] == '-'
         && is_long_identifier(l->at[l->cursor_idx + 2])) {
                 l->cursor_idx += 3;
-                return true;
+                return ARQ_TRUE;
         }
-        return false;
+        return ARQ_FALSE;
 }
 
-static bool start_dash_dash(Arq_Lexer *l) {
+static arq_bool_t start_dash_dash(Arq_Lexer *l) {
         if (l->at[l->cursor_idx] == '-'
         && l->at[l->cursor_idx + 1] == '-'
         && l->SIZE == 2) {
                 l->cursor_idx += 2;
-                return true;
+                return ARQ_TRUE;
         }
-        return false;
+        return ARQ_FALSE;
 }
 
-static Arq_Token next_token(Arq_Lexer *l, bool has_identifier) {
+static Arq_Token next_token(Arq_Lexer *l, arq_bool_t has_identifier) {
         Arq_Token t = {0};
         skip_space(l);
         t.at = &l->at[l->cursor_idx];
@@ -7059,7 +7186,7 @@ static Arq_Token next_token(Arq_Lexer *l, bool has_identifier) {
 
         if (has_identifier) {
                 if (identifier_start(l)) {
-                        uint32_t i;
+                        arq_uint32_t i;
                         t.id = ARQ_IDENTFIER;
                         t.size = &l->at[l->cursor_idx] - t.at;
                         while (l->cursor_idx < l->SIZE && is_identifier(l->at[l->cursor_idx])) {
@@ -7209,7 +7336,7 @@ static Arq_Token next_token(Arq_Lexer *l, bool has_identifier) {
 }
 
 void arq_lexer_next_opt_token(Arq_LexerOpt *opt) {
-        bool has_identifier = true;
+        arq_bool_t has_identifier = ARQ_TRUE;
         opt->lexer.token = next_token(&opt->lexer, has_identifier);
 }
 
@@ -7236,7 +7363,7 @@ Arq_LexerOpt arq_lexerOpt_create(void) {
 /******************************************************************************/
 
 static Arq_Token next_cmd_token(Arq_Lexer *lexer) {
-        bool has_identifier = false;
+        arq_bool_t has_identifier = ARQ_FALSE;
         Arq_Token token = next_token(lexer, has_identifier);
 #if 0
         if (token.id == ARQ_CMD_SHORT_OPTION) {
@@ -7276,7 +7403,7 @@ void arq_lexer_next_cmd_token(Arq_LexerCmd *cmd) {
                 cmd->lexer.at = NULL;
                 cmd->lexer.token.at = NULL;
                 cmd->lexer.token.size = 0;
-                cmd->bundeling = false;
+                cmd->bundeling = ARQ_FALSE;
                 return;
         }
 
@@ -7296,13 +7423,13 @@ void arq_lexer_next_cmd_token(Arq_LexerCmd *cmd) {
         }
 
         if (cmd->lexer.cursor_idx < cmd->lexer.SIZE) {
-                cmd->bundeling = true;
+                cmd->bundeling = ARQ_TRUE;
                 return;
         }
         if (cmd->argIdx < cmd->argc) {
                 cmd->argIdx++;
         }
-        cmd->bundeling = false;
+        cmd->bundeling = ARQ_FALSE;
         return;
 }
 #else
@@ -7386,7 +7513,7 @@ void arq_lexer_next_cmd_token(Arq_LexerCmd *cmd) {
                 cmd->state = 1; /* token */
                 } return;
         default:
-                assert(false);
+                assert(ARQ_FALSE);
                 return;
         }
 }
@@ -7401,18 +7528,18 @@ void arq_lexer_next_cmd_token(Arq_LexerCmd *cmd) {
 #define CMD_LINE_FAILURE "CMD line failure:\nToken '"
 #define OPTION_FAILURE "Option failure:\nToken '"
 
-typedef  bool (*arq_fn_imm_literal_error)(Arq_LexerOpt*,  Arq_msg*);
+typedef  arq_bool_t (*arq_fn_imm_literal_error)(Arq_LexerOpt*,  Arq_msg*);
 
 /*///////////////////////////////////////////////////////////////////////////*/
 
-bool arq_imm(Arq_SymbolID const id, Arq_LexerOpt *opt);
-bool arq_imm_noToken(Arq_Token *token);
-bool arq_imm_not_identifier(Arq_LexerOpt *opt);
+arq_bool_t arq_imm(Arq_SymbolID const id, Arq_LexerOpt *opt);
+arq_bool_t arq_imm_noToken(Arq_Token *token);
+arq_bool_t arq_imm_not_identifier(Arq_LexerOpt *opt);
 
-bool arq_imm_literal_uint_error(Arq_LexerOpt *opt,  Arq_msg *error_msg);
-bool arq_imm_literal_int_error(Arq_LexerOpt *opt,  Arq_msg *error_msg);
-bool arq_imm_literal_float_error(Arq_LexerOpt *opt,  Arq_msg *error_msg);
-bool arq_imm_literal_NULL_error(Arq_LexerOpt *opt,  Arq_msg *error_msg);
+arq_bool_t arq_imm_literal_uint_error(Arq_LexerOpt *opt,  Arq_msg *error_msg);
+arq_bool_t arq_imm_literal_int_error(Arq_LexerOpt *opt,  Arq_msg *error_msg);
+arq_bool_t arq_imm_literal_float_error(Arq_LexerOpt *opt,  Arq_msg *error_msg);
+arq_bool_t arq_imm_literal_NULL_error(Arq_LexerOpt *opt,  Arq_msg *error_msg);
 
 typedef union_o (*arq_imm_default)(Arq_LexerOpt *opt);
 union_o arq_imm_default_uint(Arq_LexerOpt *opt);
@@ -7420,44 +7547,44 @@ union_o arq_imm_default_int(Arq_LexerOpt *opt);
 union_o arq_imm_default_float(Arq_LexerOpt *opt);
 char const *arq_imm_default_cstr_t(Arq_LexerOpt *opt);
 
-bool arq_imm_is_a_NULL(Arq_LexerOpt *opt);
+arq_bool_t arq_imm_is_a_NULL(Arq_LexerOpt *opt);
 
 /*///////////////////////////////////////////////////////////////////////////*/
 
-bool arq_imm_cmd_is_dashdash(Arq_LexerCmd *cmd);
+arq_bool_t arq_imm_cmd_is_dashdash(Arq_LexerCmd *cmd);
 
 void arq_imm_cmd_next(Arq_LexerCmd *cmd);
-bool arq_imm_cmd_has_token_left(Arq_LexerCmd *cmd);
-bool arq_imm_end_of_line(Arq_LexerCmd *cmd);
+arq_bool_t arq_imm_cmd_has_token_left(Arq_LexerCmd *cmd);
+arq_bool_t arq_imm_end_of_line(Arq_LexerCmd *cmd);
 
 Arq_LexerOpt arq_imm_get_long(
         Arq_Option const *options,
-        uint32_t const num_of_options,
+        arq_uint32_t const num_of_options,
         Arq_LexerCmd *cmd,
         Arq_msg *error_msg
 );
 Arq_LexerOpt arq_imm_get_short(
         Arq_Option const *options,
-        uint32_t const num_of_options,
+        arq_uint32_t const num_of_options,
         Arq_LexerCmd *cmd,
         Arq_msg *error_msg
 );
 
 void arq_imm_cmd_not_a_option(Arq_LexerCmd const *cmd, Arq_msg *error_msg);
-bool arq_imm_cmd_is_long_option(Arq_LexerCmd *cmd);
-bool arq_imm_cmd_is_short_option(Arq_LexerCmd *cmd);
+arq_bool_t arq_imm_cmd_is_long_option(Arq_LexerCmd *cmd);
+arq_bool_t arq_imm_cmd_is_short_option(Arq_LexerCmd *cmd);
 
-typedef bool (*arq_imm_is)(Arq_LexerCmd *cmd);
-bool arq_imm_is_uint(Arq_LexerCmd *cmd);
-bool arq_imm_is_int(Arq_LexerCmd *cmd);
-bool arq_imm_is_float(Arq_LexerCmd *cmd);
+typedef arq_bool_t (*arq_imm_is)(Arq_LexerCmd *cmd);
+arq_bool_t arq_imm_is_uint(Arq_LexerCmd *cmd);
+arq_bool_t arq_imm_is_int(Arq_LexerCmd *cmd);
+arq_bool_t arq_imm_is_float(Arq_LexerCmd *cmd);
 
-typedef bool (*arq_imm_optional_argument)(Arq_LexerCmd *cmd, union_o *num, Arq_msg *error_msg);
-bool arq_imm_optional_argument_uint(Arq_LexerCmd *cmd, union_o *num, Arq_msg *error_msg);
-bool arq_imm_optional_argument_int(Arq_LexerCmd *cmd, union_o *num, Arq_msg *error_msg);
-bool arq_imm_optional_argument_float(Arq_LexerCmd *cmd, union_o *num, Arq_msg *error_msg);
-bool arq_imm_optional_argument_cstr_t(Arq_LexerCmd *cmd, char const **cstr);
-bool arq_imm_pick_cstr_t(Arq_LexerCmd *cmd, char const **cstr);
+typedef arq_bool_t (*arq_imm_optional_argument)(Arq_LexerCmd *cmd, union_o *num, Arq_msg *error_msg);
+arq_bool_t arq_imm_optional_argument_uint(Arq_LexerCmd *cmd, union_o *num, Arq_msg *error_msg);
+arq_bool_t arq_imm_optional_argument_int(Arq_LexerCmd *cmd, union_o *num, Arq_msg *error_msg);
+arq_bool_t arq_imm_optional_argument_float(Arq_LexerCmd *cmd, union_o *num, Arq_msg *error_msg);
+arq_bool_t arq_imm_optional_argument_cstr_t(Arq_LexerCmd *cmd, char const **cstr);
+arq_bool_t arq_imm_pick_cstr_t(Arq_LexerCmd *cmd, char const **cstr);
 
 typedef union_o (*arq_imm_argument)(Arq_LexerCmd *cmd, Arq_msg *error_msg);
 union_o arq_imm_argument_uint(Arq_LexerCmd *cmd, Arq_msg *error_msg);
@@ -7477,28 +7604,28 @@ char const *arq_imm_argument_csrt_t(Arq_LexerCmd *cmd, Arq_msg *error_msg);
 
 /*///////////////////////////////////////////////////////////////////////////*/
 
-bool arq_imm(Arq_SymbolID const id, Arq_LexerOpt *opt) {
-        const bool b = (opt->lexer.token.id == id);
+arq_bool_t arq_imm(Arq_SymbolID const id, Arq_LexerOpt *opt) {
+        const arq_bool_t b = (opt->lexer.token.id == id);
         if (b) {
                 arq_lexer_next_opt_token(opt);
         }
         return b;
 }
 
-bool arq_imm_noToken(Arq_Token *token) {
-        const bool b = (token->id == ARQ_NO_TOKEN);
+arq_bool_t arq_imm_noToken(Arq_Token *token) {
+        const arq_bool_t b = (token->id == ARQ_NO_TOKEN);
         return b;
 }
 
-bool arq_imm_not_identifier(Arq_LexerOpt *opt) {
-        const bool b = (opt->lexer.token.id == ARQ_IDENTFIER);
+arq_bool_t arq_imm_not_identifier(Arq_LexerOpt *opt) {
+        const arq_bool_t b = (opt->lexer.token.id == ARQ_IDENTFIER);
         if (b) {
                 arq_lexer_next_opt_token(opt);
         }
         return !b;
 }
 
-bool arq_imm_literal_uint_error(Arq_LexerOpt *opt,  Arq_msg *error_msg) {
+arq_bool_t arq_imm_literal_uint_error(Arq_LexerOpt *opt,  Arq_msg *error_msg) {
         uint_o num;
         switch (opt->lexer.token.id) {
         case ARQ_P_DEC:
@@ -7513,17 +7640,17 @@ bool arq_imm_literal_uint_error(Arq_LexerOpt *opt,  Arq_msg *error_msg) {
                 arq_msg_append_str(error_msg, opt->lexer.token.at, opt->lexer.token.size);
                 arq_msg_append_cstr(error_msg, "' is not a uint literal\n");
                 num.u = 0;
-                num.error = true;
+                num.error = ARQ_TRUE;
                 break;
         }
         if (!num.error) {
                 /* success */
                 arq_lexer_next_opt_token(opt);
         }
-        return num.error; /* return true if successful */
+        return num.error; /* return ARQ_TRUE if successful */
 }
 
-bool arq_imm_literal_int_error(Arq_LexerOpt *opt,  Arq_msg *error_msg) {
+arq_bool_t arq_imm_literal_int_error(Arq_LexerOpt *opt,  Arq_msg *error_msg) {
         int_o num;
         switch (opt->lexer.token.id) {
         case ARQ_P_DEC: case ARQ_N_DEC:
@@ -7531,7 +7658,7 @@ bool arq_imm_literal_int_error(Arq_LexerOpt *opt,  Arq_msg *error_msg) {
                 break;
         case ARQ_HEX: {
                 uint_o const n = arq_tok_hex_to_uint(&opt->lexer.token, NULL, "");
-                num.i = (int32_t)n.u;
+                num.i = (arq_int32_t)n.u;
                 num.error = n.error;
                 } break;
         default:
@@ -7540,17 +7667,17 @@ bool arq_imm_literal_int_error(Arq_LexerOpt *opt,  Arq_msg *error_msg) {
                 arq_msg_append_str(error_msg, opt->lexer.token.at, opt->lexer.token.size);
                 arq_msg_append_cstr(error_msg, "' is not a int literal\n");
                 num.i = 0;
-                num.error = true;
+                num.error = ARQ_TRUE;
                 break;
         }
         if (!num.error) {
                 /* success */
                 arq_lexer_next_opt_token(opt);
         }
-        return num.error; /* return true if successful */
+        return num.error; /* return ARQ_TRUE if successful */
 }
 
-bool arq_imm_literal_float_error(Arq_LexerOpt *opt,  Arq_msg *error_msg) {
+arq_bool_t arq_imm_literal_float_error(Arq_LexerOpt *opt,  Arq_msg *error_msg) {
         float_o num;
         switch (opt->lexer.token.id) {
         case ARQ_DEC_FLOAT:
@@ -7565,28 +7692,28 @@ bool arq_imm_literal_float_error(Arq_LexerOpt *opt,  Arq_msg *error_msg) {
                 arq_msg_append_str(error_msg, opt->lexer.token.at, opt->lexer.token.size);
                 arq_msg_append_cstr(error_msg, "' is not a float literal\n");
                 num.f = 0.0;
-                num.error = true;
+                num.error = ARQ_TRUE;
                 break;
         }
         if (!num.error) {
                 /* success */
                 arq_lexer_next_opt_token(opt);
         }
-        return num.error; /* return true if successful */
+        return num.error; /* return ARQ_TRUE if successful */
 }
 
-bool arq_imm_literal_NULL_error(Arq_LexerOpt *opt,  Arq_msg *error_msg) {
-        bool const b = opt->lexer.token.id == ARQ_NULL;
+arq_bool_t arq_imm_literal_NULL_error(Arq_LexerOpt *opt,  Arq_msg *error_msg) {
+        arq_bool_t const b = opt->lexer.token.id == ARQ_NULL;
         if (b) {
                 /* success */
                 arq_lexer_next_opt_token(opt);
-                return false;
+                return ARQ_FALSE;
         } else {
                 arq_msg_clear(error_msg);
                 arq_msg_append_cstr(error_msg, OPTION_FAILURE);
                 arq_msg_append_str(error_msg, opt->lexer.token.at, opt->lexer.token.size);
                 arq_msg_append_cstr(error_msg, "' must be NULL\n");
-                return true;
+                return ARQ_TRUE;
         }
 }
 
@@ -7600,10 +7727,10 @@ union_o arq_imm_default_uint(Arq_LexerOpt *opt) {
                 num.ou = arq_tok_hex_to_uint(&opt->lexer.token, NULL, "");
                 break;
         default:
-                assert(false);
+                assert(ARQ_FALSE);
                 break;
         }
-        assert(num.ou.error == false);
+        assert(num.ou.error == ARQ_FALSE);
         arq_lexer_next_opt_token(opt);
         return num;
 }
@@ -7616,14 +7743,14 @@ union_o arq_imm_default_int(Arq_LexerOpt *opt) {
                 break;
         case ARQ_HEX: {
                 uint_o const x = arq_tok_hex_to_uint(&opt->lexer.token, NULL, "");
-                num.oi.i = (int32_t)x.u;
+                num.oi.i = (arq_int32_t)x.u;
                 num.oi.error = x.error;
                 } break;
         default:
-                assert(false);
+                assert(ARQ_FALSE);
                 break;
         }
-        assert(num.oi.error == false);
+        assert(num.oi.error == ARQ_FALSE);
         arq_lexer_next_opt_token(opt);
         return num;
 }
@@ -7638,10 +7765,10 @@ union_o arq_imm_default_float(Arq_LexerOpt *opt) {
                 num.of = arq_tok_hexFloat_to_float(&opt->lexer.token);
                 break;
         default:
-                assert(false);
+                assert(ARQ_FALSE);
                 break;
         }
-        assert(num.of.error == false);
+        assert(num.of.error == ARQ_FALSE);
         arq_lexer_next_opt_token(opt);
         return num;
 }
@@ -7659,9 +7786,9 @@ union_o arq_imm_default_value(Arq_LexerOpt *opt) {
 
 /*///////////////////////////////////////////////////////////////////////////*/
 
-bool arq_imm_cmd_is_dashdash(Arq_LexerCmd *cmd) {
+arq_bool_t arq_imm_cmd_is_dashdash(Arq_LexerCmd *cmd) {
         Arq_Token const *token = &cmd->lexer.token;
-        const bool b = (token->id == ARQ_CMD_DASHDASH);
+        const arq_bool_t b = (token->id == ARQ_CMD_DASHDASH);
         if (b) {
                 arq_imm_cmd_next(cmd);
         }
@@ -7693,33 +7820,33 @@ void arq_imm_cmd_next(Arq_LexerCmd *cmd) {
         }
 }
 
-bool arq_imm_cmd_has_token_left(Arq_LexerCmd *cmd) {
+arq_bool_t arq_imm_cmd_has_token_left(Arq_LexerCmd *cmd) {
         return cmd->lexer.token.id != ARQ_NO_TOKEN;
 }
 
-bool arq_imm_cmd_is_long_option(Arq_LexerCmd *cmd) {
+arq_bool_t arq_imm_cmd_is_long_option(Arq_LexerCmd *cmd) {
         return (cmd->lexer.token.id == ARQ_CMD_LONG_OPTION);
 }
 
-bool arq_imm_cmd_is_short_option(Arq_LexerCmd *cmd) {
+arq_bool_t arq_imm_cmd_is_short_option(Arq_LexerCmd *cmd) {
         return (cmd->lexer.token.id == ARQ_CMD_SHORT_OPTION);
 }
 
-bool arq_imm_is_uint(Arq_LexerCmd *cmd) {
+arq_bool_t arq_imm_is_uint(Arq_LexerCmd *cmd) {
         return (cmd->lexer.token.id == ARQ_P_DEC) || (cmd->lexer.token.id == ARQ_HEX);
 }
 
-bool arq_imm_is_int(Arq_LexerCmd *cmd) {
+arq_bool_t arq_imm_is_int(Arq_LexerCmd *cmd) {
         return (cmd->lexer.token.id == ARQ_P_DEC) || (cmd->lexer.token.id == ARQ_N_DEC) || (cmd->lexer.token.id == ARQ_HEX);
 }
 
-bool arq_imm_is_float(Arq_LexerCmd *cmd) {
+arq_bool_t arq_imm_is_float(Arq_LexerCmd *cmd) {
         return (cmd->lexer.token.id == ARQ_DEC_FLOAT) || (cmd->lexer.token.id == ARQ_HEX_FLOAT);
 }
 
 Arq_LexerOpt arq_imm_get_long(
         Arq_Option const *options,
-        uint32_t const num_of_options,
+        arq_uint32_t const num_of_options,
         Arq_LexerCmd *cmd,
         Arq_msg *error_msg
 ) {
@@ -7743,12 +7870,12 @@ Arq_LexerOpt arq_imm_get_long(
 }
 Arq_LexerOpt arq_imm_get_short(
         Arq_Option const *options,
-        uint32_t const num_of_options,
+        arq_uint32_t const num_of_options,
         Arq_LexerCmd *cmd,
         Arq_msg *error_msg
 ) {
         Arq_Token const *token = &cmd->lexer.token;
-        uint32_t const IDX = (token->at[0] == '-') ? 1 : 0; /* : 0 because of bundled short options */
+        arq_uint32_t const IDX = (token->at[0] == '-') ? 1 : 0; /* : 0 because of bundled short options */
         Arq_LexerOpt opt = arq_lexerOpt_create();
         for (opt.idx = 0; opt.idx < num_of_options; opt.idx++) {
                 if (token->at[IDX] == options[opt.idx].chr) {
@@ -7774,11 +7901,11 @@ void arq_imm_cmd_not_a_option(Arq_LexerCmd const *cmd, Arq_msg *error_msg) {
         arq_msg_append_cstr(error_msg, "' is not an option");
         arq_msg_append_lf(error_msg);
 }
-bool arq_imm_end_of_line(Arq_LexerCmd *cmd) {
+arq_bool_t arq_imm_end_of_line(Arq_LexerCmd *cmd) {
         return (cmd->lexer.token.id == ARQ_NO_TOKEN);
 }
 
-bool arq_imm_optional_argument_uint(Arq_LexerCmd *cmd, union_o *num, Arq_msg *error_msg) {
+arq_bool_t arq_imm_optional_argument_uint(Arq_LexerCmd *cmd, union_o *num, Arq_msg *error_msg) {
         Arq_Token const *token = &cmd->lexer.token;
         switch (token->id) {
         case ARQ_P_DEC:
@@ -7788,16 +7915,16 @@ bool arq_imm_optional_argument_uint(Arq_LexerCmd *cmd, union_o *num, Arq_msg *er
                 num->ou = arq_tok_hex_to_uint(token, error_msg, CMD_LINE_FAILURE);
                 break;
         default:
-                return false;
+                return ARQ_FALSE;
         }
         if (num->ou.error) {
-                return true; /* overflow */
+                return ARQ_TRUE; /* overflow */
         }
         arq_imm_cmd_next(cmd);
-        return false;
+        return ARQ_FALSE;
 }
 
-bool arq_imm_optional_argument_int(Arq_LexerCmd *cmd, union_o *num, Arq_msg *error_msg) {
+arq_bool_t arq_imm_optional_argument_int(Arq_LexerCmd *cmd, union_o *num, Arq_msg *error_msg) {
         Arq_Token const *token = &cmd->lexer.token;
         switch (token->id) {
         case ARQ_P_DEC:
@@ -7806,20 +7933,20 @@ bool arq_imm_optional_argument_int(Arq_LexerCmd *cmd, union_o *num, Arq_msg *err
                 break;
         case ARQ_HEX: {
                 uint_o n = arq_tok_hex_to_uint(token, error_msg, CMD_LINE_FAILURE);
-                num->oi.i = (int32_t)n.u;
+                num->oi.i = (arq_int32_t)n.u;
                 num->oi.error = n.error;
                 } break;
         default:
-                return false;
+                return ARQ_FALSE;
         }
         if (num->oi.error) {
-                return true; /* overflow */
+                return ARQ_TRUE; /* overflow */
         }
         arq_imm_cmd_next(cmd);
-        return false;
+        return ARQ_FALSE;
 }
 
-bool arq_imm_optional_argument_float(Arq_LexerCmd *cmd, union_o *num, Arq_msg *error_msg) {
+arq_bool_t arq_imm_optional_argument_float(Arq_LexerCmd *cmd, union_o *num, Arq_msg *error_msg) {
         Arq_Token const *token = &cmd->lexer.token;
         (void)error_msg;
         switch (token->id) {
@@ -7830,36 +7957,36 @@ bool arq_imm_optional_argument_float(Arq_LexerCmd *cmd, union_o *num, Arq_msg *e
                 num->of = arq_tok_hexFloat_to_float(token);
                 break;
         default:
-                return false;
+                return ARQ_FALSE;
         }
         if (num->of.error) {
-                return true;
+                return ARQ_TRUE;
         }
         arq_imm_cmd_next(cmd);
-        return false;
+        return ARQ_FALSE;
 }
 
-bool arq_imm_optional_argument_cstr_t(Arq_LexerCmd *cmd, char const **cstr) {
+arq_bool_t arq_imm_optional_argument_cstr_t(Arq_LexerCmd *cmd, char const **cstr) {
         Arq_Token const *token = &cmd->lexer.token;
         if (token->id != ARQ_CMD_LONG_OPTION
         && token->id != ARQ_CMD_SHORT_OPTION) {
                 *cstr = token->at;
                 if (*cstr != NULL) {
                         next_bundle_idx(cmd);
-                        return true;
+                        return ARQ_TRUE;
                 }
         }
-        return false;
+        return ARQ_FALSE;
 }
 
-bool arq_imm_pick_cstr_t(Arq_LexerCmd *cmd, char const **cstr) {
+arq_bool_t arq_imm_pick_cstr_t(Arq_LexerCmd *cmd, char const **cstr) {
         Arq_Token const *token = &cmd->lexer.token;
         if (token->id != ARQ_NO_TOKEN) {
                 *cstr = arq_imm_argument_csrt_t(cmd, NULL);
-                return true;
+                return ARQ_TRUE;
         }
         *cstr = NULL;
-        return false;
+        return ARQ_FALSE;
 }
 
 union_o arq_imm_argument_uint(Arq_LexerCmd *cmd, Arq_msg *error_msg) {
@@ -7881,7 +8008,7 @@ union_o arq_imm_argument_uint(Arq_LexerCmd *cmd, Arq_msg *error_msg) {
                         arq_msg_append_cstr(error_msg, "' is not a positiv number");
                         arq_msg_append_lf(error_msg);
                 }
-                result.ou.error = true;
+                result.ou.error = ARQ_TRUE;
                 return result;
         }
         arq_imm_cmd_next(cmd);
@@ -7895,7 +8022,7 @@ union_o arq_imm_argument_int(Arq_LexerCmd *cmd, Arq_msg *error_msg) {
         switch (token->id) {
         case ARQ_HEX: {
                 uint_o const r = arq_tok_hex_to_uint(token, error_msg, cstr);
-                result.oi.i = (int32_t) r.u;
+                result.oi.i = (arq_int32_t) r.u;
                 result.oi.error = r.error;
                 } break;
         case ARQ_P_DEC:
@@ -7910,7 +8037,7 @@ union_o arq_imm_argument_int(Arq_LexerCmd *cmd, Arq_msg *error_msg) {
                         arq_msg_append_cstr(error_msg, "' is not a signed number");
                         arq_msg_append_lf(error_msg);
                 }
-                result.oi.error = true;
+                result.oi.error = ARQ_TRUE;
                 return result;
         }
         arq_imm_cmd_next(cmd);
@@ -7936,7 +8063,7 @@ union_o arq_imm_argument_float(Arq_LexerCmd *cmd, Arq_msg *error_msg) {
                         arq_msg_append_cstr(error_msg, "' is not a float number");
                         arq_msg_append_lf(error_msg);
                 }
-                result.of.error = true;
+                result.of.error = ARQ_TRUE;
                 return result;
         }
         arq_imm_cmd_next(cmd);
@@ -7971,8 +8098,8 @@ char const *arq_imm_argument_csrt_t(Arq_LexerCmd *cmd, Arq_msg *error_msg) {
 #define ARQ_ARENA_SIZE_OF_PADDING sizeof(size_t)
 
 typedef struct {
-        uint32_t SIZE;
-        uint32_t size;
+        arq_uint32_t SIZE;
+        arq_uint32_t size;
         char at[1];
 } Arq_Arena;
 
@@ -7980,9 +8107,9 @@ typedef struct {
 extern "C" {
 #endif
 
-Arq_Arena *arq_arena_init(void *buffer, uint32_t const size);
-void *arq_arena_malloc(Arq_Arena *m, uint32_t const num_of_bytes);
-void *arq_arena_malloc_rest(Arq_Arena *m, uint32_t const size_of_header, uint32_t const size_of_element, uint32_t *num_of_elements);
+Arq_Arena *arq_arena_init(void *buffer, arq_uint32_t const size);
+void *arq_arena_malloc(Arq_Arena *m, arq_uint32_t const num_of_bytes);
+void *arq_arena_malloc_rest(Arq_Arena *m, arq_uint32_t const size_of_header, arq_uint32_t const size_of_element, arq_uint32_t *num_of_elements);
 
 #ifdef __cplusplus
 }
@@ -7997,11 +8124,11 @@ void *arq_arena_malloc_rest(Arq_Arena *m, uint32_t const size_of_header, uint32_
 #include <stddef.h>
 #include <stdio.h>
 
-Arq_Arena *arq_arena_init(void *buffer, uint32_t const _size) {
-        uint32_t const offset = (size_t)buffer % ARQ_ARENA_SIZE_OF_PADDING;
-        uint32_t const padding = offset > 0 ? ARQ_ARENA_SIZE_OF_PADDING - offset : 0;
-        uint32_t const size = _size - padding;
-        uint32_t const header_size = offsetof(Arq_Arena, at);
+Arq_Arena *arq_arena_init(void *buffer, arq_uint32_t const _size) {
+        arq_uint32_t const offset = (size_t)buffer % ARQ_ARENA_SIZE_OF_PADDING;
+        arq_uint32_t const padding = offset > 0 ? ARQ_ARENA_SIZE_OF_PADDING - offset : 0;
+        arq_uint32_t const size = _size - padding;
+        arq_uint32_t const header_size = offsetof(Arq_Arena, at);
         Arq_Arena *m = (Arq_Arena *)((char*)buffer + padding);
         assert(_size > padding);
         assert(size > header_size);
@@ -8012,20 +8139,20 @@ Arq_Arena *arq_arena_init(void *buffer, uint32_t const _size) {
         return m;
 }
 
-void *arq_arena_malloc(Arq_Arena *m, uint32_t const num_of_bytes) {
-        uint32_t const padded_size = ARQ_ARENA_SIZE_OF_PADDING * ((num_of_bytes + ARQ_ARENA_SIZE_OF_PADDING - 1) / ARQ_ARENA_SIZE_OF_PADDING);
+void *arq_arena_malloc(Arq_Arena *m, arq_uint32_t const num_of_bytes) {
+        arq_uint32_t const padded_size = ARQ_ARENA_SIZE_OF_PADDING * ((num_of_bytes + ARQ_ARENA_SIZE_OF_PADDING - 1) / ARQ_ARENA_SIZE_OF_PADDING);
 
         if (num_of_bytes == 0) return NULL;
         assert(m->size + num_of_bytes <= m->SIZE && "arq_arena_malloc need more memory");
 
         if (m->size + padded_size <= m->SIZE) {
-                uint32_t const begin = m->size;
+                arq_uint32_t const begin = m->size;
                 void *buffer = &m->at[begin];
                 m->size += padded_size;
                 assert((size_t)buffer % ARQ_ARENA_SIZE_OF_PADDING == 0 && "buffer does not align");
                 return buffer;
         } else {
-                uint32_t const begin = m->size;
+                arq_uint32_t const begin = m->size;
                 void *buffer = &m->at[begin];
                 m->size += num_of_bytes;
                 assert((size_t)buffer % ARQ_ARENA_SIZE_OF_PADDING == 0 && "buffer does not align");
@@ -8033,8 +8160,8 @@ void *arq_arena_malloc(Arq_Arena *m, uint32_t const num_of_bytes) {
         }
 }
 
-void *arq_arena_malloc_rest(Arq_Arena *m, uint32_t const size_of_header, uint32_t const size_of_element, uint32_t *num_of_elements) {
-        uint32_t const size = (m->SIZE - m->size);
+void *arq_arena_malloc_rest(Arq_Arena *m, arq_uint32_t const size_of_header, arq_uint32_t const size_of_element, arq_uint32_t *num_of_elements) {
+        arq_uint32_t const size = (m->SIZE - m->size);
         assert(size_of_element > 0);
         assert(size >= size_of_element && "size >= size_of_element arq_arena need more memory");
         *num_of_elements = (size - size_of_header) / size_of_element;
@@ -8176,24 +8303,24 @@ void log_int_float(float_o const *x) {
 typedef struct {
         Arq_SymbolID type_id;
         union {
-                uint8_t u8;
-                uint16_t u16;
-                uint32_t u32;
-                /* uint64_t u64; */
-                int8_t i8;
-                int16_t i16;
-                int32_t i32;
-                /* int64_t i64; */
+                arq_uint8_t u8;
+                arq_uint16_t u16;
+                arq_uint32_t u32;
+                /* arq_uint64_t u64; */
+                arq_int8_t i8;
+                arq_int16_t i16;
+                arq_int32_t i32;
+                /* arq_int64_t i64; */
                 double f;
                 char const *cstr;
         } value;
 } Arq_Argument;
 
 struct Arq_Queue_tag{
-        uint32_t shrink;
-        uint32_t NUM_OF_ARGUMENTS;
-        uint32_t read_idx;
-        uint32_t write_idx;
+        arq_uint32_t shrink;
+        arq_uint32_t NUM_OF_ARGUMENTS;
+        arq_uint32_t read_idx;
+        arq_uint32_t write_idx;
         Arq_Argument at[1];
 };
 
@@ -8208,7 +8335,7 @@ typedef void (*arq_push)(Arq_Queue *queue, union_o const *x);
 void arq_push_uint(Arq_Queue *queue, union_o const *x);
 void arq_push_int(Arq_Queue *queue, union_o const *x);
 void arq_push_float(Arq_Queue *queue, union_o const *x);
-uint32_t *arq_push_array_size(Arq_Queue *queue, uint32_t n);
+arq_uint32_t *arq_push_array_size(Arq_Queue *queue, arq_uint32_t n);
 void arq_push_cstr_t(Arq_Queue *queue, char const *cstr);
 
 #ifdef __cplusplus
@@ -8224,8 +8351,8 @@ void arq_push_cstr_t(Arq_Queue *queue, char const *cstr);
 #include <assert.h>
 
 Arq_Queue *arq_queue_malloc(Arq_Arena *arena) {
-        uint32_t NUM_OF_ARGUMENTS;
-        uint32_t const shrink_snapshot = arena->size;
+        arq_uint32_t NUM_OF_ARGUMENTS;
+        arq_uint32_t const shrink_snapshot = arena->size;
         Arq_Queue *queue = (Arq_Queue *)arq_arena_malloc_rest(arena, offsetof(Arq_Queue, at), sizeof(Arq_Argument), &NUM_OF_ARGUMENTS);
         queue->shrink = shrink_snapshot;
         queue->NUM_OF_ARGUMENTS = NUM_OF_ARGUMENTS;
@@ -8265,13 +8392,13 @@ void arq_unused(Arq_Queue *queue) {
         (void)pop(queue);
 }
 
-uint32_t arq_uint(Arq_Queue *queue) {
+arq_uint32_t arq_uint(Arq_Queue *queue) {
         Arq_Argument t = pop(queue);
         assert(t.type_id == ARQ_TYPE_UINT);
         return t.value.u32;
 }
 
-uint32_t arq_array_size(Arq_Queue *queue) {
+arq_uint32_t arq_array_size(Arq_Queue *queue) {
         Arq_Argument t = pop(queue);
         assert(t.type_id == ARQ_TYPE_ARRAY_SIZE);
         return t.value.u32;
@@ -8285,7 +8412,7 @@ uint64_t arq_uint64_t(Arq_Queue *queue) {
 }
 #endif
 
-int32_t arq_int(Arq_Queue *queue) {
+arq_int32_t arq_int(Arq_Queue *queue) {
         Arq_Argument t = pop(queue);
         assert(t.type_id == ARQ_TYPE_INT);
         return t.value.i32;
@@ -8311,7 +8438,7 @@ void arq_push_uint(Arq_Queue *queue, union_o const *x) {
         log_int_uint(&x->ou);
 }
 
-uint32_t *arq_push_array_size(Arq_Queue *queue, uint32_t n) {
+arq_uint32_t *arq_push_array_size(Arq_Queue *queue, arq_uint32_t n) {
         Arq_Argument a;
         a.type_id = ARQ_TYPE_ARRAY_SIZE;
         a.value.u32 = n;
@@ -8378,11 +8505,11 @@ static void error_msg_append_option(Arq_msg *error_msg, Arq_Option const *o) {
         arq_msg_append_lf(error_msg);
 }
 
-static void error_msg_insert_cmd_line(Arq_msg *m, uint32_t line_nr, Arq_LexerCmd *cmd) {
+static void error_msg_insert_cmd_line(Arq_msg *m, arq_uint32_t line_nr, Arq_LexerCmd *cmd) {
         Arq_Token const token = cmd->lexer.token;
-        uint32_t A_IDX, B_IDX, C_IDX, D_IDX, ARGV_LEN;
-        uint32_t ln_count = 0;
-        uint32_t i;
+        arq_uint32_t A_IDX, B_IDX, C_IDX, D_IDX, ARGV_LEN;
+        arq_uint32_t ln_count = 0;
+        arq_uint32_t i;
         log_int_token(cmd->lexer.token.id);
         A_IDX = 0;
         for (i = 0; i < m->size; i++) {
@@ -8399,10 +8526,10 @@ static void error_msg_insert_cmd_line(Arq_msg *m, uint32_t line_nr, Arq_LexerCmd
         cmd->lexer = arq_lexer_create();
         cmd->state = 0;
         arq_lexer_next_cmd_token(cmd);
-        while(true) {
+        while(ARQ_TRUE) {
                 /* render argv to calculate argv_len */
                 if (cmd->lexer.token.id == ARQ_CMD_SHORT_OPTION) {
-                        uint32_t const x = cmd->lexer.token.at[0] == '-' ? 1 : 0; /* because of short option bundeling  */
+                        arq_uint32_t const x = cmd->lexer.token.at[0] == '-' ? 1 : 0; /* because of short option bundeling  */
                         arq_msg_append_chr(m, cmd->lexer.token.at[0]);
                         arq_msg_append_nchr(m, cmd->lexer.token.at[1], x);
                         arq_msg_append_chr(m, '_');
@@ -8423,9 +8550,9 @@ static void error_msg_insert_cmd_line(Arq_msg *m, uint32_t line_nr, Arq_LexerCmd
         C_IDX = m->size;
         ARGV_LEN = C_IDX - B_IDX;
         {
-                uint32_t const shift_right = B_IDX - A_IDX;
+                arq_uint32_t const shift_right = B_IDX - A_IDX;
                 for (i = 0; i < shift_right; i++) {
-                        uint32_t const idx = B_IDX - 1 - i;
+                        arq_uint32_t const idx = B_IDX - 1 - i;
                         m->at[idx + ARGV_LEN] = m->at[idx];
                 }
         }
@@ -8435,10 +8562,10 @@ static void error_msg_insert_cmd_line(Arq_msg *m, uint32_t line_nr, Arq_LexerCmd
         cmd->lexer = arq_lexer_create();
         cmd->state = 0;
         arq_lexer_next_cmd_token(cmd);
-        while(true) {
+        while(ARQ_TRUE) {
                 /* render argv once more for moving argv */
                 if (cmd->lexer.token.id == ARQ_CMD_SHORT_OPTION) {
-                        uint32_t const x = cmd->lexer.token.at[0] == '-' ? 1 : 0; /* because of short option bundeling  */
+                        arq_uint32_t const x = cmd->lexer.token.at[0] == '-' ? 1 : 0; /* because of short option bundeling  */
                         arq_msg_append_chr(m, cmd->lexer.token.at[0]);
                         arq_msg_append_nchr(m, cmd->lexer.token.at[1], x);
                         arq_msg_append_chr(m, ' ');
@@ -8468,7 +8595,7 @@ static void error_msg_insert_cmd_line(Arq_msg *m, uint32_t line_nr, Arq_LexerCmd
 }
 
 static void output_error_msg(Arq_msg *error_msg, char *arena_buffer) {
-        uint32_t i;
+        arq_uint32_t i;
         arq_msg_format(error_msg);
         for (i = 0; i < error_msg->size; i++) {
                 arena_buffer[i] = error_msg->at[i];
@@ -8477,16 +8604,16 @@ static void output_error_msg(Arq_msg *error_msg, char *arena_buffer) {
         assert(arena_buffer[error_msg->size] == 0);
 }
 
-static void call_back_function(Arq_Option const *options, uint32_t option_idx, Arq_Queue *queue) {
+static void call_back_function(Arq_Option const *options, arq_uint32_t option_idx, Arq_Queue *queue) {
         Arq_Option const *option = &options[option_idx];
         option->fn(queue);
         assert(queue->read_idx == queue->write_idx && "Queue is not empty, there are still arguments in the queue!");
         arq_queue_clear(queue);
 }
 
-static uint32_t arq_option_parameter_idx(Arq_Option const *option) {
-        uint32_t STRLEN;
-        uint32_t result = 0;
+static arq_uint32_t arq_option_parameter_idx(Arq_Option const *option) {
+        arq_uint32_t STRLEN;
+        arq_uint32_t result = 0;
         if (option->chr != 0) {
                 result += 3;
         }
@@ -8497,20 +8624,20 @@ static uint32_t arq_option_parameter_idx(Arq_Option const *option) {
         return result;
 }
 
-uint32_t arq_verify(
-        char *arena_buffer, uint32_t const buffer_size,
-        Arq_Option const *options, uint32_t const num_of_options
+arq_uint32_t arq_verify(
+        char *arena_buffer, arq_uint32_t const buffer_size,
+        Arq_Option const *options, arq_uint32_t const num_of_options
 ) {
         Arq_msg error_msg;
-        uint32_t i;
+        arq_uint32_t i;
         Arq_Arena *arena;
         (void) buffer_size;
 
         arena = arq_arena_init(arena_buffer, buffer_size);
 
         {
-                uint32_t SIZE_OF_ERROR_MSG;
-                uint32_t const shrink = arena->size;
+                arq_uint32_t SIZE_OF_ERROR_MSG;
+                arq_uint32_t const shrink = arena->size;
                 char *chr = (char *)arq_arena_malloc_rest(arena, 0, sizeof(char), &SIZE_OF_ERROR_MSG);
                 arena->size = shrink;
                 error_msg.SIZE = SIZE_OF_ERROR_MSG;
@@ -8519,7 +8646,7 @@ uint32_t arq_verify(
         }
 
         for (i = 0; i < num_of_options; i++) {
-                bool for_loop_continue = false;
+                arq_bool_t for_loop_continue = ARQ_FALSE;
                 Arq_LexerOpt opt = arq_lexerOpt_create();
                 opt.lexer.at = options[i].arguments;
                 opt.lexer.SIZE = strlen(options[i].arguments);
@@ -8584,7 +8711,7 @@ uint32_t arq_verify(
                                         arq_msg_append_str(&error_msg, opt.lexer.token.at, opt.lexer.token.size);
                                         arq_msg_append_cstr(&error_msg, "' after ')' no tokens allowed!\n");
                                         if (arq_imm_noToken(&opt.lexer.token)) {
-                                                for_loop_continue = true;
+                                                for_loop_continue = ARQ_TRUE;
                                                 break;
                                         }
                                 }
@@ -8599,9 +8726,9 @@ uint32_t arq_verify(
                 }
 error:
                 {
-                        uint32_t n;
+                        arq_uint32_t n;
                         uint_o ups;
-                        ups.error = true;
+                        ups.error = ARQ_TRUE;
                         ups.u = opt.lexer.cursor_idx - opt.lexer.token.size;
                         n = arq_option_parameter_idx(&options[i]) + ups.u;
                         error_msg_append_option(&error_msg, &options[i]);
@@ -8612,14 +8739,14 @@ error:
                 }
 
         } /* for loop */
-        /* assert(false); */
+        /* assert(ARQ_FALSE); */
         return 0;
 }
 
-uint32_t arq_fn(
+arq_uint32_t arq_fn(
         int argc, char **argv,
-        char *arena_buffer, uint32_t const buffer_size,
-        Arq_Option const *options, uint32_t const num_of_options
+        char *arena_buffer, arq_uint32_t const buffer_size,
+        Arq_Option const *options, arq_uint32_t const num_of_options
 ) {
         Arq_LexerCmd cmd = arq_lexerCmd_create(argc, argv);
         Arq_LexerOpt opt;
@@ -8639,7 +8766,7 @@ uint32_t arq_fn(
         log_memory(("Arena     %5d %10d %10s", (int)offsetof(Arq_Arena, at), arena->SIZE, "-"));
 
         {
-                uint32_t SIZE_OF_ERROR_MSG = 500;
+                arq_uint32_t SIZE_OF_ERROR_MSG = 500;
                 error_msg.at = (char *)arq_arena_malloc(arena, SIZE_OF_ERROR_MSG);
                 error_msg.SIZE = SIZE_OF_ERROR_MSG;
                 error_msg.size = 0;
@@ -8698,7 +8825,7 @@ uint32_t arq_fn(
                 }
                 arq_lexer_next_opt_token(&opt);
                 (void)arq_imm(ARQ_OP_L_PARENTHESIS, &opt);
-                while (true) {
+                while (ARQ_TRUE) {
 /******************************************************************************/
 /******************************************************************************/
 /******************************************************************************/
@@ -8733,10 +8860,10 @@ uint32_t arq_fn(
                                         arq_push_cstr_t(queue, cstr);
                                 } else if (arq_imm(ARQ_OP_ARRAY, &opt)) {
                                         struct {
-                                                bool on;
-                                                bool edge;
+                                                arq_bool_t on;
+                                                arq_bool_t edge;
                                         } dashdash = {0};
-                                        uint32_t *array_size = arq_push_array_size(queue, 0);
+                                        arq_uint32_t *array_size = arq_push_array_size(queue, 0);
                                         log_inta(("u32 %u // init array_size", *array_size));
                                         while (1) {
                                                 dashdash.on |= arq_imm_cmd_is_dashdash(&cmd);
@@ -8824,7 +8951,7 @@ uint32_t arq_fn(
                                 }
                                 imm.PUSH(queue, &x);
                         } else if (arq_imm(ARQ_OP_ARRAY, &opt)) {
-                                uint32_t *array_size = arq_push_array_size(queue, 0);
+                                arq_uint32_t *array_size = arq_push_array_size(queue, 0);
                                 log_inta(("u32 %u // init array_size", *array_size));
                                 while (imm.IS_LITERAL_TYPE(&cmd)) {
                                         union_o x = {0};
@@ -8843,7 +8970,7 @@ uint32_t arq_fn(
                                 arq_msg_clear(&error_msg);
                                 x = imm.ARGUMENT(&cmd, &error_msg);
                                 if (error_msg.size > 0) {
-                                        /* wasn't an uint32_t number or overflow */
+                                        /* wasn't an arq_uint32_t number or overflow */
                                         error_msg_insert_cmd_line(&error_msg, 1, &cmd);
                                         error_msg_append_option(&error_msg, &options[opt.idx]);
                                         output_error_msg(&error_msg, arena_buffer);
@@ -8858,7 +8985,7 @@ terminator:
                                 call_back_function(options, opt.idx, queue);
                                 break;
                         }
-                        assert(false);
+                        assert(ARQ_FALSE);
                 } /* while */
         } /* while */
         arena_buffer[0] = 0;
