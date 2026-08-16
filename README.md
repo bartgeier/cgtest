@@ -15,7 +15,7 @@ cgtest takes a different approach. You describe tests in plain C using a small D
 The workflow is deliberately simple:
 
 ```text
-cgtest --run
+cgtest --run examples/mathlib/cgtest
         ↓
 cgtest-runner.c
         ↓
