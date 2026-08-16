@@ -24,7 +24,7 @@ C compiler
 test runner
 ```
 
-There are no C++ templates, no virtual dispatch, and no external dependencies. The generated runner consists of ordinary C89 structs and functions that a C compiler can compile directly.
+There are no C++ templates, no virtual dispatch, and no external dependencies in the generated runner. The generated runner consists entirely of ordinary C89 structs and functions that can be compiled directly by a C89 compiler.
 
 This is particularly relevant to my “compile everything at once” workflow. GoogleTest is a powerful C++ testing framework with features such as fixtures and matchers, but its implementation relies heavily on C++ language facilities. A translation unit that includes `gtest.h` therefore brings a substantial amount of framework machinery into the compilation.
 
@@ -32,7 +32,7 @@ cgtest takes the opposite approach: **keep the test authoring experience express
 
 Fixtures are represented as ordinary C data and setup/teardown functions. Assertions become straightforward C code. The test runner is generated rather than implemented as a large generic C++ framework.
 
-So cgtest isn't intended to replace GoogleTest. It's an experiment in seeing how far a small C-native testing DSL can go while keeping the implementation understandable, dependency-free, and friendly to a simple “compile the whole project” workflow.
+So cgtest isn't intended to replace GoogleTest. It's an experiment in seeing how far a small C-native testing DSL can go while keeping the implementation understandable, self-contained, and friendly to a simple “compile the whole project” workflow.
 
 The entire compiler is written in C89 and can also be used as a single amalgamated `cgtest.c` file for a drop-in build.
 
