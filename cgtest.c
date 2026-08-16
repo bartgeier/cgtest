@@ -9164,7 +9164,7 @@ void cgtest_arq_free(CGTestArgs *args)
 /*** Start of inlined file: cgtest_main.c ***/
 #include <stdio.h>
 
-#define CGTEST_VERSION "0.1.2"
+#define CGTEST_VERSION "0.1.3"
 
 static void print_help(void)
 {
