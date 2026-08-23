@@ -3,6 +3,16 @@ ifeq ($(OS),Windows_NT)
 else
     CC ?= cc
 endif
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+    # ld64 has no --no-undefined flag (that's GNU ld only), and doesn't
+    # need one: a dylib already errors on undefined symbols by default,
+    # which is the whole point of check-c89's link line. See
+    # docs/macos-clang-issues.md.
+    NO_UNDEFINED_LDFLAG :=
+else
+    NO_UNDEFINED_LDFLAG := -Wl,--no-undefined
+endif
 CFLAGS     ?= -std=c99 -Wall -Wextra -pedantic
 CFLAGS     += -Isrc -Ithird_party/arq -Ithird_party/jsmn
 AMALGAMATE ?= amalgamate
@@ -122,7 +132,7 @@ endif
 # while developing clexer/cpreprocessor. cgtest_main.c's main() ends up
 # in the .so too, which is harmless - it's just another symbol.
 check-c89: | $(BUILD_DIR)
-	$(CC) -std=c89 -Wall -Wextra -pedantic -Werror -fPIC -shared -Wl,--no-undefined -Ithird_party/arq -Ithird_party/jsmn src/*.c -o $(BUILD_DIR)/libcgtest_src_check.so
+	$(CC) -std=c89 -Wall -Wextra -pedantic -Werror -fPIC -shared $(NO_UNDEFINED_LDFLAG) -Ithird_party/arq -Ithird_party/jsmn src/*.c -o $(BUILD_DIR)/libcgtest_src_check.so
 
 # cgtest.c - a single-file amalgamation of every src/*.c and the
 # third_party/ headers it needs (see amalgamate_cgtest.c), produced by

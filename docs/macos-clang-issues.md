@@ -3,9 +3,9 @@
 ## Status
 
 Hypothesis below is reasoned from code inspection plus the one failure
-log we do have (see "Observed symptoms") — nobody on the team has run
-the fix on an actual macOS machine yet. Verify before considering this
-closed.
+log we do have (see "Observed symptoms"). The proposed fix has been
+applied to the Makefile, but nobody on the team has run it on an
+actual macOS machine yet. Verify before considering this closed.
 
 ## Observed symptoms
 
