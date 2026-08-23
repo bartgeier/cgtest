@@ -8,8 +8,6 @@ The repository root contains a `Makefile`. Run the appropriate command for your 
 
 ### Linux
 
-Bash
-
 ```
 make
 ```
@@ -22,14 +20,17 @@ Install MinGW-w64 (for example from WinLibs):
 
 If you're unsure which version to choose, use the latest 64-bit release.
 
-Bash
-
 ```
 mingw32-make
 ```
 
 ### macOS
 
-macOS is not supported, as I develop on Linux and can test on Windows, but don't have access to macOS.
+```
+make
+```
+
+macOS has **not been tested**. I develop on Linux and can test on Windows, but I don't have access to macOS.  
+see [macOs build issues](macos-clang-issues.md)  
 
 > Note: If you only want to use `cgtest`, you don't need to build it. Just download `cgtest.c`- that's all you need.
