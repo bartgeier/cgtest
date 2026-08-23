@@ -4,6 +4,7 @@
 ```
 gcc cgtest.c -o cgtest
 ```
+By the way, it also compiles with C89.
 ```
 gcc -std=c89 cgtest.c -o cgtest
 ```
@@ -14,14 +15,12 @@ gcc -std=c89 cgtest.c -o cgtest
 ```
 gcc cgtest.c -o cgtest
 ```
-```
-gcc -std=c89 cgtest.c -o cgtest
-```
 
 ## Windows MSVC
 ```
 cl cgtest.c
 ```
+
 ## macOs clang
 ```
 clang cgtest.c -o cgtest

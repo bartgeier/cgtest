@@ -37,12 +37,15 @@ So cgtest isn't intended to replace GoogleTest. It's an experiment in seeing how
 The entire compiler is written in C89 and can also be used as a single amalgamated `cgtest.c` file for a drop-in build.
 
 
+## [Build cgtest](docs/make_build_cgtest.md)
+If you only want to use cgtest, you can skip the build step.  
+Just download cgtest.c.  // It's all you need.
+
 ## Download cgtest.c
 
 ```
 curl -fL -o cgtest.c https://github.com/bartgeier/cgtest/raw/refs/tags/v0.1.3/cgtest.c
 ```
-
 ## Compile cgtest
 
 ```
