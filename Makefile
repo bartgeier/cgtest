@@ -1,9 +1,10 @@
 ifeq ($(OS),Windows_NT)
     CC := gcc
+    UNAME_S :=
 else
     CC ?= cc
+    UNAME_S := $(shell uname -s)
 endif
-UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
     # ld64 has no --no-undefined flag (that's GNU ld only), and doesn't
     # need one: a dylib already errors on undefined symbols by default,
