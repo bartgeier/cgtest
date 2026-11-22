@@ -44,5 +44,5 @@ clangd --compile-commands-dir=<output_path>
 - The file is regenerated on every run.
 - Writing it is a convenience: if it fails, cgtest prints a warning to
   stderr and carries on with the run.
-- It is written by `gen_compile_commands.h` (`src/`), a single-header C89
+- It is written by `gen_compile_commands.h` (`third_party/gen_compile_commands/`), a single-header C89
   library.
