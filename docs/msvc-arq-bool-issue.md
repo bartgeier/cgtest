@@ -2,9 +2,10 @@
 
 ## Status
 
-Root cause confirmed, fix agreed, **not yet applied**. The fix belongs
-upstream in the arq library; `third_party/arq/arq.h` and `cgtest.c` are
-inlined copies of it and would be overwritten on the next re-vendor.
+**Fixed.** Fixed upstream in arq (`fecbdca`, "arq_bool.h fixed") and
+re-vendored here: `third_party/arq/arq.h` and `cgtest.c` now use
+`typedef int arq_bool_t;` for all compilers. The rest of this document
+describes the problem and the reasoning behind the fix.
 
 ## Observed symptoms
 
