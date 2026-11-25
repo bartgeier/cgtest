@@ -16,7 +16,7 @@ void test_math_add(void)
 
 void test_math_sub(void)
 {
-    EXPECT_EQ_INT(2, mathlib_sub(5, 3));
+    EXPECT_EQ_INT(2, mathlib_sub(5, 4));
     EXPECT_EQ_INT(-7, mathlib_sub(0, 7));
 }
 

@@ -95,6 +95,20 @@ void test_declares_and_defines_shared_helpers_in_generated_runner(void)
     free(source);
 }
 
+void test_runner_reports_on_stdout_only(void)
+{
+    /* Companion to test_header_reports_failures_on_stdout_not_stderr in
+     * test_cgtest_create.c: cgtest_print_str_field() (the expected/
+     * actual lines of the *_STR macros) must also write to stdout, so
+     * the whole test report is one stream and stays in order. */
+    char *source = cgtest_runner_generate_source(NULL, 0, "gcc -std=c99 -o cgtest-runner cgtest-runner.c", 0);
+
+    CHECK(source != NULL);
+    CHECK(strstr(source, "stderr") == NULL);
+
+    free(source);
+}
+
 void test_embeds_the_compile_command_as_a_leading_comment(void)
 {
     char *source = cgtest_runner_generate_source(NULL, 0, "gcc -std=c99 -I\"src\" -o cgtest-runner cgtest-runner.c", 0);
@@ -1226,6 +1240,7 @@ int main(void)
     static const TestCase cases[] = {
         { "test_generates_valid_shell_with_no_files", test_generates_valid_shell_with_no_files },
         { "test_declares_and_defines_shared_helpers_in_generated_runner", test_declares_and_defines_shared_helpers_in_generated_runner },
+        { "test_runner_reports_on_stdout_only", test_runner_reports_on_stdout_only },
         { "test_embeds_the_compile_command_as_a_leading_comment", test_embeds_the_compile_command_as_a_leading_comment },
         { "test_declares_extern_and_calls_its_function", test_declares_extern_and_calls_its_function },
         { "test_header_uses_bare_basename_and_precedes_its_tests", test_header_uses_bare_basename_and_precedes_its_tests },

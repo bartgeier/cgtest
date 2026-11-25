@@ -187,6 +187,31 @@ void test_header_declares_shared_helpers_extern_not_static(void)
     teardown_fixture();
 }
 
+void test_header_reports_failures_on_stdout_not_stderr(void)
+{
+    /* FAIL: details must share stdout with the runner's [ RUN ]/[ OK ]
+     * lines. On a separate stream they printed out of order whenever
+     * stdout was buffered (piped/captured; always on Windows, whose CRT
+     * treats _IOLBF as full buffering) and went missing from
+     * "cgtest -r ... > log.txt". See test_runner_reports_on_stdout_only
+     * in test_cgtest_runner.c for the runner side. */
+    CGTestCreateResult result;
+    char buf[32768];
+    long length;
+
+    setup_fixture();
+    result = cgtest_create_run(FIXTURE_DIR);
+    CHECK(result.ok);
+
+    length = read_whole_file(HEADER_PATH, buf, sizeof(buf));
+    CHECK(length > 0);
+    CHECK(strstr(buf, "FAIL: ") != NULL);
+    CHECK(strstr(buf, "stderr") == NULL);
+
+    cgtest_create_free(&result);
+    teardown_fixture();
+}
+
 void test_created_project_round_trips_through_parser(void)
 {
     CGTestCreateResult result;
@@ -634,6 +659,7 @@ int main(void)
         { "test_creates_directory_if_missing", test_creates_directory_if_missing },
         { "test_test_macros_file_covers_the_whole_header", test_test_macros_file_covers_the_whole_header },
         { "test_header_declares_shared_helpers_extern_not_static", test_header_declares_shared_helpers_extern_not_static },
+        { "test_header_reports_failures_on_stdout_not_stderr", test_header_reports_failures_on_stdout_not_stderr },
         { "test_created_project_round_trips_through_parser", test_created_project_round_trips_through_parser },
         { "test_leaves_existing_project_untouched_and_fills_in_missing_files", test_leaves_existing_project_untouched_and_fills_in_missing_files },
         { "test_rerunning_on_a_complete_project_is_an_idempotent_no_op", test_rerunning_on_a_complete_project_is_an_idempotent_no_op },
