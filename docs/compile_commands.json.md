@@ -39,6 +39,10 @@ clangd looks for the file in the project root or in `build/`. If your
 clangd --compile-commands-dir=<output_path>
 ```
 
+clangd then builds a background index in `.cache/clangd/` in the project
+root. It is a local cache that clangd regenerates, so add `.cache/` to your
+`.gitignore`.
+
 ### Notes
 
 - The file is regenerated on every run.
