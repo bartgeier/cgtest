@@ -1167,6 +1167,55 @@ void test_run_populates_timing_fields(void)
     test_remove_path(FIXTURE_DIR);
 }
 
+void test_run_writes_compile_commands_json(void)
+{
+    /* compile_commands.json lands next to cgtest-runner.c so editors
+     * (clangd / nvim LSP) can resolve includes in the project. */
+    CGTestProject project;
+    CGTestRunResult result;
+    char json[8192];
+    size_t len = 0;
+    FILE *f;
+
+    TEST_MKDIR(FIXTURE_DIR);
+    TEST_MKDIR(FIXTURE_DIR "/ccj");
+    write_file(FIXTURE_DIR "/ccj/test_widget.c", "void test_bar(void) { }\n");
+
+    memset(&project, 0, sizeof(project));
+    project.compiler_command = "gcc -std=c99";
+    project.output_path = FIXTURE_DIR "/ccj/build";
+    cpathlist_init(&project.include_paths);
+    cpathlist_init(&project.source_files);
+    cpathlist_init(&project.test_directories);
+    cpathlist_register(&project.test_directories, "", FIXTURE_DIR "/ccj");
+
+    result = cgtest_runner_run(&project);
+    CHECK(result.ok);
+
+    f = fopen(FIXTURE_DIR "/ccj/build/compile_commands.json", "rb");
+    CHECK(f != NULL);
+    if (f != NULL) {
+        len = fread(json, 1, sizeof(json) - 1, f);
+        fclose(f);
+        json[len] = '\0';
+        CHECK(strstr(json, "\"command\": \"gcc -std=c99 -I\\\"") != NULL);
+        CHECK(strstr(json, "test_widget.c\"") != NULL);
+        CHECK(strstr(json, "cgtest-runner.c\"") != NULL);
+    }
+
+    cgtest_runner_free(&result);
+    cpathlist_free(&project.include_paths);
+    cpathlist_free(&project.source_files);
+    cpathlist_free(&project.test_directories);
+    test_remove_path(FIXTURE_DIR "/ccj/test_widget.c");
+    test_remove_path(FIXTURE_DIR "/ccj/build/compile_commands.json");
+    test_remove_path(FIXTURE_DIR "/ccj/build/cgtest-runner.c");
+    test_remove_path(FIXTURE_DIR "/ccj/build/cgtest-runner" TEST_EXE_SUFFIX);
+    test_remove_path(FIXTURE_DIR "/ccj/build");
+    test_remove_path(FIXTURE_DIR "/ccj");
+    test_remove_path(FIXTURE_DIR);
+}
+
 typedef struct {
     const char *name;
     void (*fn)(void);
@@ -1204,7 +1253,8 @@ int main(void)
         { "test_run_single_translation_unit_compiles_and_runs", test_run_single_translation_unit_compiles_and_runs },
         { "test_run_single_translation_unit_compiles_fixture_test_under_pedantic_errors", test_run_single_translation_unit_compiles_fixture_test_under_pedantic_errors },
         { "test_run_single_translation_unit_fails_on_duplicate_static_helper", test_run_single_translation_unit_fails_on_duplicate_static_helper },
-        { "test_run_populates_timing_fields", test_run_populates_timing_fields }
+        { "test_run_populates_timing_fields", test_run_populates_timing_fields },
+        { "test_run_writes_compile_commands_json", test_run_writes_compile_commands_json }
     };
     size_t count = sizeof(cases) / sizeof(cases[0]);
     size_t i;

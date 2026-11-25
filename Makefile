@@ -15,7 +15,7 @@ else
     NO_UNDEFINED_LDFLAG := -Wl,--no-undefined
 endif
 CFLAGS     ?= -std=c99 -Wall -Wextra -pedantic
-CFLAGS     += -Isrc -Ithird_party/arq -Ithird_party/jsmn
+CFLAGS     += -Isrc -Ithird_party/arq -Ithird_party/jsmn -Ithird_party/gen_compile_commands
 AMALGAMATE ?= amalgamate
 
 BUILD_DIR := build
@@ -100,14 +100,14 @@ $(TEST_CGTEST_ARQ_BIN): tests/test_cgtest_arq.c src/cgtest_arq.c src/cmsg.c src/
 $(TEST_CGTEST_CREATE_BIN): tests/test_cgtest_create.c src/cgtest_create.c src/cgtest_project.c src/cpathlist.c src/cpath.c src/cmsg.c src/cgtest_create.h src/cgtest_project.h src/cpathlist.h src/cpath.h src/cmsg.h third_party/jsmn/jsmn.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_cgtest_create.c src/cgtest_create.c src/cgtest_project.c src/cpathlist.c src/cpath.c src/cmsg.c -o $@
 
-$(TEST_CGTEST_RUNNER_BIN): tests/test_cgtest_runner.c src/cgtest_runner.c src/ctestfiles.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/cpathlist.c src/cpath.c src/cmsg.c src/ctimer.c src/cgtest_runner.h src/ctestfiles.h src/ctestscanner.h src/cpreprocessor.h src/clexer.h src/cpathlist.h src/cpath.h src/cmsg.h src/ctimer.h | $(BUILD_DIR)
+$(TEST_CGTEST_RUNNER_BIN): tests/test_cgtest_runner.c src/cgtest_runner.c src/ctestfiles.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/cpathlist.c src/cpath.c src/cmsg.c src/ctimer.c src/cgtest_runner.h src/ctestfiles.h src/ctestscanner.h src/cpreprocessor.h src/clexer.h src/cpathlist.h src/cpath.h src/cmsg.h src/ctimer.h third_party/gen_compile_commands/gen_compile_commands.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_cgtest_runner.c src/cgtest_runner.c src/ctestfiles.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/cpathlist.c src/cpath.c src/cmsg.c src/ctimer.c -o $@
 
 $(TEST_CTIMER_BIN): tests/test_ctimer.c src/ctimer.c src/ctimer.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) tests/test_ctimer.c src/ctimer.c -o $@
 
 $(CGTEST_BIN): src/cgtest_main.c src/cgtest_arq.c src/cgtest_create.c src/cgtest_project.c src/cgtest_runner.c src/ctestfiles.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/cpathlist.c src/cpath.c src/cmsg.c src/ctimer.c | $(BUILD_DIR)
-	$(CC) -std=c89 -Wall -Wextra -pedantic -Ithird_party/arq -Ithird_party/jsmn src/cgtest_main.c src/cgtest_arq.c src/cgtest_create.c src/cgtest_project.c src/cgtest_runner.c src/ctestfiles.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/cpathlist.c src/cpath.c src/cmsg.c src/ctimer.c -o $@
+	$(CC) -std=c89 -Wall -Wextra -pedantic -Ithird_party/arq -Ithird_party/jsmn -Ithird_party/gen_compile_commands src/cgtest_main.c src/cgtest_arq.c src/cgtest_create.c src/cgtest_project.c src/cgtest_runner.c src/ctestfiles.c src/ctestscanner.c src/cpreprocessor.c src/clexer.c src/cpathlist.c src/cpath.c src/cmsg.c src/ctimer.c -o $@
 
 # mkdir -p / rm -rf below assume a POSIX shell. mingw32-make picks its
 # SHELL by probing for sh.exe on PATH, which is unreliable on Windows -
@@ -133,7 +133,7 @@ endif
 # while developing clexer/cpreprocessor. cgtest_main.c's main() ends up
 # in the .so too, which is harmless - it's just another symbol.
 check-c89: | $(BUILD_DIR)
-	$(CC) -std=c89 -Wall -Wextra -pedantic -Werror -fPIC -shared $(NO_UNDEFINED_LDFLAG) -Ithird_party/arq -Ithird_party/jsmn src/*.c -o $(BUILD_DIR)/libcgtest_src_check.so
+	$(CC) -std=c89 -Wall -Wextra -pedantic -Werror -fPIC -shared $(NO_UNDEFINED_LDFLAG) -Ithird_party/arq -Ithird_party/jsmn -Ithird_party/gen_compile_commands src/*.c -o $(BUILD_DIR)/libcgtest_src_check.so
 
 # cgtest.c - a single-file amalgamation of every src/*.c and the
 # third_party/ headers it needs (see amalgamate_cgtest.c), produced by
@@ -146,8 +146,8 @@ check-c89: | $(BUILD_DIR)
 # after changing anything under src/ or third_party/ to keep it in
 # sync, the same way a generated cgtest-runner.c is regenerated, never
 # hand-edited.
-$(AMALGAMATED_SRC): $(AMALGAMATE_STUB) src/*.c src/*.h third_party/arq/*.h third_party/jsmn/*.h
-	$(AMALGAMATE) -i src -i third_party/arq -i third_party/jsmn $(AMALGAMATE_STUB) $(AMALGAMATED_SRC)
+$(AMALGAMATED_SRC): $(AMALGAMATE_STUB) src/*.c src/*.h third_party/arq/*.h third_party/jsmn/*.h third_party/gen_compile_commands/*.h
+	$(AMALGAMATE) -i src -i third_party/arq -i third_party/jsmn -i third_party/gen_compile_commands $(AMALGAMATE_STUB) $(AMALGAMATED_SRC)
 
 # cgtest.c must compile standalone under the same strict flags
 # cgtest.exe itself does, and actually run - not just parse without

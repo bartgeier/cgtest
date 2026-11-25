@@ -109,6 +109,9 @@ Of the five required fields (`compiler_command`, `include_paths`,
 project-agnostic default - `--init` always writes them, and `--run` errors out
 if any are missing.
 
+## [compile_commands.json](docs/compile_commands.json.md)
+Every run writes a `compile_commands.json` into `output_path`, so clangd / nvim can resolve includes and jump around your sources.
+
 ## Update cgtest
 
 When a new version of cgtest is installed, update an existing project as follows:

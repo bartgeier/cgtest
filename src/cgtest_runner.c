@@ -18,6 +18,9 @@
 #include "clexer.h"
 #include "ctimer.h"
 
+#define GEN_COMPILE_COMMANDS_IMPLEMENTATION
+#include "gen_compile_commands.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -746,6 +749,73 @@ fail:
     return NULL;
 }
 
+/* Writes compile_commands.json next to cgtest-runner.c so editors /
+ * language servers (clangd, nvim LSP) can resolve includes and jump
+ * around the sources. One entry per source file: project source_files,
+ * every discovered test_*.c file (also in single-TU mode, where they are
+ * only #included by the runner) and cgtest-runner.c itself. The command
+ * is the compile command without the source list and "-o". Purely a
+ * convenience: returns 0 on success, nonzero on failure, and the caller
+ * only warns - it never aborts the run. */
+static int cgtest_runner_write_compile_commands(const CGTestProject *project, const CGTestRunnerFile *files, size_t file_count,
+                                                const char *runner_c_path)
+{
+    const char *include_flag = project->msvc ? "/I\"" : "-I\"";
+    const char **words;
+    const char **sources;
+    char **owned;
+    size_t word_count = 0;
+    size_t owned_count = 0;
+    size_t source_count = 0;
+    size_t max_words = 1 + project->include_paths.count + project->test_directories.count;
+    size_t max_sources = project->source_files.count + file_count + 1;
+    size_t i;
+    int rc = 1;
+
+    words = (const char **)malloc(max_words * sizeof(char *));
+    owned = (char **)malloc(max_words * sizeof(char *));
+    sources = (const char **)malloc(max_sources * sizeof(char *));
+    if (words == NULL || owned == NULL || sources == NULL) {
+        goto done;
+    }
+
+    words[word_count++] = project->compiler_command;
+    for (i = 0; i < project->include_paths.count + project->test_directories.count; i++) {
+        const char *path = i < project->include_paths.count
+            ? project->include_paths.entries[i]
+            : project->test_directories.entries[i - project->include_paths.count];
+        char *w = (char *)malloc(strlen(include_flag) + strlen(path) + 2);
+        if (w == NULL) {
+            goto done;
+        }
+        sprintf(w, "%s%s\"", include_flag, path);
+        owned[owned_count++] = w;
+        words[word_count++] = w;
+    }
+
+    for (i = 0; i < project->source_files.count; i++) {
+        sources[source_count++] = project->source_files.entries[i];
+    }
+    for (i = 0; i < file_count; i++) {
+        sources[source_count++] = files[i].label;
+    }
+    sources[source_count++] = runner_c_path;
+
+    /* directory = output_path, build_path "." : works for absolute
+     * Windows paths too, which the library's "starts with /" test
+     * would otherwise treat as relative. */
+    rc = generate_compile_commands(project->output_path, words, word_count, sources, source_count, ".");
+
+done:
+    for (i = 0; i < owned_count; i++) {
+        free(owned[i]);
+    }
+    free(owned);
+    free(words);
+    free(sources);
+    return rc;
+}
+
 /* Returns 1 if "source" tokenizes to an identifier token spelled
  * exactly "name" anywhere in it, 0 otherwise. Used only for the
  * existence-only fixture check below - it does not distinguish a
@@ -1034,6 +1104,10 @@ CGTestRunResult cgtest_runner_run(const CGTestProject *project)
         }
     }
     fclose(f);
+
+    if (cgtest_runner_write_compile_commands(project, runner_files, runner_file_count, runner_c_path.data) != 0) {
+        fprintf(stderr, "cgtest: warning: could not write compile_commands.json in %s\n", project->output_path);
+    }
 
     t_now = ctimer_now_ms();
     generate_ms = t_now - t_phase;
