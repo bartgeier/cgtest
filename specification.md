@@ -261,6 +261,15 @@ cgtest.exe --version
 cgtest.exe --help
 ```
 
+### Output streams
+
+The whole test report goes to stdout, in order: the runner's `[ RUN ]` /
+`[ OK ]` / `[ FAILED ]` lines and the `FAIL:` details (with `expected:` /
+`actual:`) from the cgtest.h macros. So `cgtest -r ... > log.txt` captures
+the complete report. A failing test is part of the report, not an error of
+the tool. Only cgtest's own errors and warnings (bad arguments, missing
+cgtest-project.json, compile failure, ...) go to stderr.
+
 ---
 
 ## 6. Fixtures

@@ -158,7 +158,7 @@ static const char *const CGTEST_H_TEMPLATE_EXPECT_TRUE =
     "#define EXPECT_TRUE(cond) \\\n"
     "    do { \\\n"
     "        if (!(cond)) { \\\n"
-    "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_TRUE(%s)\\n\", cgtest_relpath(__FILE__), __LINE__, #cond); \\\n"
+    "            fprintf(stdout, \"%s:%d: FAIL: EXPECT_TRUE(%s)\\n\", cgtest_relpath(__FILE__), __LINE__, #cond); \\\n"
     "            cgtest_failed = 1; \\\n"
     "        } \\\n"
     "    } while (0)\n"
@@ -168,7 +168,7 @@ static const char *const CGTEST_H_TEMPLATE_EXPECT_FALSE =
     "#define EXPECT_FALSE(cond) \\\n"
     "    do { \\\n"
     "        if (cond) { \\\n"
-    "            fprintf(stderr, \"%s:%d: FAIL: EXPECT_FALSE(%s)\\n\", cgtest_relpath(__FILE__), __LINE__, #cond); \\\n"
+    "            fprintf(stdout, \"%s:%d: FAIL: EXPECT_FALSE(%s)\\n\", cgtest_relpath(__FILE__), __LINE__, #cond); \\\n"
     "            cgtest_failed = 1; \\\n"
     "        } \\\n"
     "    } while (0)\n"
@@ -178,7 +178,7 @@ static const char *const CGTEST_H_TEMPLATE_ASSERT_TRUE =
     "#define ASSERT_TRUE(cond) \\\n"
     "    do { \\\n"
     "        if (!(cond)) { \\\n"
-    "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_TRUE(%s)\\n\", cgtest_relpath(__FILE__), __LINE__, #cond); \\\n"
+    "            fprintf(stdout, \"%s:%d: FAIL: ASSERT_TRUE(%s)\\n\", cgtest_relpath(__FILE__), __LINE__, #cond); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            cgtest_fatal_failed = 1; \\\n"
     "            return; \\\n"
@@ -190,7 +190,7 @@ static const char *const CGTEST_H_TEMPLATE_ASSERT_FALSE =
     "#define ASSERT_FALSE(cond) \\\n"
     "    do { \\\n"
     "        if (cond) { \\\n"
-    "            fprintf(stderr, \"%s:%d: FAIL: ASSERT_FALSE(%s)\\n\", cgtest_relpath(__FILE__), __LINE__, #cond); \\\n"
+    "            fprintf(stdout, \"%s:%d: FAIL: ASSERT_FALSE(%s)\\n\", cgtest_relpath(__FILE__), __LINE__, #cond); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            cgtest_fatal_failed = 1; \\\n"
     "            return; \\\n"
@@ -217,9 +217,9 @@ static const char *const CGTEST_H_TEMPLATE_CMP_INT1 =
     "        if (cgtest_lhs_ fail_op cgtest_rhs_) { \\\n";
 
 static const char *const CGTEST_H_TEMPLATE_CMP_INT2 =
-    "            fprintf(stderr, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
+    "            fprintf(stdout, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
     "                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \\\n"
-    "            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_); \\\n"
+    "            fprintf(stdout, fmt, cgtest_lhs_, cgtest_rhs_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            on_fail; \\\n"
     "        } \\\n"
@@ -250,9 +250,9 @@ static const char *const CGTEST_H_TEMPLATE_CMP_UINT1 =
     "        if (cgtest_lhs_ fail_op cgtest_rhs_) { \\\n";
 
 static const char *const CGTEST_H_TEMPLATE_CMP_UINT2 =
-    "            fprintf(stderr, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
+    "            fprintf(stdout, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
     "                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \\\n"
-    "            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_); \\\n"
+    "            fprintf(stdout, fmt, cgtest_lhs_, cgtest_rhs_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            on_fail; \\\n"
     "        } \\\n"
@@ -310,9 +310,9 @@ static const char *const CGTEST_H_TEMPLATE_CMP_FLOAT3 =
     "        if (cgtest_diff_ fail_op cgtest_tol_) { \\\n";
 
 static const char *const CGTEST_H_TEMPLATE_CMP_FLOAT4 =
-    "            fprintf(stderr, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
+    "            fprintf(stdout, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
     "                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \\\n"
-    "            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_, cgtest_diff_, cgtest_tol_); \\\n"
+    "            fprintf(stdout, fmt, cgtest_lhs_, cgtest_rhs_, cgtest_diff_, cgtest_tol_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            on_fail; \\\n"
     "        } \\\n"
@@ -353,9 +353,9 @@ static const char *const CGTEST_H_TEMPLATE_CMP_DOUBLE3 =
     "        if (cgtest_diff_ fail_op cgtest_tol_) { \\\n";
 
 static const char *const CGTEST_H_TEMPLATE_CMP_DOUBLE4 =
-    "            fprintf(stderr, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
+    "            fprintf(stdout, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
     "                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \\\n"
-    "            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_, cgtest_diff_, cgtest_tol_); \\\n"
+    "            fprintf(stdout, fmt, cgtest_lhs_, cgtest_rhs_, cgtest_diff_, cgtest_tol_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            on_fail; \\\n"
     "        } \\\n"
@@ -397,9 +397,9 @@ static const char *const CGTEST_H_TEMPLATE_NEAR_DOUBLE1 =
     "        if (cgtest_diff_ > cgtest_tol_) { \\\n";
 
 static const char *const CGTEST_H_TEMPLATE_NEAR_DOUBLE2 =
-    "            fprintf(stderr, \"%s:%d: FAIL: \" macro_name \"(%s, %s, %s)\\n\", \\\n"
+    "            fprintf(stdout, \"%s:%d: FAIL: \" macro_name \"(%s, %s, %s)\\n\", \\\n"
     "                    cgtest_relpath(__FILE__), __LINE__, #expected, #actual, #abs_error); \\\n"
-    "            fprintf(stderr, \"  expected: %g\\n  actual:   %g\\n  diff:     %g (max allowed: %g)\\n\", \\\n"
+    "            fprintf(stdout, \"  expected: %g\\n  actual:   %g\\n  diff:     %g (max allowed: %g)\\n\", \\\n"
     "                    cgtest_exp_, cgtest_act_, cgtest_diff_, cgtest_tol_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            on_fail; \\\n"
@@ -437,9 +437,9 @@ static const char *const CGTEST_H_TEMPLATE_CMP_FLOAT_ORD1 =
     "        if (cgtest_lhs_ fail_op cgtest_rhs_) { \\\n";
 
 static const char *const CGTEST_H_TEMPLATE_CMP_FLOAT_ORD2 =
-    "            fprintf(stderr, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
+    "            fprintf(stdout, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
     "                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \\\n"
-    "            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_); \\\n"
+    "            fprintf(stdout, fmt, cgtest_lhs_, cgtest_rhs_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            on_fail; \\\n"
     "        } \\\n"
@@ -454,9 +454,9 @@ static const char *const CGTEST_H_TEMPLATE_CMP_DOUBLE_ORD1 =
     "        if (cgtest_lhs_ fail_op cgtest_rhs_) { \\\n";
 
 static const char *const CGTEST_H_TEMPLATE_CMP_DOUBLE_ORD2 =
-    "            fprintf(stderr, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
+    "            fprintf(stdout, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
     "                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \\\n"
-    "            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_); \\\n"
+    "            fprintf(stdout, fmt, cgtest_lhs_, cgtest_rhs_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            on_fail; \\\n"
     "        } \\\n"
@@ -599,9 +599,9 @@ static const char *const CGTEST_H_TEMPLATE_CMP_PTR1 =
     "        if (cgtest_lhs_ fail_op cgtest_rhs_) { \\\n";
 
 static const char *const CGTEST_H_TEMPLATE_CMP_PTR2 =
-    "            fprintf(stderr, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
+    "            fprintf(stdout, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
     "                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \\\n"
-    "            fprintf(stderr, fmt, cgtest_lhs_, cgtest_rhs_); \\\n"
+    "            fprintf(stdout, fmt, cgtest_lhs_, cgtest_rhs_); \\\n"
     "            cgtest_failed = 1; \\\n"
     "            on_fail; \\\n"
     "        } \\\n"
@@ -638,7 +638,7 @@ static const char *const CGTEST_H_TEMPLATE_CMP_STR1 =
     "        if (strcmp(cgtest_lhs_, cgtest_rhs_) fail_op 0) { \\\n";
 
 static const char *const CGTEST_H_TEMPLATE_CMP_STR2 =
-    "            fprintf(stderr, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
+    "            fprintf(stdout, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
     "                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \\\n"
     "            cgtest_print_str_field(lhs_label, cgtest_lhs_); \\\n"
     "            cgtest_print_str_field(rhs_label, cgtest_rhs_); \\\n"
@@ -682,7 +682,7 @@ static const char *const CGTEST_H_TEMPLATE_CMP_STR_NOCASE1 =
     "        if (cgtest_strcasecmp(cgtest_lhs_, cgtest_rhs_) fail_op 0) { \\\n";
 
 static const char *const CGTEST_H_TEMPLATE_CMP_STR_NOCASE2 =
-    "            fprintf(stderr, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
+    "            fprintf(stdout, \"%s:%d: FAIL: \" macro_name \"(%s, %s)\\n\", \\\n"
     "                    cgtest_relpath(__FILE__), __LINE__, #lhs, #rhs); \\\n"
     "            cgtest_print_str_field(lhs_label, cgtest_lhs_); \\\n"
     "            cgtest_print_str_field(rhs_label, cgtest_rhs_); \\\n"

@@ -238,41 +238,41 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
             "\n"
             "    for (;;) {\n"
             "        if (first) {\n"
-            "            fprintf(stderr, \"%s\\\"\", prefix);\n"
+            "            fprintf(stdout, \"%s\\\"\", prefix);\n"
             "            first = 0;\n"
             "        } else {\n"
             "            for (i = 0; i < indent; i++) {\n"
-            "                fputc(' ', stderr);\n"
+            "                fputc(' ', stdout);\n"
             "            }\n"
-            "            fputc('\"', stderr);\n"
+            "            fputc('\"', stdout);\n"
             "        }\n"
             "\n") ||
         !cgtest_runner_buf_append_cstr(&buf,
             "        for (;;) {\n"
             "            c = (unsigned char)*s;\n"
             "            if (c == '\\0') {\n"
-            "                fputs(\"\\\"\\n\", stderr);\n"
+            "                fputs(\"\\\"\\n\", stdout);\n"
             "                return;\n"
             "            }\n"
             "            if (c == '\\n') {\n"
-            "                fputs(\"\\\\n\\\"\\n\", stderr);\n"
+            "                fputs(\"\\\\n\\\"\\n\", stdout);\n"
             "                s++;\n"
             "                break;\n"
             "            }\n"
             "            switch (c) {\n"
-            "                case '\\r': fputs(\"\\\\r\", stderr); break;\n"
-            "                case '\\t': fputs(\"\\\\t\", stderr); break;\n") ||
+            "                case '\\r': fputs(\"\\\\r\", stdout); break;\n"
+            "                case '\\t': fputs(\"\\\\t\", stdout); break;\n") ||
         !cgtest_runner_buf_append_cstr(&buf,
-            "                case '\\a': fputs(\"\\\\a\", stderr); break;\n"
-            "                case '\\b': fputs(\"\\\\b\", stderr); break;\n"
-            "                case '\\v': fputs(\"\\\\v\", stderr); break;\n"
-            "                case '\\f': fputs(\"\\\\f\", stderr); break;\n") ||
+            "                case '\\a': fputs(\"\\\\a\", stdout); break;\n"
+            "                case '\\b': fputs(\"\\\\b\", stdout); break;\n"
+            "                case '\\v': fputs(\"\\\\v\", stdout); break;\n"
+            "                case '\\f': fputs(\"\\\\f\", stdout); break;\n") ||
         !cgtest_runner_buf_append_cstr(&buf,
             "                default:\n"
             "                    if (c < 0x20 || c >= 0x7f) {\n"
-            "                        fprintf(stderr, \"\\\\x%02x\", (unsigned int)c);\n"
+            "                        fprintf(stdout, \"\\\\x%02x\", (unsigned int)c);\n"
             "                    } else {\n"
-            "                        fputc((int)c, stderr);\n"
+            "                        fputc((int)c, stdout);\n"
             "                    }\n"
             "                    break;\n"
             "            }\n"
@@ -480,11 +480,11 @@ char *cgtest_runner_generate_source(const CGTestRunnerFile *files, size_t file_c
             "\n"
             /* Without this, stdout is fully block-buffered whenever it
              * isn't a tty (piped, redirected, or captured by an
-             * editor's :make) - every printf() below would then sit
-             * buffered until exit while stderr's FAIL: lines (from
-             * EXPECT_TRUE/EXPECT_FALSE/ASSERT_TRUE/ASSERT_FALSE)
-             * appear immediately, making failures print out of
-             * chronological order.
+             * editor's :make), so progress would only show up at exit.
+             * Ordering doesn't depend on it: the whole report, FAIL:
+             * lines from cgtest.h included, goes to stdout - Windows'
+             * CRT treats _IOLBF as full buffering, so a second stream
+             * (stderr) used to print failures out of order there.
              *
              * The size argument must be nonzero: MSVC's CRT treats
              * setvbuf(..., 0) as an invalid parameter and fast-fails the

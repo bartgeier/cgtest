@@ -24,6 +24,8 @@ C compiler
 test runner
 ```
 
+One test in `examples/mathlib` fails on purpose (`test_math_sub_intentional_failure`) to show what a failure looks like, so this run ends with `75/76 tests passed` and exit code 1.
+
 There are no C++ templates, no virtual dispatch, and no external dependencies in the generated runner. The generated runner consists entirely of ordinary C89 structs and functions that can be compiled directly by a C89 compiler.
 
 This is particularly relevant to my “compile everything at once” workflow. GoogleTest is a powerful C++ testing framework with features such as fixtures and matchers, but its implementation relies heavily on C++ language facilities. A translation unit that includes `gtest.h` therefore brings a substantial amount of framework machinery into the compilation.

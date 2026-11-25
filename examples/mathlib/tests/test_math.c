@@ -20,6 +20,12 @@ void test_math_sub(void)
     EXPECT_EQ_INT(-7, mathlib_sub(0, 7));
 }
 
+/* Fails on purpose: shows what a failing test looks like. */
+void test_math_sub_intentional_failure(void)
+{
+    EXPECT_EQ_INT(2, mathlib_sub(5, 4));
+}
+
 void test_math_div(void)
 {
     int divisor = 3;
